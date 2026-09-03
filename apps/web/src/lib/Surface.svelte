@@ -11,15 +11,13 @@
     type Stroke,
     type Tool
   } from './ink';
-  import {
-    announce,
-    commit,
-    onChildAdded,
-    onChildRemoved,
-    onValue,
-    publishLive,
-    type Room
-  } from './room';
+  import { commit, onSnapshot, orderBy, publishLive, query, type Room } from './room';
+
+  /** Firestore charges per write, so an in-progress stroke is only broadcast once it has
+   *  run long enough to be worth watching, and then at a human frame rate. Handwriting
+   *  strokes are shorter than this and cost exactly one write each, on release. */
+  const LIVE_AFTER_MS = 400;
+  const LIVE_EVERY_MS = 250;
 
   let {
     room,
@@ -45,12 +43,16 @@
   let order = $state<string[]>([]);
   const byKey = new Map<string, Stroke>();
   let live = $state<Stroke | null>(null);
+  /** A listener that dies must say so — a silent one looks exactly like an empty board. */
+  let fault = $state('');
 
   // local drawing state
   let drawing = false;
   let pts: Pt[] = [];
   let penSeen = 0;
   let lastPublish = 0;
+  let startedAt = 0;
+  let publishedLive = false;
 
   function paint() {
     if (!ctx || !canvas) return;
@@ -75,25 +77,28 @@
     const ro = new ResizeObserver(fit);
     if (host) ro.observe(host);
 
-    const offAdd = onChildAdded(room.strokes, (snap) => {
-      byKey.set(snap.key!, snap.val() as Stroke);
-      order = [...order, snap.key!];
+    const offAdd = onSnapshot(query(room.strokes, orderBy('n')), (snap) => {
+      for (const ch of snap.docChanges()) {
+        if (ch.type === 'removed') byKey.delete(ch.doc.id);
+        else byKey.set(ch.doc.id, ch.doc.data() as Stroke);
+      }
+      order = snap.docs.map((d) => d.id);
+      fault = '';
       paint();
       onstrokes?.(order, canvas!);
+    }, (e) => {
+      fault = e.code || e.message;
+      console.error('[pad] strokes listener failed', e);
     });
-    const offDel = onChildRemoved(room.strokes, (snap) => {
-      byKey.delete(snap.key!);
-      order = order.filter((k) => k !== snap.key);
-      paint();
-      onstrokes?.(order, canvas!);
-    });
-    const offLive = onValue(room.live, (snap) => {
+    const offLive = onSnapshot(room.live, (snap) => {
       // ignore the echo of our own in-progress stroke
       if (drawing) return;
-      live = (snap.val() as Stroke) ?? null;
+      live = snap.exists() ? (snap.data() as Stroke) : null;
       paint();
+    }, (e) => {
+      fault = e.code || e.message;
+      console.error('[pad] live listener failed', e);
     });
-    announce(room, readonly ? 'board' : 'pad');
 
     const onTheme = () => paint();
     const mq = matchMedia('(prefers-color-scheme: dark)');
@@ -102,7 +107,6 @@
     return () => {
       ro.disconnect();
       offAdd();
-      offDel();
       offLive();
       mq.removeEventListener('change', onTheme);
     };
@@ -131,6 +135,8 @@
     e.preventDefault();
     canvas!.setPointerCapture(e.pointerId);
     drawing = true;
+    startedAt = performance.now();
+    publishedLive = false;
     pts = [at(e)];
     live = { t: tool, c: pen, w: size, p: pack(pts) };
     paint();
@@ -145,8 +151,9 @@
     live = { t: tool, c: pen, w: size, p: pack(pts) };
     paint();
     const now = performance.now();
-    if (now - lastPublish > 60) {
+    if (now - startedAt > LIVE_AFTER_MS && now - lastPublish > LIVE_EVERY_MS) {
       lastPublish = now;
+      publishedLive = true;
       publishLive(room, { ...live, p: pack(decimate(pts)) });
     }
   }
@@ -158,7 +165,8 @@
     const s: Stroke = { t: tool, c: pen, w: size, p: pack(decimate(pts)) };
     pts = [];
     live = null;
-    publishLive(room, null);
+    // only clear the live doc if we ever wrote one — saves a delete per short stroke
+    if (publishedLive) publishLive(room, null);
     if (s.p) commit(room, s);
     paint();
   }
@@ -195,7 +203,9 @@
     onpointercancel={up}
     onpointerleave={up}
   ></canvas>
-  {#if readonly && order.length === 0 && !live}
+  {#if fault}
+    <p class="empty fault">אין חיבור לבסיס הנתונים ({fault}). בדוק רשת או חוסם פרסומות.</p>
+  {:else if readonly && order.length === 0 && !live}
     <p class="empty">אין עדיין כלום. פתח את הכתובת הזאת בטאבלט והתחל לכתוב.</p>
   {/if}
 </div>
@@ -223,6 +233,9 @@
   }
   canvas.readonly {
     cursor: default;
+  }
+  .empty.fault {
+    color: var(--danger);
   }
   .empty {
     position: absolute;

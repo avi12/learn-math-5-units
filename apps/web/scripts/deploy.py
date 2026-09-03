@@ -20,7 +20,6 @@ ROOT = Path(__file__).resolve().parent.parent
 PROJECT = "avi-math-study"
 SITE = "avi-math-study"
 ACCOUNT = "you@example.com"
-DB = "https://avi-math-study-default-rtdb.europe-west1.firebasedatabase.app"
 DIST = ROOT / "dist"
 
 
@@ -88,6 +87,24 @@ def rest_config():
     }
 
 
+def push_rules(tok):
+    """Firestore rules go through the Rules API: upload a ruleset, then point the
+    cloud.firestore release at it. The release exists after the first deploy, so try
+    to update it and fall back to creating it."""
+    src = (ROOT / "firestore.rules").read_text(encoding="utf-8")
+    rs = call("POST", f"https://firebaserules.googleapis.com/v1/projects/{PROJECT}/rulesets",
+              tok, body={"source": {"files": [{"name": "firestore.rules", "content": src}]}})
+    name = rs["name"]
+    rel = f"projects/{PROJECT}/releases/cloud.firestore"
+    body = {"release": {"name": rel, "rulesetName": name}}
+    try:
+        call("PATCH", f"https://firebaserules.googleapis.com/v1/{rel}", tok, body=body)
+    except SystemExit:
+        call("POST", f"https://firebaserules.googleapis.com/v1/projects/{PROJECT}/releases",
+             tok, body={"name": rel, "rulesetName": name})
+    print("firestore rules released:", name.rsplit("/", 1)[-1][:12])
+
+
 def main():
     if not DIST.exists():
         raise SystemExit("dist/ is missing — run `npm run build` first")
@@ -115,9 +132,7 @@ def main():
     call("POST", f"https://firebasehosting.googleapis.com/v1beta1/sites/{SITE}/releases?versionName={vname}",
          tok, body={})
 
-    rules = (ROOT / "database.rules.json").read_bytes()
-    call("PUT", f"{DB}/.settings/rules.json", tok, raw=rules)
-    print("database rules pushed")
+    push_rules(tok)
 
     print(f"\nlive: https://{SITE}.web.app")
 

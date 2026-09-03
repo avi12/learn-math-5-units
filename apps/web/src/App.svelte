@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import QRCode from 'qrcode';
   import Surface from './lib/Surface.svelte';
-  import { clearAll, newRoom, remove, room as makeRoom, roomId, undoRef } from './lib/room';
+  import { clearAll, deleteDoc, newRoom, room as makeRoom, roomId, strokeRef } from './lib/room';
   import type { Pen, Tool } from './lib/ink';
 
   const id = roomId();
@@ -50,7 +50,7 @@
   function undoLast() {
     const k = surface?.keys() ?? [];
     if (!k.length) return say('אין מה לבטל');
-    void remove(undoRef(id, k[k.length - 1]));
+    void deleteDoc(strokeRef(id, k[k.length - 1]));
   }
 
   async function copyPng() {
@@ -130,7 +130,7 @@
     <div class="tools">
       <div class="group">
         <button class="btn" onclick={undoLast}>בטל אחרון</button>
-        <button class="btn" onclick={() => confirm('למחוק הכול?') && clearAll(id)}>נקה</button>
+        <button class="btn" onclick={() => confirm('למחוק הכול?') && void clearAll(id)}>נקה</button>
       </div>
       <div class="group">
         <button class="btn" data-variant="primary" onclick={copyPng}>העתק כתמונה</button>
