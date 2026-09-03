@@ -2,3 +2,5 @@ node_modules/
 dist/
 .firebase/
 probe*.mjs
+worker/.dev.vars
+.dev.vars

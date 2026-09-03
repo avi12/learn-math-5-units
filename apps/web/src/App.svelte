@@ -22,7 +22,9 @@
   let tool = $state<Tool>('ink');
   let pen = $state<Pen>('ink');
   let size = $state(6);
-  let surface = $state<{ keys(): string[]; exportCanvas(): HTMLCanvasElement }>();
+  let surface = $state<{ keys(): string[]; exportCanvas(w?: number): HTMLCanvasElement }>();
+  /** identifies the current drawing, so recognition re-runs only on real change */
+  let strokeKey = $state('');
   let toast = $state('');
   let qr = $state('');
   let formula = $state<{ value(): string }>();
@@ -113,7 +115,15 @@
   </header>
 
   <main>
-    <Surface bind:this={surface} {room} readonly={role === 'board'} {tool} {pen} {size} />
+    <Surface
+      bind:this={surface}
+      {room}
+      readonly={role === 'board'}
+      {tool}
+      {pen}
+      {size}
+      onstrokes={(keys) => (strokeKey = keys.join(','))}
+    />
 
     {#if role === 'pad'}
       <div class="tools">
@@ -154,10 +164,16 @@
       </button>
       {#if showTex}
         <p class="note">
-          זו לא זיהוי כתב יד — זה עורך נוסחאות עם מקלדת מתמטית לטאבלט. מה שנכתב כאן הוא
-          LaTeX מדויק מעצם הבנייה, בלי מפתח, בלי שרת ובלי עלות. הקנבס נשאר למחשבה ולציור.
+          השורה קוראת את הקנבס וממירה ל-LaTeX, ומריצה שוב בכל פעם שהכתב משתנה. התוצאה
+          נשארת ניתנת לעריכה, כי זיהוי אף פעם לא מושלם ולתקן סימן אחד עדיף על להקליד הכול.
         </p>
-        <Formula bind:this={formula} roomId={id} readonly={role === 'board'} />
+        <Formula
+          bind:this={formula}
+          roomId={id}
+          readonly={role === 'board'}
+          {strokeKey}
+          getCanvas={(w) => surface?.exportCanvas(w)}
+        />
         <div class="group">
           <button class="btn" data-variant="primary" onclick={copyTex}>העתק LaTeX</button>
         </div>

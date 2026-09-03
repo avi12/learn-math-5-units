@@ -1,0 +1,7 @@
+name = "avi-math-ocr"
+main = "ocr.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+# ANTHROPIC_API_KEY is a secret, never a var:
+#   wrangler secret put ANTHROPIC_API_KEY

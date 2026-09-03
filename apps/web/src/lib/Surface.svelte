@@ -171,8 +171,7 @@
     paint();
   }
 
-  export function exportCanvas(): HTMLCanvasElement {
-    const w = 1800;
+  export function exportCanvas(w = 1800): HTMLCanvasElement {
     const out = document.createElement('canvas');
     out.width = w;
     out.height = Math.round(w / ASPECT);
