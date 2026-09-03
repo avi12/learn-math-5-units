@@ -261,12 +261,21 @@
     color: var(--on-primary);
     box-shadow: var(--cyber-glow-primary);
   }
+  /* The swatch has to read on ANY button background. When a pen button is active the
+     button fills with --primary, which in the light palette is the same ink navy as the
+     "דיו" pen itself — so the chip was invisible exactly on the selected pen. Sitting it
+     on a --surface plate with a --border ring makes it independent of the button state
+     and of the theme. */
   .swatch::before {
     content: '';
-    width: 12px;
-    height: 12px;
-    border: 1px solid var(--border);
+    width: 13px;
+    height: 13px;
+    flex: none;
     background: var(--swatch);
+    box-shadow:
+      0 0 0 2px var(--surface),
+      0 0 0 3px var(--border);
+    margin-inline-end: 3px;
   }
   .swatch[data-pen='ink'] {
     --swatch: var(--fg);
