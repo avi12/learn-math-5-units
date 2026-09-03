@@ -1,0 +1,56 @@
+/* App layer on top of the vendored cyberpunk tokens.
+   Hebrew: Chakra Petch and Share Tech Mono have no Hebrew glyphs, so a Hebrew face
+   follows each of them in the stack — same pairing as the study pages. */
+
+:root {
+  --font-sans: 'Chakra Petch', 'Heebo', 'Assistant', system-ui, sans-serif;
+  --font-mono: 'Share Tech Mono', 'Miriam Libre', 'Cousine', ui-monospace, monospace;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  font: var(--t-body-l);
+  font-family: var(--font-sans);
+}
+
+button {
+  font-family: inherit;
+}
+
+/* The sheet ships .btn/.card/.card-head; only the RTL corrections live here. */
+.card-head {
+  background: linear-gradient(var(--cyber-stripe), var(--cyber-stripe)) bottom right / 44px 4px
+    no-repeat;
+}
+
+.card {
+  padding: var(--s-5);
+}
+
+.btn:focus-visible,
+canvas:focus-visible {
+  outline: 2px solid var(--border-strong);
+  outline-offset: 3px;
+}
+
+code {
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+}
+
+h1,
+h2 {
+  text-transform: uppercase;
+}
+
+/* Tablet: the canvas should own the screen, and the controls need thumb-sized targets. */
+@media (max-width: 820px) {
+  .btn {
+    min-height: 44px;
+    padding: 0 var(--s-4);
+  }
+}
