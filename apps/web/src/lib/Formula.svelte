@@ -10,7 +10,7 @@
    * and you type the formula yourself. */
   import { onMount } from 'svelte';
   import { latexRef, onSnapshot, setDoc } from './room';
-  import { configured, endpoint, setEndpoint, toLatex } from './recognise';
+  import { apiKey, configured, setApiKey, toLatex } from './recognise';
 
   let {
     roomId,
@@ -31,7 +31,7 @@
   let latex = $state('');
   let ready = $state(false);
   let status = $state<'idle' | 'reading' | 'error' | 'off'>(configured() ? 'idle' : 'off');
-  let urlDraft = $state(endpoint());
+  let keyDraft = $state(apiKey());
   let detail = $state('');
   let echo = false;
 
@@ -145,17 +145,28 @@
 
   {#if status === 'off' && !readonly}
     <div class="setup">
-      <label for="ocr-url">כתובת מנוע הזיהוי (Cloudflare Worker)</label>
+      <label for="ocr-key">מפתח Anthropic API</label>
       <div class="row">
-        <input id="ocr-url" dir="ltr" placeholder="https://avi-math-ocr.<subdomain>.workers.dev" bind:value={urlDraft} />
+        <input
+          id="ocr-key"
+          type="password"
+          dir="ltr"
+          autocomplete="off"
+          placeholder="sk-ant-..."
+          bind:value={keyDraft}
+        />
         <button
           class="btn"
           onclick={() => {
-            setEndpoint(urlDraft);
+            setApiKey(keyDraft);
             status = configured() ? 'idle' : 'off';
-            if (configured()) void recognise(strokeKey);
+            if (configured()) void recognise(strokeKey, true);
           }}>שמור</button>
       </div>
+      <p class="fine">
+        נשמר ב־localStorage של הדפדפן הזה בלבד — לא בקוד, לא בגיט, ולא נשלח לשום מקום חוץ
+        מ־api.anthropic.com. אם תעדיף שהמפתח לא יישב על המכשיר, יש פרוקסי מוכן ב־<code>worker/ocr.js</code>.
+      </p>
     </div>
   {/if}
 
@@ -201,6 +212,13 @@
     border: 2px solid var(--border);
     border-inline-start: 6px solid var(--warn);
     background: var(--surface-2);
+  }
+  .setup .fine {
+    margin: 2px 0 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.55;
+    color: var(--fg-subtle);
   }
   .setup label {
     font-family: var(--font-mono);
