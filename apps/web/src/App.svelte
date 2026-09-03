@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import QRCode from 'qrcode';
   import Surface from './lib/Surface.svelte';
+  import Formula from './lib/Formula.svelte';
   import { clearAll, deleteDoc, newRoom, room as makeRoom, roomId, strokeRef } from './lib/room';
   import type { Pen, Tool } from './lib/ink';
 
@@ -24,6 +25,8 @@
   let surface = $state<{ keys(): string[]; exportCanvas(): HTMLCanvasElement }>();
   let toast = $state('');
   let qr = $state('');
+  let formula = $state<{ value(): string }>();
+  let showTex = $state(false);
 
   const TOOLS: [Tool, string][] = [
     ['ink', 'עט'],
@@ -79,6 +82,13 @@
     a.download = `math-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
     a.click();
     URL.revokeObjectURL(a.href);
+  }
+
+  async function copyTex() {
+    const tex = formula?.value() ?? '';
+    if (!tex.trim()) return say('אין עדיין נוסחה');
+    await navigator.clipboard.writeText(tex);
+    say('ה-LaTeX הועתק');
   }
 
   async function copyLink() {
@@ -138,6 +148,22 @@
       </div>
     </div>
 
+    <section class="tex-pane">
+      <button class="btn wide" onclick={() => (showTex = !showTex)} aria-expanded={showTex}>
+        {showTex ? 'סגור את שורת הנוסחה' : 'נוסחה ב-LaTeX'}
+      </button>
+      {#if showTex}
+        <p class="note">
+          זו לא זיהוי כתב יד — זה עורך נוסחאות עם מקלדת מתמטית לטאבלט. מה שנכתב כאן הוא
+          LaTeX מדויק מעצם הבנייה, בלי מפתח, בלי שרת ובלי עלות. הקנבס נשאר למחשבה ולציור.
+        </p>
+        <Formula bind:this={formula} roomId={id} readonly={role === 'board'} />
+        <div class="group">
+          <button class="btn" data-variant="primary" onclick={copyTex}>העתק LaTeX</button>
+        </div>
+      {/if}
+    </section>
+
     <section class="pair">
       <div class="card">
         <h2 class="card-head">חיבור הטאבלט</h2>
@@ -167,8 +193,9 @@
           <li><b>העתק כתמונה</b> ואז מדביקים ישירות בשיחה עם קלוד או שולחים למורה.</li>
         </ol>
         <p class="note dim">
-          אין כאן המרה ל־LaTeX בכוונה: קלוד קורא כתב יד מתמטי ישירות מהתמונה, וזה חוסך
-          מפתח API, שרת ותוכנית בתשלום. אם בהמשך תרצה LaTeX למורה פרטי — זה קובץ אחד להוסיף.
+          שתי דרכים, לפי מה שאתה צריך: <b>תמונה</b> לכתב יד וצורות — קלוד קורא אותה ישירות.
+          <b>LaTeX</b> לנוסחה שצריכה להיות מדויקת, למשל לשלוח למורה בהודעה. אין כאן זיהוי
+          כתב יד: בשורת הנוסחה אתה מקליד במקלדת מתמטית, ולכן ה־LaTeX נכון תמיד.
         </p>
       </div>
     </section>
@@ -288,6 +315,14 @@
   }
   .swatch[data-pen='danger'] {
     --swatch: var(--danger);
+  }
+  .tex-pane {
+    display: grid;
+    gap: 12px;
+    margin-top: 22px;
+  }
+  .btn.wide {
+    justify-content: center;
   }
   .pair {
     display: grid;

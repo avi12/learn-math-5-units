@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "firebase": "^12.18.0",
+    "mathlive": "^0.110.0",
     "qrcode": "^1.5.4"
   },
   "description": "Handwriting pad for maths: draw on the tablet, watch on the desktop, copy as an image."

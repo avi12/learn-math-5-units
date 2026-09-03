@@ -97,6 +97,10 @@ export function publishLive(r: Room, s: Stroke | null): void {
   void (s ? setDoc(r.live, s) : deleteDoc(r.live).catch(() => {}));
 }
 
+export function latexRef(id: string): DocumentReference {
+  return doc(db, 'rooms', id, 'latex', 'current');
+}
+
 export function strokeRef(id: string, key: string): DocumentReference {
   return doc(db, 'rooms', id, 'strokes', key);
 }
@@ -112,4 +116,4 @@ export async function clearAll(id: string): Promise<void> {
   await deleteDoc(doc(db, 'rooms', id, 'live', 'current')).catch(() => {});
 }
 
-export { deleteDoc, onSnapshot, orderBy, query, db };
+export { deleteDoc, onSnapshot, orderBy, query, setDoc, db };
