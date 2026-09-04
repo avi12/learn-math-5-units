@@ -71,6 +71,30 @@ function width(base: number, pressure: number, w: number): number {
   return (base * (0.45 + 1.15 * pr) * w) / 1000;
 }
 
+/** Half the nib at mid pressure, in normalised units — how far the ink reaches past the
+ *  path, which is the centre of the nib and not its edge.
+ *
+ *  It is derived from width() rather than written out, because it was written out: both
+ *  callers below carried `(s.w * 1.025) / 2000`, and 1.025 is not a constant — it is
+ *  this function's own pressure curve evaluated at 0.5. Tuning the curve would have left
+ *  hit-testing and bounding boxes measuring a nib nobody draws with, and nothing would
+ *  have said so. */
+function half(base: number): number {
+  return width(base, 0.5, 1) / 2;
+}
+
+/** A shape stroke stores two corners; the ellipse it draws is the one inscribed in them.
+ *  The renderer and the hit test both need that, and deriving it twice is how the eraser
+ *  ends up testing a shape nobody drew. */
+function ellipseOf(a: Pt, b: Pt): { cx: number; cy: number; rx: number; ry: number } {
+  return {
+    cx: (a.x + b.x) / 2,
+    cy: (a.y + b.y) / 2,
+    rx: Math.abs(b.x - a.x) / 2,
+    ry: Math.abs(b.y - a.y) / 2
+  };
+}
+
 export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number): void {
   const pts = unpack(s.p);
   if (!pts.length) return;
@@ -108,9 +132,8 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number):
     } else if (s.t === 'rect') {
       ctx.rect(X(a.x), Y(a.y), X(b.x - a.x), Y(b.y - a.y));
     } else if (s.t === 'ellipse') {
-      const cx = (a.x + b.x) / 2;
-      const cy = (a.y + b.y) / 2;
-      ctx.ellipse(X(cx), Y(cy), Math.abs(X(b.x - a.x)) / 2, Math.abs(Y(b.y - a.y)) / 2, 0, 0, 7);
+      const { cx, cy, rx, ry } = ellipseOf(a, b);
+      ctx.ellipse(X(cx), Y(cy), X(rx), Y(ry), 0, 0, 7);
     }
     ctx.stroke();
   }
@@ -130,10 +153,7 @@ function outline(s: Stroke): Pt[] {
   if (s.t === 'line') return [a, b];
   if (s.t === 'rect')
     return [a, { ...a, x: b.x }, b, { ...a, y: b.y }, a];
-  const cx = (a.x + b.x) / 2;
-  const cy = (a.y + b.y) / 2;
-  const rx = Math.abs(b.x - a.x) / 2;
-  const ry = Math.abs(b.y - a.y) / 2;
+  const { cx, cy, rx, ry } = ellipseOf(a, b);
   return Array.from({ length: 33 }, (_, i) => {
     const t = (i / 32) * Math.PI * 2;
     return { x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t), pr: 0.5 };
@@ -158,7 +178,7 @@ function toSegment(px: number, py: number, a: Pt, b: Pt): number {
 export function hits(s: Stroke, x: number, y: number, r: number): boolean {
   const pts = outline(s);
   if (!pts.length) return false;
-  const reach = r + (s.w * 1.025) / 2000;
+  const reach = r + half(s.w);
   if (pts.length === 1) return Math.hypot(x - pts[0].x, y - pts[0].y) <= reach;
   for (let i = 1; i < pts.length; i++) {
     if (toSegment(x, y, pts[i - 1], pts[i]) <= reach) return true;
@@ -180,8 +200,8 @@ function box(s: Stroke): Box | null {
     if (q.y > y1) y1 = q.y;
   }
   // the path is the centre of the nib, so the ink reaches half a line width past it
-  const half = (s.w * 1.025) / 2000;
-  return { x0: x0 - half, x1: x1 + half, y0: y0 - half, y1: y1 + half };
+  const h = half(s.w);
+  return { x0: x0 - h, x1: x1 + h, y0: y0 - h, y1: y1 + h };
 }
 
 /** A long FLAT stroke — a fraction bar, the vinculum of a root.
