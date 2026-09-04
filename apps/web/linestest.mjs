@@ -103,6 +103,29 @@ check(
   [7, 2]
 );
 
+// A continued fraction is the case that needs the merge loop to run to exhaustion: every
+// bar bridges to the numeral above and the one below, so a stack of n bars needs 2n
+// merges. The loop used to be bounded by `pass < groups.length`, which shrinks as it
+// merges — it stopped after about half of them, and from two bars down the stack came
+// apart and the model was handed a bare horizontal line. One stroke per row here, gaps
+// wide enough that the first grouping pass leaves them separate.
+{
+  const fraction = (bars) => {
+    const out = [];
+    let y = 0.05;
+    for (let i = 0; i < bars; i++) {
+      out.push(box(0.3, y, 0.4, y + 0.02)); // numeral
+      out.push(box(0.28, y + 0.04, 0.46, y + 0.042)); // the bar under it
+      y += 0.062;
+    }
+    out.push(box(0.3, y, 0.4, y + 0.02)); // the last denominator
+    return out;
+  };
+  for (const bars of [2, 3, 5]) {
+    check(`a fraction ${bars} bars deep stays one line`, fraction(bars), [2 * bars + 1]);
+  }
+}
+
 // The vertical stroke is put back where it belongs, not dropped and not left alone.
 check(
   'a vertical stroke rejoins the line it sits on',

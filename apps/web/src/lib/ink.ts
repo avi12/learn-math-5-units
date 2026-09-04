@@ -334,7 +334,13 @@ export function lines(strokes: Stroke[]): Stroke[][] {
   // second equation unread - quiet, and the first answer is still right. Splitting a
   // fraction feeds the model a bare horizontal line, and it answers with hallucinated
   // prose from the papers it was trained on. Being slow to split is the safe direction.
-  for (let pass = 0; pass < groups.length; pass++) {
+  // Loop until nothing merges, and not for a fixed number of passes: `groups.length`
+  // shrinks by one on every merge while a pass counter grows, so a bound of
+  // `pass < groups.length` stopped after about half the merges a deep stack needs. A
+  // continued fraction — numeral, bar, numeral, bar — came apart from two bars down.
+  // `merged` is the real termination condition and always was; each turn either removes
+  // a group or breaks, so this cannot run away.
+  for (;;) {
     let merged = false;
     for (let i = 0; i + 1 < groups.length; i++) {
       const a = groups[i];
