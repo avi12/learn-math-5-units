@@ -84,8 +84,20 @@ async function run() {
 
   const box = await composer();
   if (!box) {
-    await navigator.clipboard.writeText(job.prompt).catch(() => {});
-    banner('לא מצאתי את תיבת ההודעה. הפרומפט הועתק — הדבק ידנית.', 'bad');
+    // The banner must report what actually happened. `writeText` needs a focused
+    // document, and by the time the 15s timeout fires the tab may well be in the
+    // background — the write is then refused. Telling someone to paste something that
+    // is not on the clipboard is worse than telling them the whole thing failed.
+    const copied = await navigator.clipboard
+      .writeText(job.prompt)
+      .then(() => true)
+      .catch(() => false);
+    banner(
+      copied
+        ? 'לא מצאתי את תיבת ההודעה. הפרומפט הועתק — הדבק ידנית.'
+        : 'לא מצאתי את תיבת ההודעה, וההעתקה נדחתה. חזור ללוח ולחץ שוב.',
+      'bad'
+    );
     return;
   }
 
@@ -101,4 +113,7 @@ async function run() {
   banner(`מוכן לבדיקה — ${job.topic || 'הלוח'}. עבור עליו ושלח.`, 'ok');
 }
 
-void run();
+// Nothing above is allowed to fail in silence: a throw between finding the composer and
+// the banner would otherwise leave the page looking untouched, which is the one outcome
+// this file is written to avoid.
+void run().catch(() => banner('הבדיקה נכשלה בדרך. חזור ללוח ולחץ שוב.', 'bad'));

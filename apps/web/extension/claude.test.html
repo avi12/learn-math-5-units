@@ -25,7 +25,7 @@
 <div id="out">רץ…</div>
 
 <script>
-  const seen = { image: null, text: null, sends: 0 };
+  const seen = { image: null, text: null, sends: 0, sent: false };
 
   // A 1x1 PNG is enough: what matters is that a File of the right type comes through.
   const PNG =
@@ -59,6 +59,16 @@
       e.preventDefault();
     });
     document.body.appendChild(box);
+
+    // "It does not press send" is the extension's central promise, so there has to be
+    // something here that could be pressed. Asserting against a selector nothing ever
+    // sets — the old `form[data-submitted]` — passes whatever claude.js does.
+    const send = document.createElement('button');
+    send.textContent = 'שלח';
+    send.setAttribute('aria-label', 'Send message');
+    send.style.cssText = 'margin-top:8px';
+    send.addEventListener('click', () => (seen.sent = true));
+    document.body.appendChild(send);
   }, 900);
 
   function report() {
@@ -67,7 +77,7 @@
       ['the prompt was pasted as text', seen.text === PROMPT, JSON.stringify(String(seen.text).slice(0, 30))],
       ['two pastes, image then text', seen.sends === 2, String(seen.sends)],
       ['a banner reported success', !!document.body.textContent.includes('מוכן לבדיקה'), ''],
-      ['nothing was sent', !document.querySelector('form[data-submitted]'), '']
+      ['nothing was sent', !seen.sent, '']
     ];
     window.__result = checks.map(([n, ok, d]) => ({ name: n, ok, detail: d }));
     document.getElementById('out').innerHTML = checks

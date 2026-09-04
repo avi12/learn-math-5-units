@@ -3,7 +3,7 @@
   "name": "לוח מתמטיקה → קלוד",
   "description": "לוקח את הלוח ואת קריטריוני הבדיקה של הנושא, ופותח איתם שיחה בקלוד.",
   "version": "1.0",
-  "permissions": ["storage", "tabs"],
+  "permissions": ["storage"],
   "host_permissions": [
     "https://your-site.web.app/*",
     "https://claude.ai/*"
