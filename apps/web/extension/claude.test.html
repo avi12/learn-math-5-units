@@ -1,0 +1,79 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>claude.js against a stand-in composer</title>
+<!--
+  The risky half of this extension is the part that types into someone else's UI, and it
+  is the part that cannot be exercised from a script: claude.ai needs a login, and a
+  headless Chrome here refuses to load unpacked extensions at all.
+
+  So the surroundings are faked and the real file is loaded unchanged: a contenteditable
+  that behaves like the ProseMirror composer (it exists only after a delay, so the
+  MutationObserver path is the one under test), and a `chrome.runtime` that hands over a
+  payload once. What is asserted is exactly what the extension promises — an image
+  arrives as a pasted PNG file, the prompt arrives as pasted text, and it stops without
+  sending.
+
+  Open it with a headless screenshot or read window.__result from CDP.
+-->
+<style>
+  body { font: 14px/1.5 system-ui, sans-serif; padding: 24px; direction: rtl; }
+  #out { white-space: pre-wrap; font-family: ui-monospace, monospace; }
+  .ok { color: #1f6f4a; }
+  .bad { color: #8a1c3a; }
+</style>
+<h1>claude.js — בדיקה מול תיבה מדומה</h1>
+<div id="out">רץ…</div>
+
+<script>
+  const seen = { image: null, text: null, sends: 0 };
+
+  // A 1x1 PNG is enough: what matters is that a File of the right type comes through.
+  const PNG =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const PROMPT = 'אני נבחן ב-5 יחידות מתמטיקה, שאלון 35571. בדוק אותי.';
+
+  let handed = false;
+  window.chrome = {
+    runtime: {
+      sendMessage: async (msg) => {
+        if (msg?.type !== 'avi-math-take' || handed) return null;
+        handed = true;
+        return { image: PNG, prompt: PROMPT, topic: 'נגזרת וחקירת פונקציות', at: Date.now() };
+      }
+    }
+  };
+
+  // The composer appears late, exactly as it does on a fresh chat.
+  setTimeout(() => {
+    const box = document.createElement('div');
+    box.setAttribute('contenteditable', 'true');
+    box.setAttribute('role', 'textbox');
+    box.style.cssText = 'min-height:60px;border:1px solid #999;padding:8px;margin-top:12px';
+    box.addEventListener('paste', (e) => {
+      seen.sends++;
+      const dt = e.clipboardData;
+      const file = dt.files[0];
+      if (file) seen.image = { name: file.name, type: file.type, size: file.size };
+      const text = dt.getData('text/plain');
+      if (text) seen.text = text;
+      e.preventDefault();
+    });
+    document.body.appendChild(box);
+  }, 900);
+
+  function report() {
+    const checks = [
+      ['an image was pasted as a PNG file', seen.image?.type === 'image/png', JSON.stringify(seen.image)],
+      ['the prompt was pasted as text', seen.text === PROMPT, JSON.stringify(String(seen.text).slice(0, 30))],
+      ['two pastes, image then text', seen.sends === 2, String(seen.sends)],
+      ['a banner reported success', !!document.body.textContent.includes('מוכן לבדיקה'), ''],
+      ['nothing was sent', !document.querySelector('form[data-submitted]'), '']
+    ];
+    window.__result = checks.map(([n, ok, d]) => ({ name: n, ok, detail: d }));
+    document.getElementById('out').innerHTML = checks
+      .map(([n, ok, d]) => `<span class="${ok ? 'ok' : 'bad'}">${ok ? 'ok  ' : 'FAIL'}</span>  ${n}  ${d}`)
+      .join('\n');
+  }
+  setTimeout(report, 3200);
+</script>
+<script src="claude.js"></script>

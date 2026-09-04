@@ -7,6 +7,7 @@
   import { watchRelease } from './lib/release';
   import { scan } from './lib/scan';
   import { pad } from './lib/spen';
+  import { CHECK_MESSAGE, TOPICS, extensionPresent, requestCheck } from './lib/check';
   import type { Pen, Tool } from './lib/ink';
 
   const id = roomId();
@@ -162,6 +163,40 @@
     say('הקישור הועתק');
   }
 
+  /* ---- "I finished — check me" ---------------------------------------------
+     The topic is chosen rather than guessed: the criteria a bagrut marker uses are
+     per-topic, and a check against the wrong list is worse than no check. It is
+     remembered, because in one sitting every exercise is from the same block. */
+  const TOPIC_KEY = 'avi-math-topic';
+  let topic = $state(localStorage.getItem(TOPIC_KEY) ?? TOPICS[0].id);
+  $effect(() => localStorage.setItem(TOPIC_KEY, topic));
+
+  async function checkWithClaude() {
+    const c = surface?.exportCanvas(1600);
+    if (!c) return;
+    const chosen = TOPICS.find((t) => t.id === topic) ?? TOPICS[0];
+    const blob: Blob | null = await new Promise((r) => c.toBlob(r, 'image/png'));
+    if (!blob) return say('הייצוא נכשל');
+    const image = `data:image/png;base64,${await blobToBase64(blob)}`;
+
+    if (extensionPresent()) {
+      requestCheck({ type: CHECK_MESSAGE, image, prompt: chosen.prompt, topic: chosen.title });
+      say('נשלח לקלוד — נפתחת שיחה חדשה');
+      return;
+    }
+    // No extension here. Everything still goes out, it just needs one paste — which is
+    // exactly the flow that existed before the button, so nothing is lost.
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob, 'text/plain': new Blob([chosen.prompt], { type: 'text/plain' }) })
+      ]);
+      say('אין תוסף — התמונה והפרומפט הועתקו, הדבק בקלוד');
+    } catch {
+      await navigator.clipboard.writeText(chosen.prompt).catch(() => {});
+      say('אין תוסף — הפרומפט הועתק. העתק את התמונה בנפרד');
+    }
+  }
+
   /* ---- scanning the desktop's code ----------------------------------------
      The tablet cannot type 32 hex characters and, inside the wrapper, has nothing to
      paste from either. The camera is the way in. */
@@ -254,6 +289,22 @@
         </label>
       </div>
     {/if}
+
+    <!-- The check sits on its own row, under the board and above everything else: it is
+         the end of the exercise, not another drawing tool. -->
+    <div class="tools check">
+      <label class="group topic">
+        נושא
+        <select bind:value={topic}>
+          {#each TOPICS as t (t.id)}
+            <option value={t.id}>{t.id} · {t.title}</option>
+          {/each}
+        </select>
+      </label>
+      <button class="btn big" data-variant="primary" onclick={checkWithClaude}>
+        סיימתי — שקלוד יבדוק
+      </button>
+    </div>
 
     <div class="tools">
       <div class="group">
@@ -640,6 +691,36 @@
     font-size: 12px;
     color: var(--fg-muted);
     direction: ltr;
+  }
+  .tools.check {
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 12px 14px;
+    border: 2px solid var(--border-strong);
+    background: var(--surface);
+  }
+  .topic {
+    flex: 1 1 240px;
+    min-width: 0;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--fg-muted);
+  }
+  .topic select {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 2px solid var(--border);
+    background: var(--surface-2);
+    color: var(--fg);
+    font: var(--t-body-m);
+    font-family: var(--font-sans);
+  }
+  .btn.big {
+    padding-block: 12px;
+    font-size: 15px;
   }
   .scanner {
     position: fixed;

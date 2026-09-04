@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "לוח מתמטיקה → קלוד",
+  "description": "לוקח את הלוח ואת קריטריוני הבדיקה של הנושא, ופותח איתם שיחה בקלוד.",
+  "version": "1.0",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": [
+    "https://your-site.web.app/*",
+    "https://claude.ai/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://your-site.web.app/*"],
+      "js": ["pad.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["claude.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
