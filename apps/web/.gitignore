@@ -7,3 +7,8 @@ worker/.dev.vars
 worker/.wrangler/
 cropped.png
 
+# android wrapper
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties

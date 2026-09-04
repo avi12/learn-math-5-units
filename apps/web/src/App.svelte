@@ -4,6 +4,7 @@
   import Surface from './lib/Surface.svelte';
   import Formula from './lib/Formula.svelte';
   import { clearAll, deleteDoc, newRoom, room as makeRoom, roomId, strokeRef } from './lib/room';
+  import { pad } from './lib/spen';
   import type { Pen, Tool } from './lib/ink';
 
   const id = roomId();
@@ -74,7 +75,7 @@
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
       say('הועתק ללוח — הדבק בקלוד');
     } catch {
-      download(blob);
+      void download(blob);
       say('הדפדפן חסם העתקה — הקובץ ירד במקום');
     }
   }
@@ -82,15 +83,36 @@
   function downloadPng() {
     const c = surface?.exportCanvas();
     if (!c) return;
-    c.toBlob((b) => b && download(b), 'image/png');
+    c.toBlob((b) => b && void download(b), 'image/png');
   }
 
-  function download(blob: Blob) {
+  /** Inside the Android wrapper an <a download> does nothing at all — a WebView ignores
+   *  downloads, and a blob: URL cannot be handed to a system downloader either. So the
+   *  bytes go over the bridge and out through the share sheet, which on a tablet is the
+   *  more useful destination anyway. In a browser tab nothing changes. */
+  async function download(blob: Blob) {
+    const name = `math-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
+    const bridge = pad();
+    if (bridge) {
+      const b64 = await blobToBase64(blob);
+      if (!bridge.share(name, blob.type || 'image/png', b64)) say('השיתוף נכשל');
+      return;
+    }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `math-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
+    a.download = name;
     a.click();
     URL.revokeObjectURL(a.href);
+  }
+
+  function blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onerror = () => reject(r.error);
+      // readAsDataURL gives "data:<mime>;base64,<payload>"; the bridge wants the payload
+      r.onload = () => resolve(String(r.result).split(',', 2)[1] ?? '');
+      r.readAsDataURL(blob);
+    });
   }
 
   async function copyTex() {
@@ -165,7 +187,7 @@
       </div>
       <div class="group">
         <button class="btn" data-variant="primary" onclick={copyPng}>העתק כתמונה</button>
-        <button class="btn" onclick={downloadPng}>הורד PNG</button>
+        <button class="btn" onclick={downloadPng}>{pad() ? 'שתף PNG' : 'הורד PNG'}</button>
       </div>
     </div>
 
