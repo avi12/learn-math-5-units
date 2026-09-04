@@ -237,6 +237,29 @@ export async function toLatex(
   const { ocr, halt } = await load();
   stop();
 
+  /** One picture through the model, with the abort wired up and taken down again.
+   *
+   *  It is a closure and not a module function because it needs `ocr`, `halt`, `signal`
+   *  and `stop` — but it has to be one of something: the per-line read and the
+   *  whole-board fallback below were the same seven statements written twice, down to
+   *  the token budget, and the two would have drifted the first time either was tuned. */
+  const read = async (image: HTMLCanvasElement): Promise<string[]> => {
+    const interrupt = halt();
+    const onAbort = () => interrupt.interrupt();
+    signal?.addEventListener('abort', onAbort, { once: true });
+    let out: { generated_text: string }[];
+    try {
+      out = await ocr(image, { max_new_tokens: 256, stopping_criteria: interrupt });
+    } finally {
+      signal?.removeEventListener('abort', onAbort);
+    }
+    stop();
+    return rows(out?.[0]?.generated_text ?? '');
+  };
+
+  /** A reading worth keeping: it exists and it is not the decoder repeating itself. */
+  const ok = (r: string) => !!r && !degenerate(r);
+
   const readings: string[] = [];
   for (const [n, l] of work.entries()) {
     const hit = cache.get(l.key);
@@ -246,19 +269,8 @@ export async function toLatex(
     }
     onLine?.(n + 1, work.length);
 
-    const interrupt = halt();
-    const onAbort = () => interrupt.interrupt();
-    signal?.addEventListener('abort', onAbort, { once: true });
-    let out: { generated_text: string }[];
-    try {
-      out = await ocr(l.image, { max_new_tokens: 256, stopping_criteria: interrupt });
-    } finally {
-      signal?.removeEventListener('abort', onAbort);
-    }
-    stop();
-
     // one line's picture can still come back as several $-blocks; keep them as rows
-    const row = rows(out?.[0]?.generated_text ?? '').join(' \\\\ ');
+    const row = (await read(l.image)).join(' \\\\ ');
     if (row) cache.set(l.key, row);
     readings.push(row);
   }
@@ -270,28 +282,17 @@ export async function toLatex(
   // equations glued into one line, which is exactly what Avi was shown. So it now runs
   // only when the split produced nothing usable at all; anything usable is kept, and the
   // lines that failed are reported rather than quietly dropped.
-  const good = readings.filter((r) => r && !degenerate(r));
-  onMiss?.(readings.map((r, i) => (r && !degenerate(r) ? 0 : i + 1)).filter(Boolean));
-  if (good.length === 0 && whole) {
-    const image = prepare(whole);
-    if (image) {
-      const interrupt = halt();
-      const onAbort = () => interrupt.interrupt();
-      signal?.addEventListener('abort', onAbort, { once: true });
-      let out: { generated_text: string }[];
-      try {
-        out = await ocr(image, { max_new_tokens: 256, stopping_criteria: interrupt });
-      } finally {
-        signal?.removeEventListener('abort', onAbort);
-      }
-      stop();
-      // the whole board is several equations, and the model glues them with dollars —
-      // taken apart they are rows again rather than one meaningless run-on line
-      const one = rows(out?.[0]?.generated_text ?? '').filter((r) => !degenerate(r));
-      if (one.length) {
-        for (const l of work) cache.delete(l.key);
-        return join(one);
-      }
+  const good = readings.filter(ok);
+  onMiss?.(readings.map((r, i) => (ok(r) ? 0 : i + 1)).filter(Boolean));
+
+  const board = good.length === 0 && whole ? prepare(whole) : null;
+  if (board) {
+    // the whole board is several equations, and the model glues them with dollars —
+    // taken apart they are rows again rather than one meaningless run-on line
+    const one = (await read(board)).filter((r) => !degenerate(r));
+    if (one.length) {
+      for (const l of work) cache.delete(l.key);
+      return join(one);
     }
   }
 
