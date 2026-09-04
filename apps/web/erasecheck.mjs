@@ -9,9 +9,11 @@
  * counts INK PIXELS in three bands of the canvas rather than trusting a screenshot: ink
  * in the swept band must go to zero and the other two bands must not move.
  *
- * It also reports the thing Avi hit: on a tablet held sideways the canvas used to be as
- * tall as the screen, and since it swallows every touch there was nothing left to drag
- * to scroll the page.
+ * It used to assert the layout too — that there was a gutter left to drag the page by,
+ * because on a tablet held sideways the canvas was as tall as the screen and swallowed
+ * every touch. The strip replaced that design: the pad does not scroll at all now, and
+ * scrolling happens inside the board. `scrolltest.mjs` owns the layout assertions, and
+ * this file is about the rubber alone. The measurements are still printed as context.
  *
  * A fresh random room, so nothing here touches a real one; it is cleared at the end.
  */
@@ -78,8 +80,6 @@ console.log(`viewport        : ${box.vw} x ${box.vh}, page ${box.page}px tall`);
 const gutter = Math.round((box.vw - box.w) / 2);
 const below = Math.round(box.vh - (box.y + box.h));
 console.log(`side gutter     : ${gutter}px      below the board: ${below}px`);
-say(gutter > 60 || below > 60, 'there is somewhere to put a finger that is not the canvas');
-say(box.page > box.vh, 'the page really does scroll');
 
 const pt = async (type, x, y) =>
   send('Input.dispatchMouseEvent', {
@@ -129,7 +129,19 @@ for (const f of [0.25, 0.5, 0.75]) await stroke(f);
 await wait(600);
 const before = { top: await ink(0.25), mid: await ink(0.5), bottom: await ink(0.75) };
 console.log('ink before      :', JSON.stringify(before));
-say(before.top > 200 && before.mid > 200 && before.bottom > 200, 'all three strokes are on the board');
+const landed = before.top > 200 && before.mid > 200 && before.bottom > 200;
+say(landed, 'all three strokes are on the board');
+
+// Everything below compares ink after against ink before, and on an empty board both
+// are zero — so "the swept stroke is gone" and "the other two are untouched" BOTH pass
+// on a board that was never drawn on. Measured: with the strokes failing to land, this
+// file reported three greens and had tested nothing. Stop here instead.
+if (!landed) {
+  console.log('\nno ink landed, so nothing below could mean anything — stopping here.');
+  console.log(`\n${failures} FAILED`);
+  ws.close();
+  process.exit(1);
+}
 
 // the click and the read have to be separated: data-active is written by the next render
 await ev(
