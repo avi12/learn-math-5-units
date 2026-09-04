@@ -105,7 +105,7 @@
   }
 </script>
 
-<div class="page" dir="rtl">
+<div class="page" class:pinned={role === 'pad'} dir="rtl">
   <header>
     <div class="brand">
       <span class="mark">∫</span>
@@ -125,6 +125,7 @@
       bind:this={surface}
       {room}
       readonly={role === 'board'}
+      fill={role === 'pad'}
       {tool}
       {pen}
       {size}
@@ -235,6 +236,47 @@
     max-width: 1180px;
     margin: 0 auto;
     padding: 20px 18px 64px;
+  }
+
+  /* The pad is pinned to the viewport: the board must be on screen at every moment, and
+     a long exercise is served by scrolling INSIDE it rather than by scrolling the page.
+     Those two are the same requirement — the moment the document scrolls, the board is
+     something you can lose, and on a tablet you lose it constantly, because the canvas
+     takes finger drags for ink and only the thin margins around it ever scrolled.
+     So: no document scroll here at all. The board takes the space that is left after the
+     header and the tools, and the strip runs underneath it. */
+  .page.pinned {
+    height: 100svh;
+    padding-block: 12px 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .page.pinned main {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .page.pinned header {
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+  }
+  /* On a phone in landscape the brand block is most of the height. The board wins. */
+  @media (max-height: 520px) {
+    .page.pinned .brand .sub,
+    .page.pinned .mark {
+      display: none;
+    }
+  }
+  .page.pinned .tools {
+    margin-top: 10px;
+  }
+  .page.pinned .tex-pane {
+    margin-top: 12px;
+    overflow-y: auto;
+    flex: 0 1 auto;
+    min-height: 0;
   }
   header {
     display: flex;

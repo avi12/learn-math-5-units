@@ -1,8 +1,17 @@
 /** Stroke model, packing and rendering — shared by the pad and the board.
  *
- * Coordinates are normalised against the board WIDTH and the aspect is fixed, so a
- * stroke drawn on a 2560px tablet renders identically on a 900px desktop panel. */
+ * Coordinates are normalised against the board WIDTH — BOTH of them, x and y — so a
+ * stroke drawn on a 2560px tablet renders identically on a 900px desktop panel.
+ *
+ * Normalising y by the width and not by the height is what lets the board be a strip
+ * rather than a page: x still runs 0…1, but y has no upper bound, and how much of it
+ * you can see is just how tall the viewport happens to be. Scrolling is therefore a
+ * render offset and nothing more — no stroke is rewritten, and a drawing made before
+ * the board could scroll still lands in exactly the same place. */
 
+/** The shape of an EXPORTED page, width : height. The board on screen is no longer this
+ *  shape — it is whatever box the viewport gives it — but an image handed to the
+ *  recogniser or pasted into a chat still wants a stable, page-like frame. */
 export const ASPECT = 1.5; // width : height
 
 /** The visible height of one exported page, in the normalised units above. */
