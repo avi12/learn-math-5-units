@@ -1,10 +1,20 @@
 /* App layer on top of the vendored cyberpunk tokens.
+
    Hebrew: Chakra Petch and Share Tech Mono have no Hebrew glyphs, so a Hebrew face
-   follows each of them in the stack — same pairing as the study pages. */
+   follows each of them in the stack — the same pairing as the study pages, because the
+   two are meant to look like one thing.
+
+   THE TWO STACKS BELOW ARE GENERATED. They are written by build/shared.py in the
+   learn-math-5-units repo, which is the one place that pairing is decided; the same
+   script writes index.html's Google Fonts link. Editing them here is how they came to
+   disagree with the study pages in the first place — this copy had lost "Roboto Flex"
+   and "SF Mono" and nothing said so. Change them there and re-run:
+
+       python build/shared.py --write   */
 
 :root {
-  --font-sans: 'Chakra Petch', 'Heebo', 'Assistant', system-ui, sans-serif;
-  --font-mono: 'Share Tech Mono', 'Miriam Libre', 'Cousine', ui-monospace, monospace;
+  --font-sans: "Chakra Petch", "Heebo", "Assistant", "Roboto Flex", system-ui, sans-serif;
+  --font-mono: "Share Tech Mono", "Miriam Libre", "Cousine", ui-monospace, "SF Mono", monospace;
 }
 
 html,

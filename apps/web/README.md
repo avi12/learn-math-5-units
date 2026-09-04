@@ -517,7 +517,34 @@ claude.ai דורש התחברות ו‑headless כאן מסרב לטעון תו�
 | `src/lib/Surface.svelte` | הקנבס. אותו רכיב משמש גם ככלי כתיבה וגם כמראה (`readonly`). |
 | `src/lib/Formula.svelte` | שורת הנוסחה. טוענת את MathLive בייבוא דינמי, כך שהיא לא מתומחרת למי שלא פותח אותה. |
 | `src/App.svelte` | בחירת תפקיד, סרגל כלים, QR וייצוא. |
-| `src/lib/cyberpunk.css` | העתק של `~/.claude/artifact-cyberpunk.css`. אתר לא יכול לקרוא משם בזמן בנייה, ולכן זה עותק — אם הסקין משתנה שם, להעתיק שוב. |
+| `src/lib/cyberpunk.css` | העתק **מילה במילה** של `~/.claude/artifact-cyberpunk.css`. Vite לא יכול לקרוא משם, ולכן זה עותק — אבל לא נוגעים בו, וזה מה שמאפשר לאמת אותו. |
+| `src/lib/app.css` | השכבה של האפליקציה, נטענת אחרי העותק. **שני ה‑font stacks בראשה נוצרים** ע"י `build/shared.py` בחוברת. |
+
+### מה מגיע מהחוברת ולא נערך כאן
+
+שני המאגרים מספקים מראה אחד, ואף אחד מהם לא יכול לייבא מהשני בזמן ריצה. הכיוון קבוע:
+**החוברת כותבת, הלוח מקבל.**
+
+| הקובץ | מי מייצר אותו | מתי להריץ |
+|---|---|---|
+| `src/lib/graders.json` | `build/graders.py` | אחרי שינוי ב‑`grader` או בתבנית הפרומפט |
+| שני ה‑font stacks ב‑`src/lib/app.css` | `build/shared.py` | אחרי שינוי בצמד העברי |
+| קישור Google Fonts ב‑`index.html` | `build/shared.py` | אותו דבר |
+
+```
+cd C:\repositories\avi\learn-math-5-units
+python build/shared.py            # מדווח על סטייה, לא כותב; יוצא 1 אם יש
+python build/shared.py --write    # מיישר את הכול
+```
+
+הצמד העברי נבדל כאן בשקט לפני שהגשר נבנה: לעותק של הלוח חסרו `Roboto Flex` ו‑`SF Mono`
+לעומת דפי החוברת, ואף בדיקה לא הייתה יכולה לתפוס את זה. `shared.py` בודק גם שהעותק של
+הפלטה עדיין זהה לסקין הגלובלי — טוקן מול טוקן, לא שורה מול שורה.
+
+**‏`_transcribe.mjs` ו‑`_batch.mjs` עברו לחוברת** (04.09.2026), ל‑`build/transcribe.mjs`
+ו‑`build/transcribe_batch.mjs`. הם ישבו כאן רק מפני שכאן היה מותקן
+`@huggingface/transformers`; הם קוראים סרטונים של החוברת כדי לכתוב דפים של החוברת, ועכשיו
+היא מצהירה על התלות בעצמה.
 
 ### סנכרון — ולמה Firestore ולא Realtime Database
 
