@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "deploy": "npm run build && python scripts/deploy.py",
-    "deploy:cli": "npm run build && firebase deploy"
+    "deploy:cli": "npm run build && firebase deploy",
+    "apk": "python scripts/apk.py",
+    "apk:install": "python scripts/apk.py --install"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
