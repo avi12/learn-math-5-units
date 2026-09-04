@@ -62,6 +62,26 @@ export function roomId(): string {
   return id;
 }
 
+/** Join an existing room from whatever the other device offered: the whole address bar,
+ *  a shared link, or the bare id. Anything containing 32 hex characters counts, because
+ *  what actually gets pasted is never predictable — and on a tablet, retyping 32
+ *  characters correctly is not a thing anyone does twice.
+ *
+ *  This exists because a device can otherwise be stranded. The QR and the room card live
+ *  on the desktop mirror; a tablet that opened a room of its own — a fresh browser, a
+ *  cleared site, the WebView wrapper with its own storage — had no way back into the
+ *  room the desktop was watching. Returns false if there was no id in the text. */
+export function joinRoom(text: string): boolean {
+  const m = text.match(/[0-9a-f]{32}/i);
+  if (!m) return false;
+  const id = m[0].toLowerCase();
+  localStorage.setItem(KEY, id);
+  const url = new URL(location.href);
+  url.searchParams.set('room', id);
+  location.href = url.toString();
+  return true;
+}
+
 export function newRoom(): void {
   const url = new URL(location.href);
   const id = fresh();

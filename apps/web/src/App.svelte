@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import QRCode from 'qrcode';
   import Surface from './lib/Surface.svelte';
   import Formula from './lib/Formula.svelte';
-  import { clearAll, deleteDoc, newRoom, room as makeRoom, roomId, strokeRef } from './lib/room';
+  import { clearAll, deleteDoc, joinRoom, newRoom, room as makeRoom, roomId, strokeRef } from './lib/room';
+  import { scan } from './lib/scan';
   import { pad } from './lib/spen';
   import type { Pen, Tool } from './lib/ink';
 
@@ -36,6 +37,8 @@
   let qr = $state('');
   let formula = $state<{ value(): string }>();
   let showTex = $state(false);
+  /** the QR blown up, for scanning from across the desk */
+  let bigQr = $state(false);
 
   const TOOLS: [Tool, string][] = [
     ['ink', 'עט'],
@@ -51,8 +54,21 @@
     ['danger', 'תיקון']
   ];
 
-  onMount(async () => {
-    qr = await QRCode.toDataURL(location.href, { margin: 1, width: 260 });
+  /** A device that scans is a device that is HELD. Inside the wrapper that is certain;
+   *  otherwise it takes a touch-primary pointer and a camera. The desktop is the screen
+   *  SHOWING the code — a scan button there is a button that can only ever fail, and it
+   *  is the mirror image of the mistake the QR made by being board-only. */
+  const canScan =
+    !!pad() ||
+    (matchMedia('(pointer: coarse)').matches && !!navigator.mediaDevices?.getUserMedia);
+
+  /** What the QR encodes. Explicitly role=pad: the code is scanned BY the tablet, and
+   *  encoding location.href would hand it `role=board` and open a second mirror — two
+   *  screens watching each other and nothing to write on. */
+  const joinUrl = `${location.origin}${location.pathname}?role=pad&room=${id}`;
+
+  onMount(() => {
+    void QRCode.toDataURL(joinUrl, { margin: 1, width: 300 }).then((d) => (qr = d));
   });
 
   function say(t: string) {
@@ -122,9 +138,46 @@
     say('ה-LaTeX הועתק');
   }
 
+  /** The tablet's way into the room the desktop is already watching. On the desktop the
+   *  QR and the link do this job; on the pad there was nothing at all, which is exactly
+   *  the device that needs it. */
+  function askRoom() {
+    const v = prompt('הדבק את הקישור מהמחשב, או את מזהה החדר:', '');
+    if (v === null || !v.trim()) return;
+    if (v.includes(id)) return say('אתה כבר בחדר הזה');
+    if (!joinRoom(v)) say('לא מצאתי מזהה חדר בטקסט הזה');
+  }
+
   async function copyLink() {
-    await navigator.clipboard.writeText(location.href);
+    await navigator.clipboard.writeText(joinUrl);
     say('הקישור הועתק');
+  }
+
+  /* ---- scanning the desktop's code ----------------------------------------
+     The tablet cannot type 32 hex characters and, inside the wrapper, has nothing to
+     paste from either. The camera is the way in. */
+  let scanning = $state(false);
+  let cam = $state<HTMLVideoElement>();
+  let stopScan: (() => void) | null = null;
+
+  async function startScan() {
+    scanning = true;
+    await tick(); // the <video> has to exist before the camera can be pointed at it
+    try {
+      stopScan = await scan(cam!, (text) => {
+        closeScan();
+        if (!joinRoom(text)) say('אין מזהה חדר בקוד הזה');
+      });
+    } catch {
+      scanning = false;
+      say('אין גישה למצלמה');
+    }
+  }
+
+  function closeScan() {
+    stopScan?.();
+    stopScan = null;
+    scanning = false;
   }
 </script>
 
@@ -138,6 +191,19 @@
       </div>
     </div>
     <div class="roles">
+      <!-- The code lives in the room, at the top of it. It used to sit in a card below
+           the board, the toolbars and the formula bar — present, and three screens away
+           from the person holding the tablet, which is the same as absent.
+           Shown in BOTH roles, and hidden only inside the Android wrapper. The role is a
+           guess (`pointer: coarse`), and a desktop that guessed wrong had no code at all
+           — which is the one failure that leaves the tablet with nothing to scan. The
+           wrapper, by contrast, is known for certain: it is the tablet. -->
+      {#if qr && !pad()}
+        <button class="qrchip" onclick={() => (bigQr = true)} title="הגדל כדי לסרוק מהטאבלט">
+          <img src={qr} alt="קוד QR לחדר הזה" />
+          <span>סרוק<code class="rid">{id.slice(0, 6)}</code></span>
+        </button>
+      {/if}
       <button class="btn" data-active={role === 'pad'} onclick={() => (role = 'pad')}>לוח כתיבה</button>
       <button class="btn" data-active={role === 'board'} onclick={() => (role = 'board')}>תצוגה</button>
     </div>
@@ -189,6 +255,16 @@
         <button class="btn" data-variant="primary" onclick={copyPng}>העתק כתמונה</button>
         <button class="btn" onclick={downloadPng}>{pad() ? 'שתף PNG' : 'הורד PNG'}</button>
       </div>
+      {#if role === 'pad'}
+        <div class="group">
+          {#if canScan}
+            <button class="btn" data-variant="primary" onclick={startScan}>סרוק QR</button>
+          {/if}
+          <button class="btn" onclick={askRoom} title="הצטרף לחדר של המחשב">
+            חדר <code class="rid">{id.slice(0, 6)}</code>
+          </button>
+        </div>
+      {/if}
     </div>
 
     <section class="tex-pane">
@@ -216,6 +292,11 @@
       {/if}
     </section>
 
+    <!-- Desktop only. On the tablet these two cards are noise: the QR exists to get the
+         tablet into the room, so by the time it is being read there it has done its job,
+         and the instructions are about pasting into Claude, which happens on the desktop.
+         Hiding them puts the canvas and its tools on the screen alone. -->
+    {#if role === 'board'}
     <section class="pair">
       <div class="card">
         <h2 class="card-head">חיבור הטאבלט</h2>
@@ -251,7 +332,26 @@
         </p>
       </div>
     </section>
+    {/if}
   </main>
+
+  {#if bigQr}
+    <button class="qrbig" onclick={() => (bigQr = false)} aria-label="סגור את הקוד">
+      <img src={qr} alt="קוד QR לחדר הזה" />
+      <span class="qrsay">סרוק מהאפליקציה בטאבלט — כפתור <b>סרוק QR</b></span>
+      <code class="qrid">{id}</code>
+    </button>
+  {/if}
+
+  {#if scanning}
+    <div class="scanner">
+      <!-- svelte-ignore a11y_media_has_caption -->
+      <video bind:this={cam} muted playsinline></video>
+      <div class="reticle"></div>
+      <p class="shint">כוון את המצלמה אל הקוד שעל מסך המחשב</p>
+      <button class="btn" onclick={closeScan}>בטל</button>
+    </div>
+  {/if}
 
   {#if toast}<div class="toast">{toast}</div>{/if}
 </div>
@@ -453,11 +553,132 @@
   ol.note li {
     margin-block: 4px;
   }
+  .rid {
+    font-family: var(--font-mono);
+    font-size: .85em;
+    opacity: .75;
+    direction: ltr;
+    display: inline-block;
+  }
   .roomid {
     margin: 10px 0 0;
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--fg-subtle);
+  }
+  /* the chip: small, always on screen, and a plain white plate because a QR has to be
+     scannable and the dark palette would swallow it */
+  .qrchip {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 10px 5px 5px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+    font: inherit;
+  }
+  .qrchip:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-2);
+  }
+  .qrchip img {
+    width: 44px;
+    height: 44px;
+    background: #fff;
+    padding: 2px;
+    image-rendering: pixelated;
+  }
+  .qrchip span {
+    display: grid;
+    gap: 2px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--fg-muted);
+  }
+  .qrbig {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 18px;
+    padding: 24px;
+    border: 0;
+    background: var(--scrim);
+    cursor: zoom-out;
+    font: inherit;
+  }
+  .qrbig img {
+    width: min(74vmin, 560px);
+    height: auto;
+    background: #fff;
+    padding: 18px;
+    image-rendering: pixelated;
+    box-shadow: var(--shadow-lg);
+  }
+  .qrsay {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    color: var(--fg);
+    text-shadow: 0 1px 8px var(--scrim);
+  }
+  .qrid {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--fg-muted);
+    direction: ltr;
+  }
+  .scanner {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    background: var(--scrim);
+  }
+  .scanner video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  /* the frame is the instruction: people aim at a box without being told to */
+  .reticle {
+    position: relative;
+    width: min(62vw, 62vh);
+    aspect-ratio: 1;
+    border: 3px solid var(--primary);
+    box-shadow:
+      0 0 0 100vmax var(--scrim),
+      var(--cyber-glow-primary);
+    clip-path: polygon(
+      var(--chamfer) 0,
+      100% 0,
+      100% calc(100% - var(--chamfer)),
+      calc(100% - var(--chamfer)) 100%,
+      0 100%,
+      0 var(--chamfer)
+    );
+  }
+  .shint {
+    position: absolute;
+    inset-block-start: 24px;
+    inset-inline: 0;
+    margin: 0;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--fg);
+    text-shadow: 0 1px 6px var(--scrim);
+  }
+  .scanner .btn {
+    position: absolute;
+    inset-block-end: 28px;
   }
   .toast {
     position: fixed;
