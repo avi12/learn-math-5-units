@@ -184,7 +184,7 @@
   export function value(): string {
     return latex;
   }
-  export function rerun(): void {
+  function rerun(): void {
     settle.cancel(); // asking by hand overrides the wait
     void recognise(strokeKey, true);
   }

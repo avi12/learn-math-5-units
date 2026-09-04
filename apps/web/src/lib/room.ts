@@ -122,7 +122,7 @@ export function latexRef(id: string): DocumentReference {
 }
 
 export function strokeRef(id: string, key: string): DocumentReference {
-  return doc(db, 'rooms', id, 'strokes', key);
+  return doc(room(id).strokes, key);
 }
 
 /** The one document outside /rooms: the build the last deploy put live. It is public and
@@ -133,13 +133,14 @@ export const release: DocumentReference = doc(db, 'meta', 'release');
 
 /** Firestore has no recursive delete from the client, so a clear is a batch. */
 export async function clearAll(id: string): Promise<void> {
-  const snap = await getDocs(collection(db, 'rooms', id, 'strokes'));
+  const r = room(id);
+  const snap = await getDocs(r.strokes);
   for (let i = 0; i < snap.docs.length; i += 400) {
     const batch = writeBatch(db);
     for (const d of snap.docs.slice(i, i + 400)) batch.delete(d.ref);
     await batch.commit();
   }
-  await deleteDoc(doc(db, 'rooms', id, 'live', 'current')).catch(() => {});
+  await deleteDoc(r.live).catch(() => {});
 }
 
-export { deleteDoc, onSnapshot, orderBy, query, setDoc, db };
+export { deleteDoc, onSnapshot, orderBy, query, setDoc };

@@ -134,7 +134,7 @@
     paint();
   }
 
-  export function scrollBy(dy: number) {
+  function scrollBy(dy: number) {
     scrollTo(top + dy);
   }
 

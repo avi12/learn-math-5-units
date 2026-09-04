@@ -26,7 +26,7 @@ const KEY = 'avi-math-release-tries';
 
 /** How long the board has to be quiet before the page is allowed to go. Long enough that
  *  a pause between two digits does not count as "finished writing". */
-const SETTLE_MS = 2500;
+const QUIET_MS = 2500;
 
 function tries(build: string): number {
   try {
@@ -68,7 +68,7 @@ export function watchRelease(w: ReleaseWatch): () => void {
       if (w.busy()) return attempt(build); // still writing — ask again in a moment
       noteTry(build);
       location.reload();
-    }, SETTLE_MS);
+    }, QUIET_MS);
   };
 
   const off = onSnapshot(

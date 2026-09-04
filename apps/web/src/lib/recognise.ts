@@ -29,8 +29,6 @@ export type Progress = { stage: string; pct: number };
 /** A single writing line: the canvas to read, and the stroke ids it is made of. */
 export type Line = { key: string; canvas: HTMLCanvasElement };
 
-export const configured = () => true; // nothing to configure any more
-
 /** There is exactly one model download, ever, so it is reported from one place rather
  *  than by whichever read happened to trigger it. That ownership was the bug: the first
  *  reader's callback outlived its own read, so aborting that read left the download
@@ -47,7 +45,7 @@ function announce(p: Progress | null) {
   for (const w of watchers) w(p);
 }
 
-export class RecogniseError extends Error {}
+class RecogniseError extends Error {}
 
 /** Recognition is not free in time or battery, so the same drawing is never redone. */
 const cache = new Map<string, string>();

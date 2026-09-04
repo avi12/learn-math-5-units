@@ -46,7 +46,7 @@ export function pack(pts: Pt[]): string {
   return pts.map((q) => `${q.x.toFixed(3)},${q.y.toFixed(3)},${q.pr.toFixed(2)}`).join(';');
 }
 
-export function unpack(p: string): Pt[] {
+function unpack(p: string): Pt[] {
   if (!p) return [];
   return p.split(';').map((s) => {
     const [x, y, pr] = s.split(',');
@@ -95,7 +95,7 @@ function ellipseOf(a: Pt, b: Pt): { cx: number; cy: number; rx: number; ry: numb
   };
 }
 
-export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number): void {
+function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number): void {
   const pts = unpack(s.p);
   if (!pts.length) return;
   ctx.save();
