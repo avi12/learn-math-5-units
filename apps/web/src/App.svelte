@@ -22,9 +22,15 @@
   let tool = $state<Tool>('ink');
   let pen = $state<Pen>('ink');
   let size = $state(6);
-  let surface = $state<{ keys(): string[]; exportCanvas(w?: number): HTMLCanvasElement }>();
+  let surface = $state<{
+    keys(): string[];
+    exportCanvas(w?: number): HTMLCanvasElement;
+    exportLines(w?: number): { key: string; canvas: HTMLCanvasElement }[];
+  }>();
   /** identifies the current drawing, so recognition re-runs only on real change */
   let strokeKey = $state('');
+  /** the pen is on the glass right now — the formula bar waits it out */
+  let penDown = $state(false);
   let toast = $state('');
   let qr = $state('');
   let formula = $state<{ value(): string }>();
@@ -123,6 +129,7 @@
       {pen}
       {size}
       onstrokes={(keys) => (strokeKey = keys.join(','))}
+      onpen={(down) => (penDown = down)}
     />
 
     {#if role === 'pad'}
@@ -164,15 +171,18 @@
       </button>
       {#if showTex}
         <p class="note">
-          השורה קוראת את הקנבס וממירה ל-LaTeX, ומריצה שוב בכל פעם שהכתב משתנה. התוצאה
-          נשארת ניתנת לעריכה, כי זיהוי אף פעם לא מושלם ולתקן סימן אחד עדיף על להקליד הכול.
+          השורה קוראת את הקנבס וממירה ל-LaTeX. היא ממתינה שתרים את העט ותשתהה רגע לפני
+          שהיא מריצה, כדי לא לזהות משוואה באמצע הכתיבה. התוצאה נשארת ניתנת לעריכה, כי
+          זיהוי אף פעם לא מושלם ולתקן סימן אחד עדיף על להקליד הכול.
         </p>
         <Formula
           bind:this={formula}
           roomId={id}
           readonly={role === 'board'}
           {strokeKey}
-          getCanvas={(w) => surface?.exportCanvas(w)}
+          {penDown}
+          getLines={() => surface?.exportLines(1200) ?? []}
+          getWhole={() => surface?.exportCanvas(1200)}
         />
         <div class="group">
           <button class="btn" data-variant="primary" onclick={copyTex}>העתק LaTeX</button>

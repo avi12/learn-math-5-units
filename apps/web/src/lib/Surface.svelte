@@ -2,8 +2,12 @@
   import { onMount } from 'svelte';
   import {
     ASPECT,
+    PAGE,
+    bounds,
     colour,
     decimate,
+    equation,
+    lines,
     pack,
     render,
     type Pen,
@@ -25,7 +29,8 @@
     tool = 'ink' as Tool,
     pen = 'ink' as Pen,
     size = 6,
-    onstrokes
+    onstrokes,
+    onpen
   }: {
     room: Room;
     readonly?: boolean;
@@ -33,6 +38,10 @@
     pen?: Pen;
     size?: number;
     onstrokes?: (keys: string[], canvas: HTMLCanvasElement) => void;
+    /** Pen on the glass, pen off it. Recognition debounces on this and not on committed
+     *  strokes: a stroke only lands after it is finished, so a listener that hears only
+     *  landings cannot tell "still writing" from "done writing". */
+    onpen?: (down: boolean) => void;
   } = $props();
 
   let host = $state<HTMLDivElement>();
@@ -135,6 +144,7 @@
     e.preventDefault();
     canvas!.setPointerCapture(e.pointerId);
     drawing = true;
+    onpen?.(true);
     startedAt = performance.now();
     publishedLive = false;
     pts = [at(e)];
@@ -161,6 +171,7 @@
   function up(e: PointerEvent) {
     if (!drawing) return;
     drawing = false;
+    onpen?.(false);
     canvas!.releasePointerCapture?.(e.pointerId);
     const s: Stroke = { t: tool, c: pen, w: size, p: pack(decimate(pts)) };
     pts = [];
@@ -170,6 +181,9 @@
     if (s.p) commit(room, s);
     paint();
   }
+
+  /** Margin left under the lowest ink in an exported image, in normalised units. */
+  const EXPORT_PAD = 0.03;
 
   export function exportCanvas(w = 1800): HTMLCanvasElement {
     const out = document.createElement('canvas');
@@ -187,9 +201,40 @@
     return out;
   }
 
+  /** One canvas per writing line, each carrying the ids of the strokes on it.
+   *
+   *  The recogniser reads one formula at a time, so it gets one line at a time. The key
+   *  travels with the canvas so a line whose strokes have not changed can be served from
+   *  cache — adding a symbol to the second equation must not re-read the first. */
+  export function exportLines(w = 1200): { key: string; canvas: HTMLCanvasElement }[] {
+    const present = order.filter((k) => byKey.has(k));
+    const all = present.map((k) => byKey.get(k)!);
+    const idOf = new Map(all.map((s, i) => [s, present[i]]));
+    const bg =
+      getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#fff';
+
+    return lines(all).map((group) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = Math.round(PAGE * w);
+      // A line further down the strip than one page would render past the bottom of its
+      // own canvas and reach the model as a blank image — the recogniser would answer
+      // for an empty picture and the line would be quietly lost. It is shifted up by the
+      // least that brings it inside, so a line that already fits is framed exactly as
+      // before and nothing about the first screen's recognition changes.
+      const b = bounds(group);
+      const shift = b ? Math.max(0, b.y1 + EXPORT_PAD - PAGE) : 0;
+      // the margin note is left out of what the model sees, but stays in the key: the
+      // line still has to be re-read when anything on it changes
+      render(canvas.getContext('2d')!, equation(group), null, w, canvas.height, bg, shift);
+      return { key: group.map((s) => idOf.get(s)).join(','), canvas };
+    });
+  }
+
   export function keys(): string[] {
     return order;
   }
+
 </script>
 
 <div class="host" bind:this={host}>

@@ -5,3 +5,5 @@ probe*.mjs
 worker/.dev.vars
 .dev.vars
 worker/.wrangler/
+cropped.png
+
