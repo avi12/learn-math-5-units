@@ -45,15 +45,17 @@ def main() -> int:
         return r.returncode
     print("\napk:", APK, f"({APK.stat().st_size // 1024} kb)")
 
-    if "--install" in sys.argv:
-        adb = SDK / "platform-tools" / "adb.exe"
-        devices = subprocess.run([str(adb), "devices"], capture_output=True, text=True)
-        attached = [l for l in devices.stdout.splitlines()[1:] if l.strip().endswith("device")]
-        if not attached:
-            raise SystemExit("no device attached — plug the tablet in with USB debugging on")
-        subprocess.run([str(adb), "install", "-r", str(APK)], check=True)
-        subprocess.run([str(adb), "shell", "am", "start", "-n",
-                        "app.avimath.pen/.MainActivity"], check=True)
+    if "--install" not in sys.argv:
+        return 0
+
+    adb = SDK / "platform-tools" / "adb.exe"
+    devices = subprocess.run([str(adb), "devices"], capture_output=True, text=True)
+    attached = [l for l in devices.stdout.splitlines()[1:] if l.strip().endswith("device")]
+    if not attached:
+        raise SystemExit("no device attached — plug the tablet in with USB debugging on")
+    subprocess.run([str(adb), "install", "-r", str(APK)], check=True)
+    subprocess.run([str(adb), "shell", "am", "start", "-n",
+                    "app.avimath.pen/.MainActivity"], check=True)
     return 0
 
 

@@ -31,8 +31,18 @@ def token() -> str:
         raise SystemExit("gcloud not found on PATH")
     out = subprocess.run(
         [exe, "auth", "print-access-token", f"--account={ACCOUNT}"],
-        capture_output=True, text=True, check=True)
-    return out.stdout.strip()
+        capture_output=True, text=True)
+    # Every other failure in this file exits with a sentence. check=True would exit with
+    # a traceback whose message is "returned non-zero exit status 1" — gcloud's own
+    # explanation is on stderr, which CalledProcessError does not carry.
+    if out.returncode:
+        raise SystemExit(f"gcloud could not get a token:\n{out.stderr.strip()}")
+    tok = out.stdout.strip()
+    # An empty token is not an error to gcloud, but it becomes an opaque HTTP 401 from
+    # the first call — a long way from the account that is actually not logged in.
+    if not tok:
+        raise SystemExit(f"gcloud returned an empty token — is {ACCOUNT} logged in?")
+    return tok
 
 
 def call(method, url, tok, body=None, raw=None, ctype="application/json"):
