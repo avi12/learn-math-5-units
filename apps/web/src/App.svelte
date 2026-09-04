@@ -38,6 +38,7 @@
 
   const TOOLS: [Tool, string][] = [
     ['ink', 'עט'],
+    ['erase', 'מחק'],
     ['line', 'ישר'],
     ['rect', 'מלבן'],
     ['ellipse', 'מעגל']
@@ -137,7 +138,9 @@
       <div class="tools">
         <div class="group">
           {#each TOOLS as [t, label] (t)}
-            <button class="btn" data-active={tool === t} onclick={() => (tool = t)}>{label}</button>
+            <button class="btn" data-tool={t} data-active={tool === t} onclick={() => (tool = t)}>
+              {label}
+            </button>
           {/each}
         </div>
         <div class="group">
@@ -148,7 +151,7 @@
           {/each}
         </div>
         <label class="group size">
-          עובי
+          {tool === 'erase' ? 'גודל המחק' : 'עובי'}
           <input type="range" min="2" max="16" step="1" bind:value={size} />
           <span class="num">{size}</span>
         </label>

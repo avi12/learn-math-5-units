@@ -117,6 +117,55 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number):
   ctx.restore();
 }
 
+/** The outline a stroke actually draws, as a polyline in normalised units.
+ *
+ *  A shape stroke stores only the two corners the pointer went between, so anything that
+ *  needs its geometry — hit-testing, for one — has to rebuild what was drawn from them
+ *  and not use the diagonal that connects them. */
+function outline(s: Stroke): Pt[] {
+  const pts = unpack(s.p);
+  if (s.t === 'ink' || pts.length < 2) return pts;
+  const a = pts[0];
+  const b = pts[pts.length - 1];
+  if (s.t === 'line') return [a, b];
+  if (s.t === 'rect')
+    return [a, { ...a, x: b.x }, b, { ...a, y: b.y }, a];
+  const cx = (a.x + b.x) / 2;
+  const cy = (a.y + b.y) / 2;
+  const rx = Math.abs(b.x - a.x) / 2;
+  const ry = Math.abs(b.y - a.y) / 2;
+  return Array.from({ length: 33 }, (_, i) => {
+    const t = (i / 32) * Math.PI * 2;
+    return { x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t), pr: 0.5 };
+  });
+}
+
+function toSegment(px: number, py: number, a: Pt, b: Pt): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = dx * dx + dy * dy;
+  const t = len ? Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / len)) : 0;
+  return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
+}
+
+/** Does an eraser of radius `r` at (x, y) touch this stroke?
+ *
+ *  The eraser takes WHOLE STROKES, not pixels, and that is not a shortcut. Recognition
+ *  reads strokes: ink rubbed out of the bitmap would still be handed to the model, so
+ *  the board and the LaTeX would disagree. A stroke is also exactly one Firestore
+ *  document, so rubbing one out is a delete both devices already know how to apply —
+ *  the same path the undo button uses. */
+export function hits(s: Stroke, x: number, y: number, r: number): boolean {
+  const pts = outline(s);
+  if (!pts.length) return false;
+  const reach = r + (s.w * 1.025) / 2000;
+  if (pts.length === 1) return Math.hypot(x - pts[0].x, y - pts[0].y) <= reach;
+  for (let i = 1; i < pts.length; i++) {
+    if (toSegment(x, y, pts[i - 1], pts[i]) <= reach) return true;
+  }
+  return false;
+}
+
 /** The box a stroke's ink actually covers, in normalised units. */
 export type Box = { x0: number; x1: number; y0: number; y1: number };
 

@@ -7,6 +7,7 @@
     colour,
     decimate,
     equation,
+    hits,
     lines,
     pack,
     render,
@@ -15,7 +16,17 @@
     type Stroke,
     type Tool
   } from './ink';
-  import { commit, onSnapshot, orderBy, publishLive, query, type Room } from './room';
+  import { installSpen, spenHeld, spenWrapper, type PenReport } from './spen';
+  import {
+    commit,
+    deleteDoc,
+    onSnapshot,
+    orderBy,
+    publishLive,
+    query,
+    strokeRef,
+    type Room
+  } from './room';
 
   /** Firestore charges per write, so an in-progress stroke is only broadcast once it has
    *  run long enough to be worth watching, and then at a human frame rate. Handwriting
@@ -48,6 +59,23 @@
     onpen?: (down: boolean) => void;
   } = $props();
 
+  /** `?pendebug` in the URL prints what the pen actually reported on its last touch.
+   *  There is no way to try an S Pen from a desktop, and "the button does nothing" is
+   *  not a report anyone can act on; this turns it into one line that says exactly what
+   *  the device sends. Empty string means off, so it costs nothing when it is. */
+  const PENDEBUG = new URL(location.href).searchParams.has('pendebug');
+  /** The last few pointer events verbatim, when `?pendebug` is in the URL. It is written
+   *  from a capture-phase listener and not from down(), because the question it exists to
+   *  answer is what the device sent — including events that never get as far as drawing. */
+  let probe = $state<string[]>(PENDEBUG ? ['pendebug · גע בלוח'] : []);
+
+  function note(tag: string, e: PointerEvent | MouseEvent) {
+    if (!PENDEBUG) return;
+    const p = e as PointerEvent;
+    const line = `${tag} ${p.pointerType ?? '-'} button=${e.button} buttons=${e.buttons}`;
+    probe = [line, ...probe.filter((x) => x !== line)].slice(0, 4);
+  }
+
   let host = $state<HTMLDivElement>();
   let canvas = $state<HTMLCanvasElement>();
   let ctx: CanvasRenderingContext2D | null = null;
@@ -66,6 +94,12 @@
   let lastPublish = 0;
   let startedAt = 0;
   let publishedLive = false;
+
+  /** The rubber's position while it is on the glass, so it can be drawn. */
+  let rubber = $state<Pt | null>(null);
+  /** Strokes already sent to be deleted. The snapshot that removes them takes a moment
+   *  to come back, and without this the same stroke is deleted once per pointer move. */
+  const erased = new Set<string>();
 
   /** The y at the top edge of the viewport, in normalised units — the whole of scrolling.
    *  0 is the top of the board and it never goes negative: there is nothing above the
@@ -109,6 +143,36 @@
     const w = canvas.width / devicePixelRatio;
     const h = canvas.height / devicePixelRatio;
     render(ctx, strokes(), live, w, h, undefined, top);
+    if (rubber) {
+      ctx.save();
+      ctx.translate(0, -top * w);
+      ctx.strokeStyle = colour('ink');
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(rubber.x * w, rubber.y * w, radius() * w, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  /** The rubber follows the thickness slider: the same control that says how wide the
+   *  pen writes says how much of it comes off. */
+  function radius(): number {
+    return 0.006 + (size * 2.2) / 1000;
+  }
+
+  /** Rub out every stroke under the rubber. Whole strokes — see `hits` in ink.ts. */
+  function rub(p: Pt) {
+    const r = radius();
+    for (const k of order) {
+      const s = byKey.get(k);
+      if (!s || erased.has(k)) continue;
+      if (hits(s, p.x, p.y, r)) {
+        erased.add(k);
+        void deleteDoc(strokeRef(room.id, k));
+      }
+    }
   }
 
   function fit() {
@@ -134,8 +198,10 @@
 
     const offAdd = onSnapshot(query(room.strokes, orderBy('n')), (snap) => {
       for (const ch of snap.docChanges()) {
-        if (ch.type === 'removed') byKey.delete(ch.doc.id);
-        else byKey.set(ch.doc.id, ch.doc.data() as Stroke);
+        if (ch.type === 'removed') {
+          byKey.delete(ch.doc.id);
+          erased.delete(ch.doc.id);
+        } else byKey.set(ch.doc.id, ch.doc.data() as Stroke);
       }
       order = snap.docs.map((d) => d.id);
       fault = '';
@@ -161,15 +227,39 @@
       console.error('[pad] live listener failed', e);
     });
 
+    // The probe is the only way to see what a pen reports on a device that cannot be
+    // driven from here, so the wrapper's raw integers go straight into it.
+    const offSpen = installSpen((down, r: PenReport) => {
+      if (PENDEBUG) {
+        probe = [
+          `wrapper ${spenWrapper() || '-'} buttonState=${r.buttonState ?? '-'} tool=${r.toolType ?? '-'} → ${down ? 'erase' : 'pen'}`,
+          ...probe
+        ].slice(0, 4);
+      }
+    });
+
     const onTheme = () => paint();
     const mq = matchMedia('(prefers-color-scheme: dark)');
     mq.addEventListener('change', onTheme);
+
+    // Capture phase, and on the document rather than the canvas: an event that the app
+    // never sees is the most useful thing the probe can report, and "nothing appeared"
+    // is then a real answer rather than an ambiguity.
+    const raw = (e: Event) => note('raw', e as PointerEvent);
+    const ctx2 = (e: Event) => note('ctxmenu', e as MouseEvent);
+    if (PENDEBUG) {
+      document.addEventListener('pointerdown', raw, true);
+      document.addEventListener('contextmenu', ctx2, true);
+    }
 
     return () => {
       ro.disconnect();
       offAdd();
       offLive();
+      offSpen();
       mq.removeEventListener('change', onTheme);
+      document.removeEventListener('pointerdown', raw, true);
+      document.removeEventListener('contextmenu', ctx2, true);
     };
   });
 
@@ -192,6 +282,41 @@
     } catch {
       /* the pointer is gone; the handler carries on without capture */
     }
+  }
+
+  /** The tool this stroke is actually using, which is not always the tool on the toolbar:
+   *  the S Pen's side button turns any stroke into an erase. Latched at pointerdown and
+   *  held for the whole stroke — "touch while holding the button" is the gesture, so
+   *  letting go of the button halfway must not turn the rubber back into a pen. */
+  let acting: Tool = 'ink';
+
+  /** Is this pointer asking to erase?
+   *
+   *  Pointer Events puts the barrel button — the S Pen's side button — in bit 1 of
+   *  `buttons`, so a tip on the glass with the button held reads as 3, and the button
+   *  without the tip reads as 2. Bit 5 is the eraser end, which is what Android reports
+   *  when a stylus button switches the tool type instead of setting a button. `button`
+   *  carries the same news at the moment of the press: 2 for the barrel, 5 for the
+   *  eraser. Every one of them is asked about because every one of them means "rub out",
+   *  and which one a device sends is the device's business.
+   *
+   *  Deliberately NOT restricted to pointerType 'pen': a stylus that Android hands over
+   *  as a mouse would silently lose the gesture, and the only thing this costs is that a
+   *  right-drag on a desktop erases too — which is a reasonable reading of a right-drag
+   *  on a whiteboard, and the canvas already suppresses the context menu. Touch is
+   *  excluded because a second finger there means panning. */
+  function erasingWith(e: PointerEvent): boolean {
+    if (e.pointerType === 'touch') return false;
+    // spenHeld() is the native wrapper's answer, and it is the only one that works on
+    // Android: Chrome eats a stylus-button touch before the page can see it, so inside
+    // the wrapper every one of the tests below reads false and this one carries it.
+    return (
+      spenHeld() ||
+      !!(e.buttons & 2) ||
+      !!(e.buttons & 32) ||
+      e.button === 2 ||
+      e.button === 5
+    );
   }
 
   /** Palm rejection: once a pen has touched the glass, ignore finger input for a while. */
@@ -228,6 +353,7 @@
     onpen?.(false);
     pts = [];
     live = null;
+    rubber = null;
     if (publishedLive) publishLive(room, null);
     paint();
   }
@@ -258,13 +384,21 @@
     }
     if (readonly || rejected(e)) return;
     e.preventDefault();
-    canvas!.setPointerCapture(e.pointerId);
+    acting = erasingWith(e) ? 'erase' : tool;
+    if (PENDEBUG) note('down→' + acting, e);
+    capture(canvas!, e.pointerId);
     drawing = true;
     onpen?.(true);
+    if (acting === 'erase') {
+      rubber = at(e);
+      rub(rubber);
+      paint();
+      return;
+    }
     startedAt = performance.now();
     publishedLive = false;
     pts = [at(e)];
-    live = { t: tool, c: pen, w: size, p: pack(pts) };
+    live = { t: acting, c: pen, w: size, p: pack(pts) };
     paint();
   }
 
@@ -281,10 +415,29 @@
     }
     if (!drawing) return;
     e.preventDefault();
+    // The button does not always arrive on pointerdown. Chrome can report the barrel a
+    // move or two after contact, and a gesture that only counted it at touch-down would
+    // then write instead of erasing — which is exactly what "the button does nothing"
+    // looks like. So the stroke may still become an erase; it never becomes a pen again.
+    if (acting !== 'erase' && erasingWith(e)) {
+      if (PENDEBUG) note('move→erase', e);
+      acting = 'erase';
+      pts = [];
+      live = null;
+      if (publishedLive) publishLive(room, null);
+      publishedLive = false;
+    } else if (PENDEBUG && (e.buttons & ~1) !== 0) note('move', e);
+    if (acting === 'erase') {
+      // every coalesced point, so a fast sweep does not step over a thin stroke
+      for (const q of e.getCoalescedEvents?.() ?? [e]) rub(at(q as PointerEvent));
+      rubber = at(e);
+      paint();
+      return;
+    }
     const batch = e.getCoalescedEvents?.() ?? [e];
     for (const q of batch) pts.push(at(q as PointerEvent));
-    if (tool !== 'ink') pts = [pts[0], pts[pts.length - 1]];
-    live = { t: tool, c: pen, w: size, p: pack(pts) };
+    if (acting !== 'ink') pts = [pts[0], pts[pts.length - 1]];
+    live = { t: acting, c: pen, w: size, p: pack(pts) };
     paint();
     const now = performance.now();
     if (now - startedAt > LIVE_AFTER_MS && now - lastPublish > LIVE_EVERY_MS) {
@@ -305,7 +458,12 @@
     drawing = false;
     onpen?.(false);
     canvas!.releasePointerCapture?.(e.pointerId);
-    const s: Stroke = { t: tool, c: pen, w: size, p: pack(decimate(pts)) };
+    if (acting === 'erase') {
+      rubber = null;
+      paint();
+      return;
+    }
+    const s: Stroke = { t: acting, c: pen, w: size, p: pack(decimate(pts)) };
     pts = [];
     live = null;
     // only clear the live doc if we ever wrote one — saves a delete per short stroke
@@ -415,6 +573,7 @@
 <div class="host" class:fill bind:this={host}>
   <canvas
     bind:this={canvas}
+    class:erasing={tool === 'erase' && !readonly}
     class:readonly
     onpointerdown={down}
     onpointermove={move}
@@ -422,7 +581,13 @@
     onpointercancel={up}
     onpointerleave={up}
     onwheel={wheel}
+    oncontextmenu={(e) => e.preventDefault()}
   ></canvas>
+  {#if probe.length}
+    <div class="probe">
+      {#each probe as line (line)}<span>{line}</span>{/each}
+    </div>
+  {/if}
   {#if scrollable}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div
@@ -485,6 +650,15 @@
     background: var(--surface);
     border: 2px solid var(--border);
     touch-action: none;
+    /* Chrome on Android has claimed the stylus barrel button for TEXT SELECTION since
+       Android M (crrev 2874183002, "Fix Text selection with Stylus button pressed"), and
+       a selection drag is not delivered to the page as pointer events at all — which is
+       exactly what "the button does nothing" looks like from here. A drawing surface has
+       nothing to select in the first place, so saying so is right regardless, and it is
+       the one thing that might hand the gesture back. */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
     cursor: crosshair;
     clip-path: polygon(
       var(--chamfer) 0,
@@ -510,12 +684,32 @@
     touch-action: none;
     cursor: pointer;
   }
+  .probe {
+    position: absolute;
+    inset-block-start: 6px;
+    inset-inline-start: 6px;
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 4px 8px;
+    direction: ltr;
+    text-align: start;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-muted);
+    pointer-events: none;
+  }
   .thumb {
     position: absolute;
     inset-inline: 5px;
     min-height: 26px;
     background: var(--primary);
     box-shadow: var(--cyber-glow-primary);
+  }
+  canvas.erasing {
+    cursor: cell;
   }
   .empty.fault {
     color: var(--danger);
