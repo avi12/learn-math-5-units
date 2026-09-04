@@ -14,6 +14,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -105,6 +106,32 @@ def push_rules(tok):
     print("firestore rules released:", name.rsplit("/", 1)[-1][:12])
 
 
+def stamp_release(tok):
+    """Tell the tabs that are already open which build is now live.
+
+    They are listening to this document over the Firestore socket they hold anyway, so a
+    deploy reaches a tablet lying on the table without polling and without a server. The
+    id comes from dist/build-id.txt, written by the same vite run that baked it into the
+    bundle — one value, so a client can always tell "that is me" from "that is newer".
+
+    Written LAST, after the hosting release is live. The other order tells a tab to
+    reload before the new files are being served, and it comes back on the old bundle.
+
+    The REST API is used rather than the client SDK because this token belongs to a
+    project member: it is authorised by IAM and does not go through firestore.rules,
+    which is what lets the rules keep every browser out of this document.
+    """
+    build = (DIST / "build-id.txt").read_text(encoding="utf-8").strip()
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    url = (f"https://firestore.googleapis.com/v1/projects/{PROJECT}/databases/(default)"
+           "/documents/meta/release"
+           "?updateMask.fieldPaths=build&updateMask.fieldPaths=at")
+    call("PATCH", url, tok,
+         body={"fields": {"build": {"stringValue": build},
+                          "at": {"timestampValue": now}}})
+    print("release stamped:", build)
+
+
 def main():
     if not DIST.exists():
         raise SystemExit("dist/ is missing — run `npm run build` first")
@@ -133,6 +160,7 @@ def main():
          tok, body={})
 
     push_rules(tok)
+    stamp_release(tok)
 
     print(f"\nlive: https://{SITE}.web.app")
 

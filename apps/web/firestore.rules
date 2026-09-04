@@ -33,5 +33,14 @@ service cloud.firestore {
       allow read, delete: if room_ok(room);
       allow create, update: if room_ok(room) && stroke_ok();
     }
+
+    // The build the last deploy put live, so an open tab can hear about a new version
+    // on the socket it already has. Public to read and closed to every browser: the
+    // deploy writes it over the Firestore REST API with a project member's OAuth token,
+    // and that goes through IAM, not through this file.
+    match /meta/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
   }
 }

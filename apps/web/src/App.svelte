@@ -4,6 +4,7 @@
   import Surface from './lib/Surface.svelte';
   import Formula from './lib/Formula.svelte';
   import { clearAll, deleteDoc, joinRoom, newRoom, room as makeRoom, roomId, strokeRef } from './lib/room';
+  import { watchRelease } from './lib/release';
   import { scan } from './lib/scan';
   import { pad } from './lib/spen';
   import type { Pen, Tool } from './lib/ink';
@@ -69,11 +70,19 @@
 
   onMount(() => {
     void QRCode.toDataURL(joinUrl, { margin: 1, width: 300 }).then((d) => (qr = d));
+    // A deploy reaches the tab over the Firestore socket that is already open; see
+    // lib/release.ts for why it waits for the pen before it takes the page away.
+    return watchRelease({
+      busy: () => penDown,
+      oncoming: () => say('גרסה חדשה עלתה — הדף ייטען מחדש', true),
+      onstuck: () => say('יש גרסה חדשה אבל הדפדפן מגיש גרסה ישנה. רענן ידנית.', true)
+    });
   });
 
-  function say(t: string) {
+  /** A sticky toast is one the page is not going to outlive, so it must not fade. */
+  function say(t: string, sticky = false) {
     toast = t;
-    setTimeout(() => (toast = ''), 2400);
+    if (!sticky) setTimeout(() => (toast = ''), 2400);
   }
 
   function undoLast() {

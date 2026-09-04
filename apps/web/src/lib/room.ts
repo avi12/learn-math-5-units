@@ -125,6 +125,12 @@ export function strokeRef(id: string, key: string): DocumentReference {
   return doc(db, 'rooms', id, 'strokes', key);
 }
 
+/** The one document outside /rooms: the build the last deploy put live. It is public and
+ *  read-only from the browser — the deploy writes it through the Firestore REST API as a
+ *  project member, which goes through IAM rather than through firestore.rules. Keeping it
+ *  here means every Firestore reference in the app still has exactly one home. */
+export const release: DocumentReference = doc(db, 'meta', 'release');
+
 /** Firestore has no recursive delete from the client, so a clear is a batch. */
 export async function clearAll(id: string): Promise<void> {
   const snap = await getDocs(collection(db, 'rooms', id, 'strokes'));
