@@ -1,0 +1,40 @@
+# What Cloud Build is allowed to see. Anything not excluded here is uploaded as the build
+# context for server/Dockerfile, so the rule is: everything `vite build` reads stays, and
+# nothing else does.
+#
+# Two things must NOT be added to this file:
+#   - src/, public/, index.html, package.json, package-lock.json, the tsconfigs,
+#     svelte.config.js, vite.config.ts — the image builds the site, so excluding any of
+#     them ships an image with no site in it, and the build still succeeds;
+#   - server/ — it is the server.
+.gcloudignore
+.git/
+.claude/
+.idea/
+.vscode/
+
+# Installed in the image by `npm ci`, and built in the image by `npm run build`.
+node_modules/
+dist/
+
+# Secrets. This app bakes no VITE_* values into its bundle (the Firebase web config is
+# public and lives in src/lib/room.ts), so unlike other repos there is nothing here that
+# the build needs from an env file — which makes excluding all of them free.
+.env*
+.dev.vars
+**/serviceAccount*.json
+firebase/
+
+# Not the web app: the WebView wrapper, its build tooling, and the leftover worker cache.
+android/
+worker/
+scripts/__pycache__/
+
+# Notes, throwaway probes and scratch pages. The .mjs and .png rules are anchored so they
+# cannot reach src/ or public/.
+*.md
+/*.mjs
+/*.png
+/lib/
+/padfix.html
+/texout.json
