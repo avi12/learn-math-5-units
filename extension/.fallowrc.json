@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/getfallow/fallow/main/schema/fallowrc.json",
+  "entry": [
+    "src/entrypoints/**",
+    "chaintest.mjs"
+  ],
+  "ignorePatterns": [
+    "claude.test.html"
+  ],
+  "health": {
+    "maxCognitive": 30,
+    "maxCrap": 10000
+  },
+  "rules": {
+    "unused-enum-members": "warn"
+  }
+}
