@@ -12,7 +12,6 @@
   import { BandIndex } from './bands';
   import type { Action } from './history.svelte';
   import {
-    ASPECT,
     PAGE,
     PART,
     bounds,
@@ -876,25 +875,16 @@
      did not react at all, so the press had no answer where the eye was. This is the
      answer: the board acknowledges being read. */
 
-  /** How long the gesture lasts, from press to gone. It lives here and not in the CSS
-   *  because the overlay is unmounted from JS while the animations that have to finish
-   *  first are in CSS — the same number in two files is two files that can disagree.
-   *  The CSS reads it off `--shot-dur` and every phase inside is a fraction of it. */
-  const SHOT_MS = 620;
-
   /** A counter, not a boolean. Copying twice in a row has to replay the gesture, and a
    *  boolean that is already `true` changes nothing, so nothing would restart. A new
    *  number remounts the overlay through `{#key}`, and a fresh element is what makes
    *  CSS animations run again. */
   let shot = $state(0);
-  let shotTimer: ReturnType<typeof setTimeout> | undefined;
 
   /** Called the moment the canvas is read, not when the clipboard answers: the capture
    *  is what happened, and whether the clipboard took it is what the toast is for. */
   export function flash() {
-    clearTimeout(shotTimer);
     shot++;
-    shotTimer = setTimeout(() => (shot = 0), SHOT_MS);
   }
 
 
@@ -989,7 +979,7 @@
     <span>בדקו רשת. אם הרשת תקינה, מכסת Firestore היומית נגמרה ומתאפסת בחצות שעון פסיפיק.</span>
   </p>
 {/if}
-<div class="host" class:fill style:--aspect={ASPECT} bind:this={host}>
+<div class="host" class:fill bind:this={host}>
   <canvas
     bind:this={canvas}
     class:erasing={tool === 'erase' && !readonly}
@@ -1031,7 +1021,7 @@
        paint order is DOM order, and the gesture has to land over the board. -->
   {#key shot}
     {#if shot}
-      <div class="shot" style="--shot-dur: {SHOT_MS}ms" aria-hidden="true"></div>
+      <div class="shot" aria-hidden="true"></div>
     {/if}
   {/key}
   {#if fault}
@@ -1052,7 +1042,8 @@
      margin has no job, and the height it was giving up goes back to the writing.
 
      Without `fill` it is the desktop mirror, still a page-shaped 3:2 block in a normal
-     scrolling document. */
+     scrolling document. The ratio is `--aspect`, which the page sets from ink.ts's ASPECT
+     on the element around this component, so the host and the stall banner share it. */
   .host {
     position: relative;
     width: 100%;
@@ -1172,7 +1163,11 @@
      because the scanline travels past the bottom edge and without it the pane grows a
      scrollbar for an element nobody can see. That exact bug already cost a session once,
      on the dialog's sweep. */
+  /* The overlay is never unmounted by a timer: every layer ends `forwards` at opacity 0
+     (or clipped off the board), so after the gesture it is an invisible, unclickable
+     element that the next press replaces through `{#key}`. Its length lives only here. */
   .shot {
+    --shot-dur: 620ms;
     position: absolute;
     inset: 0;
     overflow: hidden;
@@ -1270,7 +1265,7 @@
   .stall {
     margin: 0 auto 8px;
     width: 100%;
-    max-width: calc(66vh * 1.5);
+    max-width: calc(66vh * var(--aspect));
     padding: 6px 12px;
     border: 2px solid var(--danger);
     background: var(--danger-container);
@@ -1290,7 +1285,7 @@
   }
   @supports (height: 1svh) {
     .stall {
-      max-width: calc(66svh * 1.5);
+      max-width: calc(66svh * var(--aspect));
     }
   }
   /* On the writing board the canvas fills what is left, so the banner spans it too. */

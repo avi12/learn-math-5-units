@@ -135,7 +135,13 @@ async function run(reduce) {
   // The one that matters most: it goes, and it does not blink back on the way out.
   await wait(900);
   const after = JSON.parse(await state());
-  check(`${label}: and it is gone afterwards, with no leftover`, after.present === false);
+  // Gone means invisible: the overlay stays mounted (CSS ends it at opacity 0, no timer)
+  // until the next press replaces it.
+  check(
+    `${label}: and it is gone afterwards, with no leftover`,
+    after.present === false || after.opacity === 0,
+    after.present ? `opacity ${after.opacity}` : 'unmounted'
+  );
 
   // A second press has to replay it. A boolean flag would already be set and nothing
   // would restart — this is the whole reason the trigger is a counter.
