@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The wrapper's theme is what decides the page's colour scheme, and that is not obvious.
+
+  WebView sets the `prefers-color-scheme` media query from the app theme's
+  `android:isLightTheme` and nothing else: true, or unspecified, means the page is told
+  `light`. `Theme.DeviceDefault.NoActionBar` never specifies it, so the page inside the
+  wrapper was told `light` on a tablet in dark mode, every time — while the same page in
+  Chrome on the same tablet followed the system correctly.
+
+  So the fix is here and not in Kotlin. In particular it is NOT
+  `setAlgorithmicDarkeningAllowed`: that is for pages with no dark theme of their own,
+  and it would have WebView invert a page that already has one — darkening the dark.
+
+  This file is the light half; `values-night/themes.xml` is the dark one, and the
+  `-night` qualifier is what the system flips when dark mode goes on.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="AppTheme" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <!-- API 29+; older WebViews ignore it, and Page.kt's isDark() covers them -->
+        <item name="android:isLightTheme" tools:targetApi="29">true</item>
+    </style>
+</resources>

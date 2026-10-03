@@ -1,0 +1,50 @@
+# Built on detekt's defaults (buildUponDefaultConfig). Each entry below is one of the
+# web side's oxlint/eslint rules, or fallow's health threshold, carried over to Kotlin.
+
+complexity:
+  # an Activity's lifecycle callbacks are the platform's count, not ours
+  TooManyFunctions:
+    ignoreOverridden: true
+  # fallow health.maxCognitive
+  CognitiveComplexMethod:
+    active: true
+    threshold: 30
+
+style:
+  # curly: all
+  MandatoryBracesLoops:
+    active: true
+  # a one-line `if (a) b else c` is Kotlin's ternary, which curly never covered
+  BracesOnIfStatements:
+    active: true
+    singleLine: consistent
+    multiLine: always
+  # typescript/no-unused-vars (args/vars prefixed _ are allowed)
+  UnusedPrivateProperty:
+    active: true
+    allowedNames: '_.*'
+  UnusedParameter:
+    active: true
+    allowedNames: '_.*'
+  # early returns are the house style: guard clauses never count against a function
+  ReturnCount:
+    active: true
+    max: 3
+    excludeGuardClauses: true
+
+naming:
+  # id-length min 3 (same short-name exceptions as .oxlintrc.json where Kotlin has them)
+  VariableMinLength:
+    active: true
+    minimumVariableNameLength: 3
+  FunctionMinLength:
+    active: true
+    minimumFunctionNameLength: 3
+
+potential-bugs:
+  # typescript/consistent-type-assertions: never -> no unchecked `as`
+  UnsafeCast:
+    active: true
+  # typescript/no-explicit-any's Kotlin cousin: no `!!`
+  UnsafeCallOnNullableType:
+    active: true

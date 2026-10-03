@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The dark half. See values/themes.xml for why the theme is what controls the page.
+
+  `isLightTheme=false` is the whole mechanism: it is the single attribute WebView reads
+  to decide that the page should be told `prefers-color-scheme: dark`, and the page's own
+  dark palette then does the rest — it already has one, and declares `color-scheme` so
+  WebView leaves its colours alone.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="AppTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <!-- API 29+; older WebViews ignore it, and Page.kt's isDark() covers them -->
+        <item name="android:isLightTheme" tools:targetApi="29">false</item>
+    </style>
+</resources>
