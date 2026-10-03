@@ -443,7 +443,8 @@ node build/transcribe.mjs <in.wav> <out.txt> onnx-community/whisper-large-v3-tur
   `line.sort(lambda p: -p[0])` לפני ה‑`Write` — ימין לשמאל, שורה עליונה קודם.
 - `MathTex` דורש `dvisvgm`; סביבה חדשה עלולה לא לכלול אותו.
 - סביבת ריצה מבודדת עלולה לחסום את הדומיין שממנו מורידים את קובצי האודיו — לבדוק egress לפני
-  שמניחים שהצנרת תקינה.
+  שמניחים שהצנרת תקינה. ההגדרה המלאה ב‑claude.ai (connector, הרשאות, דומיין מותר) מתועדת ב‑
+  [`video/README.md`](video/README.md).
 
 ---
 

@@ -12,6 +12,24 @@
 | `line1.mp3` … `line7.mp3` | הקריינות, קובץ לכל כתובית. ElevenLabs, מודל `eleven_v3`. **לא במאגר** — מפיקים מחדש |
 | `final_video.mp4` | הסרטון המרונדר עם הקריינות. **לא במאגר** |
 
+## הגדרה ב‑claude.ai — פעם אחת
+
+כדי ששיחת הבדיקה תוכל להפיק סרטון בעצמה, צריך שלושה דברים בחשבון claude.ai:
+
+1. **לחבר את ElevenLabs:** ‏Customize ← Connectors ← ElevenLabs ← Connect.
+2. **הרשאות — Always allow, ברמת הקבוצה.** באותו מסך יש לכלים של ה‑connector שתי קבוצות
+   (Read-only ו‑Write/delete). מעבירים **את שתיהן** ל‑Always allow. בלי זה כל קריאה מחכה
+   ללחיצה על "Allow once", ובלי לחיצה היא נכשלת ב‑"No approval received".
+   ⚠️ להגדיר על הקבוצה ולא על כלי בודד: ה‑connector מסדר את הכלים מחדש בין הקבוצות, ושינוי
+   כזה מאפס הגדרה של כלי בודד בחזרה ל‑Needs approval. אחרי השמירה — לרענן ולוודא.
+3. **לפתוח את הדומיין של קובצי האודיו:** ‏Settings ← Capabilities ← Additional allowed domains
+   ← להוסיף `storage.googleapis.com`. שם יושבים קובצי ה‑mp3 ש‑ElevenLabs מחזיר, וסביבת הקוד של
+   השיחה חוסמת אותו כברירת מחדל (`403`, ‏`x-deny-reason: host_not_allowed`).
+   ⚠️ **השינוי חל רק על שיחה חדשה.** שיחה שכבר פתוחה נשארת עם הרשימה הישנה וממשיכה לקבל 403.
+
+ועוד דבר אחד שכדאי לדעת: בחשבון ElevenLabs חינמי קריאה בודדת נדחית לפעמים ב‑"free access blocked
+due to unusual activity". זה חולף — ניסיון חוזר עבר — אבל מנוי בתשלום מונע את זה.
+
 ## בנייה
 
 ```bash
