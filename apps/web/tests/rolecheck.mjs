@@ -83,6 +83,42 @@ const back = await box();
 check('back on the mirror, the 3:2 page returns', Math.abs(back.canvas - mirror.canvas) <= 1,
   `${mirror.canvas} -> ${back.canvas}`);
 
+// The switch is animated: each role has its own animation name, so the class swap restarts
+// it with no JS. Read main's running animations right after the click (Svelte prefixes
+// keyframe names with a hash, hence the strip); under reduced
+// motion there must be none at all.
+const anims = () =>
+  ev(`JSON.stringify(document.querySelector('main').getAnimations({ subtree: true })
+    .map((a) => a.animationName.replace(/^svelte-[a-z0-9]+-/, ''))
+    .filter((n) => n.startsWith('role')).sort())`);
+const clipNow = () => ev(`getComputedStyle(document.querySelector('main')).clipPath`);
+await role('לוח כתיבה');
+await wait(30);
+const toPad = JSON.parse(await anims());
+const midClip = await clipNow();
+check('to the writing board: the power-on runs', toPad.includes('roleToPad') &&
+  toPad.includes('roleScanDown'), toPad.join(' '));
+check('and mid-way the board is still opening', midClip.startsWith('inset('), midClip);
+await wait(400);
+check('and it ends with nothing held', (await clipNow()) === 'none' &&
+  JSON.parse(await anims()).length === 0, await clipNow());
+await role('תצוגה');
+await wait(30);
+const toMirror = JSON.parse(await anims());
+check('to the mirror: the other direction runs', toMirror.includes('roleToMirror') &&
+  toMirror.includes('roleScanAcross'), toMirror.join(' '));
+await wait(400);
+await send('Emulation.setEmulatedMedia', {
+  features: [{ name: 'prefers-reduced-motion', value: 'reduce' }]
+});
+await role('לוח כתיבה');
+await wait(30);
+const reduced = JSON.parse(await anims());
+check('reduced motion: no animation at all', reduced.length === 0, reduced.join(' ') || 'none');
+await role('תצוגה');
+await wait(100);
+await send('Emulation.setEmulatedMedia', { features: [] });
+
 // A tall window: the full-width page needs less than the leftover height, so the board
 // stops growing — and the tools must stay right under it, not drift to the bottom.
 await send('Emulation.setDeviceMetricsOverride', {

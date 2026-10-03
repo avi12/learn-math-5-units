@@ -285,6 +285,100 @@
     max-width: none;
   }
 
+  /* Switching role is a channel change, and it looks like one: the new layout powers on
+     from a lit slit, overexposed for a beat, while a scanline crosses it. The writing
+     board opens top-and-bottom from a horizontal line (a CRT waking up); the mirror opens
+     side-to-side from a vertical one (a monitor), so the two directions say which way
+     you went.
+
+     No JS: each role has its own animation NAME, and a changed animation-name restarts
+     the animation, so the class swap on .page is the trigger. No `forwards` on `main` —
+     the last frame equals the resting state, and holding a clip-path or a filter after
+     the gesture would clip card shadows and turn `main` into a containing block for
+     fixed descendants. The scanline rests at opacity 0, so nothing is left behind.
+     Under reduced motion none of it runs: the layout simply appears. */
+  main {
+    position: relative;
+  }
+  main::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+    background: var(--primary);
+    box-shadow: 0 0 14px 2px var(--primary);
+  }
+  .page.pinned main {
+    animation: roleToPad var(--dur-long) var(--ease-emph);
+  }
+  .page.pinned main::after {
+    inset-inline: 0;
+    height: 2px;
+    animation: roleScanDown var(--dur-long) linear;
+  }
+  .page.mirror main {
+    animation: roleToMirror var(--dur-long) var(--ease-emph);
+  }
+  .page.mirror main::after {
+    inset-block: 0;
+    width: 2px;
+    animation: roleScanAcross var(--dur-long) linear;
+  }
+  @keyframes roleToPad {
+    0% {
+      clip-path: inset(50% 0 50% 0);
+      filter: brightness(2.2) contrast(1.3);
+    }
+    30% {
+      clip-path: inset(48% 0 48% 0);
+    }
+    100% {
+      clip-path: inset(0);
+      filter: none;
+    }
+  }
+  @keyframes roleToMirror {
+    0% {
+      clip-path: inset(0 50% 0 50%);
+      filter: brightness(2.2) contrast(1.3);
+    }
+    30% {
+      clip-path: inset(0 48% 0 48%);
+    }
+    100% {
+      clip-path: inset(0);
+      filter: none;
+    }
+  }
+  @keyframes roleScanDown {
+    from {
+      top: 0;
+      opacity: 1;
+    }
+    to {
+      top: 100%;
+      opacity: 0;
+    }
+  }
+  /* Physical `left`, in an RTL page: the sweep follows the reading direction, right to
+     left, the way the eye goes. */
+  @keyframes roleScanAcross {
+    from {
+      left: 100%;
+      opacity: 1;
+    }
+    to {
+      left: 0;
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .page main,
+    .page main::after {
+      animation: none;
+    }
+  }
+
   /* The pad is pinned to the viewport: the board must be on screen at every moment, and
      a long exercise is served by scrolling INSIDE it rather than by scrolling the page.
      Those two are the same requirement — the moment the document scrolls, the board is
