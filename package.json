@@ -1,0 +1,17 @@
+{
+  "name": "learn-math-5-units",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "author": "Avi (https://avi12.com)",
+  "repository": "github:avi12/learn-math-5-units",
+  "type": "module",
+  "description": "Build tooling for the bagrut study pages. The pages themselves are HTML in pages/; this file only declares what build/ needs from npm.",
+  "scripts": {
+    "transcribe": "node build/transcribe.mjs",
+    "transcribe:batch": "node build/transcribe_batch.mjs"
+  },
+  "devDependencies": {
+    "@huggingface/transformers": "^4.2.0",
+    "katex": "0.18.5"
+  }
+}

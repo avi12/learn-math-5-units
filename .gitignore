@@ -1,0 +1,37 @@
+# --- third-party sources: the Ministry's papers and formula sheet. `python build/fetch_sources.py`
+exams/
+data/nushaon.txt
+
+# --- private: the working log, session handoffs, the unscrubbed plan, the admission page builder
+CLAUDE.md
+continue-*.md
+pages/plan.private.html
+build/goalsec.py
+
+# --- build outputs (rebuilt by the scripts in build/)
+dist/
+pages/workbook.html
+pages/hub571.html
+pages/_m3-legacy/
+build/*_html*.json
+build/*_tex*.json
+build/ground/
+build/derive/
+build/__pycache__/
+__pycache__/
+
+# --- generated media: Manim renders and voiceover audio
+media/
+*.mp3
+*.mp4
+
+# --- dependencies and tool state
+node_modules/
+extension/node_modules/
+extension/.output/
+extension/.wxt/
+extension/.env
+.fallow/
+
+# --- coverage dossiers that carry the deleted exam-ladder exercises (rule 3 in RESEARCH.md)
+build/cover/sitting-*.md
