@@ -12,6 +12,7 @@
  * The criteria themselves are checked by identity, not by eyeballing: the prompt that
  * goes out has to contain the marking criteria the workbook wrote for that block.
  */
+import { asTablet, assertPad } from './lib/pad.mjs';
 const [, , url, port] = process.argv;
 const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
@@ -51,15 +52,50 @@ const check = (name, ok, detail = '') => {
 };
 
 await send('Emulation.setDeviceMetricsOverride', { width: 1180, height: 900, deviceScaleFactor: 1, mobile: false });
+await asTablet(send);
 await send('Page.navigate', { url });
 await wait(7000);
+await assertPad(ev);
 
 // ---- the control itself -----------------------------------------------------
-check('the topic picker is on the pad', (await ev(`!!document.querySelector('.topic select')`)) === true);
-const count = await ev(`document.querySelectorAll('.topic select option').length`);
-check('all ten blocks are offered', count === 10, `${count} options`);
+// Since 17.09.2026 the picker is two controls over one value — the chapter, then the
+// exercise inside it — on the question card, because the list now also holds every
+// exercise written from an exam question (questioncheck.mjs tests that half). Inside a
+// chapter it still mirrors the workbook: a group per rung, the rung's own pips, and the
+// chapter's way out at the end.
+check('the picker is on the pad', (await ev(`document.querySelectorAll('.question .topic select').length >= 2`)) === true);
+const shape = JSON.parse(
+  await ev(`(() => {
+    const [chapter, s] = document.querySelectorAll('.question .topic select');
+    const groups = [...s.querySelectorAll('optgroup')];
+    return JSON.stringify({
+      chapters: chapter.options.length,
+      chapter: chapter.value,
+      groups: groups.length,
+      rungHeads: s.querySelectorAll('optgroup legend .grung').length,
+      pipsOn: [...s.querySelectorAll('optgroup legend .pips')].map(
+        (p) => p.querySelectorAll('i.on').length
+      ),
+      wayOut: [...s.options].filter((o) => o.value.endsWith(':')).length,
+      lastIsWayOut: s.options[s.options.length - 1]?.value.endsWith(':'),
+      firstRow: s.options[0]?.textContent?.trim() ?? ''
+    });
+  })()`)
+);
+check('the workbook’s ten chapters, and nothing else', shape.chapters === 10, `${shape.chapters} chapters`);
+check('a group per rung inside the chapter', shape.groups === 3, `${shape.groups} groups in ${shape.chapter}`);
+check('every rung says which rung it is', shape.rungHeads === 3, `${shape.rungHeads} rung headings`);
+// the workbook marks the rungs with 1, 2 and 3 lit pips; the picker has to agree
+check('the pips count up with the rung, as in the workbook',
+  JSON.stringify(shape.pipsOn) === '[1,2,3]', shape.pipsOn.join(','));
+check('one way out, at the end of the chapter', shape.wayOut === 1 && shape.lastIsWayOut === true);
+check('a row says which exercise it is', /^תרגיל \d+$/.test(shape.firstRow), shape.firstRow);
+
 const btn = `[...document.querySelectorAll('button')].find((b) => b.textContent.includes('שקלוד יבדוק'))`;
-check('the check button is there', (await ev(`!!${btn}`)) === true);
+// Desktop only, and that is the point of the button: it hands the drawing to a
+// conversation through a Chrome extension, and the Android wrapper has no extension to
+// hand it to. Asserted here on the pad so the gate is tested and not just relied on.
+check('the finish button is NOT on the tablet', (await ev(`!!${btn}`)) === false);
 
 // draw something, so the board is not blank
 const rect = JSON.parse(await ev('JSON.stringify(document.querySelector("canvas").getBoundingClientRect())'));
@@ -72,16 +108,32 @@ for (let i = 1; i <= 12; i++) {
 await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x0 + 312, y, button: 'left', buttons: 0, clickCount: 1 });
 await wait(2500);
 
+// Now do what the person does: written on the tablet, finish on the desktop. The role
+// buttons flip in place, so the room and everything drawn in it carry across — which is
+// also why the drawing had to happen first. The board is read-only.
+await ev(
+  `[...document.querySelectorAll('.roles .btn')].find((b) => b.textContent.trim() === 'תצוגה')?.click()`
+);
+await wait(1200);
+check('and it IS on the desktop', (await ev(`!!${btn}`)) === true);
+
 // ---- 1: with an extension listening -----------------------------------------
-// Pick a topic that is NOT the default, so a payload built from the wrong one is caught.
-await ev(`(() => {
-  const s = document.querySelector('.topic select');
-  s.value = '07';
-  s.dispatchEvent(new Event('change', { bubbles: true }));
-  s.dispatchEvent(new Event('input', { bubbles: true }));
-  return s.value;
+// A block that is NOT the default and an exercise inside it, so a payload built from the
+// wrong one is caught. One value carries both now — `block:tier.n` — which is the point
+// of merging the two pickers: there is no state in which they disagree.
+const picked = await ev(`(() => {
+  const [chapter] = document.querySelectorAll('.question .topic select');
+  chapter.value = '07';
+  chapter.dispatchEvent(new Event('change', { bubbles: true }));
+  return new Promise((r) => setTimeout(() => {
+    const s = document.querySelectorAll('.question .topic select')[1];
+    s.value = '07:3.1';
+    s.dispatchEvent(new Event('change', { bubbles: true }));
+    r(s.value);
+  }, 300));
 })()`);
-await wait(400);
+check('a block and an exercise can be picked at once', picked === '07:3.1', String(picked));
+await wait(500);
 
 await ev(`(() => {
   document.documentElement.dataset.aviMathCheck = 'ready';
@@ -101,7 +153,9 @@ const got = await ev(`(() => {
 })()`);
 check('a payload is posted for the extension', !!got);
 check('it carries a real PNG', got?.png === true, `${Math.round((got?.bytes ?? 0) / 1024)} kb data URL`);
-check('the topic is the one selected', got?.topic?.includes('נגזרת'), JSON.stringify(got?.topic));
+check('the label carries the block and the exercise',
+  got?.topic?.includes('נגזרת') && got?.topic?.includes('תרגיל 1'),
+  JSON.stringify(got?.topic));
 // the criteria the workbook wrote for block 07, verbatim
 check(
   "the prompt carries that block's own criteria",
@@ -109,6 +163,18 @@ check(
   String(got?.prompt).length + ' chars'
 );
 check('and it does not still ask for pasted text', !String(got?.prompt).includes('כאן מדביקים'));
+
+// Naming the exercise is the other half of "check me against the right thing". The
+// slot is filled at click time, so an unfilled one would ship the literal token to
+// Claude — worse than the topic-only prompt it replaced, because it reads as a bug.
+const prompt = String(got?.prompt ?? '');
+check(
+  'the exercise slot was filled in',
+  !prompt.includes('{{EXERCISE}}'),
+  prompt.includes('{{EXERCISE}}') ? 'the raw token went out' : ''
+);
+const named = prompt.split('\n').find((l) => l.startsWith('התרגיל')) ?? '';
+check('and the prompt says which exercise it is', named.length > 0, named.slice(0, 58));
 
 // ---- 2: with no extension ---------------------------------------------------
 await ev(`(() => {

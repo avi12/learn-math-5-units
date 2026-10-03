@@ -17,10 +17,9 @@
  *
  * A fresh random room, so nothing here touches a real one; it is cleared at the end.
  */
+import { asTablet, assertPad, roomUrl, freshRoom } from './lib/pad.mjs';
 const [, , url, port] = process.argv;
-const room = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
-  b.toString(16).padStart(2, '0')
-).join('');
+const room = freshRoom();
 
 const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
@@ -54,8 +53,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) =>
   (await send('Runtime.evaluate', { expression: x, returnByValue: true })).result?.value;
 
-await send('Page.navigate', { url: `${url}/?role=pad&room=${room}` });
+await asTablet(send);
+await send('Page.navigate', { url: roomUrl(url, room) });
 await wait(6000);
+await assertPad(ev);
 
 const box = await ev(
   `(() => { const c = document.querySelector('canvas'); if (!c) return null;
@@ -69,9 +70,9 @@ if (!box) {
 }
 
 let failures = 0;
-const say = (ok, line) => {
+const say = (ok, line, detail = '') => {
   if (!ok) failures++;
-  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${line}`);
+  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${detail ? line.padEnd(46) : line} ${detail}`.trimEnd());
 };
 
 console.log('--- the board on a 1180x820 tablet ---');
@@ -106,20 +107,30 @@ async function stroke(f) {
   await wait(250);
 }
 
-/** Ink pixels in a horizontal band of the canvas, as a fraction of its area. */
+/** Ink pixels in a horizontal band of the canvas, as a fraction of its area.
+ *
+ *  ALPHA, not colour. This used to read the pixel at (1,1) as "the background" and count
+ *  whatever differed from it by more than 90 across r+g+b — on the stated belief that
+ *  "the board paints itself in the theme colour". It does not: the live canvas is
+ *  transparent and the board colour comes from CSS underneath it, so that corner pixel is
+ *  (0,0,0,0). In the dark theme the ink is near-white and the sum came out huge, so the
+ *  check passed and the belief was never tested. In the light theme the ink is #06182b —
+ *  a distance of 73 from zero, under the threshold — and every band read zero on a board
+ *  with three strokes plainly on it.
+ *
+ *  Measured while chasing exactly that: 17336 ink pixels by alpha, 0 by the old measure,
+ *  same stroke. It only ever worked because earlier probes in the same browser had left
+ *  `prefers-color-scheme: dark` emulated on the target; a fresh browser reads light and
+ *  the file failed on its first assertion. Alpha asks the question the file means to ask
+ *  and does not care what colour anything is. */
 const ink = (f) =>
   ev(`(() => {
     const c = document.querySelector('canvas');
-    const g = c.getContext('2d');
     const h = Math.round(c.height * 0.12);
     const y = Math.round(c.height * ${f} - h / 2);
-    const d = g.getImageData(0, y, c.width, h).data;
-    // the board paints itself in the theme colour; ink is whatever differs from corner 1
-    const b = g.getImageData(1, 1, 1, 1).data;
+    const d = c.getContext('2d').getImageData(0, y, c.width, h).data;
     let n = 0;
-    for (let i = 0; i < d.length; i += 4) {
-      if (Math.abs(d[i] - b[0]) + Math.abs(d[i + 1] - b[1]) + Math.abs(d[i + 2] - b[2]) > 90) n++;
-    }
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 10) n++;
     return n;
   })()`);
 
@@ -168,13 +179,30 @@ await wait(1500);
 const after = { top: await ink(0.25), mid: await ink(0.5), bottom: await ink(0.75) };
 console.log('ink after       :', JSON.stringify(after));
 say(after.mid === 0, 'the swept stroke is gone');
-say(after.top === before.top && after.bottom === before.bottom, 'the other two are untouched');
+// Not exact equality. The erase repaints the whole strip, and a redrawn antialiased
+// stroke does not land on bit-identical pixels: measured drift is 1-2 pixels in 17340,
+// which failed this check while the rubber was working perfectly. What the check is for
+// is a rubber that reaches strokes it was never swept over, and that empties a band or
+// takes a visible bite out of it — so 1% is both far above the noise and far below any
+// erase worth catching.
+const intact = (a, b) => Math.abs(a - b) <= Math.max(20, b * 0.01);
+say(
+  intact(after.top, before.top) && intact(after.bottom, before.bottom),
+  'the other two are untouched',
+  `top ${before.top}->${after.top}, bottom ${before.bottom}->${after.bottom}`
+);
 
 // leave nothing behind in the database
-await ev('window.confirm = () => true');
+// The page asks with its own <dialog> now, so the answer is a click and not a stubbed
+// `window.confirm`. Waiting for the dialog to be open rather than for a clock: it is
+// shown a microtask after the button, and clicking a button that is not there yet is a
+// silent no-op that would leave the room uncleared for the next run to count.
 await ev(
-  `[...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'נקה')?.click()`
+  `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'נקה')?.click()`
 );
+for (let i = 0; i < 20 && !(await ev(`!!document.querySelector('dialog.ask[open]')`)); i++)
+  await wait(100);
+await ev(`document.querySelector('dialog.ask[open] [data-ask="ok"]')?.click()`);
 await wait(1500);
 
 console.log(`\n${failures ? `${failures} FAILED` : 'all passed'}`);

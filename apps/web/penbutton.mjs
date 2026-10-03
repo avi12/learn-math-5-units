@@ -9,6 +9,7 @@
  * and expects the ink to be gone. It also checks the toolbar is untouched afterwards:
  * the button changes THIS stroke, not the chosen tool.
  */
+import { asTablet, assertPad } from './lib/pad.mjs';
 const [, , url, port] = process.argv;
 const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
@@ -31,7 +32,6 @@ ws.onmessage = (e) => {
 await new Promise((r) => (ws.onopen = r));
 await send('Page.enable');
 await send('Runtime.enable');
-await send('Emulation.setTouchEmulationEnabled', { enabled: false }).catch(() => {});
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
   const r = await send('Runtime.evaluate', { expression: x, returnByValue: true });
@@ -45,8 +45,10 @@ const check = (name, ok, detail = '') => {
 };
 
 await send('Emulation.setDeviceMetricsOverride', { width: 1180, height: 820, deviceScaleFactor: 1, mobile: false });
+await asTablet(send);
 await send('Page.navigate', { url });
 await wait(6000);
+await assertPad(ev);
 
 const rect = JSON.parse(await ev('JSON.stringify(document.querySelector("canvas").getBoundingClientRect())'));
 const ink = async () =>

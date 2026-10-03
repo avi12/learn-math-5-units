@@ -15,7 +15,13 @@
  * Drawing is driven as a mouse so palm rejection stays out of the way, and the pan is
  * driven as two real touches, which is the gesture that has to work while writing.
  */
+import fs from 'node:fs';
+import { asTablet, assertPad, roomUrl, freshRoom } from './lib/pad.mjs';
 const [, , url, port, dir = '.'] = process.argv;
+// A room of its own. This file counts ink pixels in bands of the board, so anything a
+// previous run left behind is counted too — and it was: the wheel and the pan checks
+// went red on a second run of an unchanged file, on ink neither of them had drawn.
+const room = freshRoom();
 
 const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
@@ -61,17 +67,19 @@ await send('Emulation.setDeviceMetricsOverride', {
   deviceScaleFactor: 1,
   mobile: false
 });
-// Touch emulation is sticky on a target: once some earlier run switched it on it stays
-// on, and every CDP mouse event is then silently swallowed — the page receives nothing
-// at all and the board just looks broken. Turn it off explicitly, every run.
-await send('Emulation.setTouchEmulationEnabled', { enabled: false }).catch(() => {});
-// Deliberately NO touch emulation: with it on, CDP's mouse events are swallowed and
-// nothing reaches the page at all. The two-finger pan is driven as PointerEvents from
-// inside the page instead, which is the thing the handler actually listens to.
+// Touch emulation is ON here, via asTablet() below: it is what makes the app's own role
+// detection put this tab on the writing board. Two comments used to sit here saying that
+// touch emulation makes CDP mouse events "silently swallowed" and that the board just
+// looks broken — that was folklore, and it was measured: a dispatched mouse still arrives
+// as pointerType 'mouse' and still draws, with touch emulation on, at dsf 1 and 2 alike.
+// The two-finger pan is still driven as PointerEvents from inside the page, because the
+// handler listens to PointerEvents and that is the code path worth exercising.
 await send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: dir }).catch(() => {});
 
-await send('Page.navigate', { url });
+await asTablet(send);
+await send('Page.navigate', { url: roomUrl(url, room) });
 await wait(6000);
+await assertPad(ev);
 
 const box = async () => await ev(`JSON.stringify(document.querySelector('canvas').getBoundingClientRect())`);
 const rect = JSON.parse(await box());
@@ -132,7 +140,15 @@ const ink = async (from = 0, to = 1) =>
 await strokeAt(0.08, 'stroke 1');
 await strokeAt(0.92, 'stroke 2');
 
-const railBefore = await ev(`!!document.querySelector('.rail')`);
+// Poll, don't sample once. The ink counted above is the WET stroke, drawn the instant the
+// pen lifts, while the rail follows the committed strokes, which arrive with the Firestore
+// echo — so "stroke 2 landed (0ms)" can be true a moment before the rail exists. Checked
+// once, this passed and failed on alternate runs of an unchanged build.
+let railBefore = false;
+for (let i = 0; i < 24 && !railBefore; i++) {
+  railBefore = await ev(`!!document.querySelector('.rail')`);
+  if (!railBefore) await wait(250);
+}
 check('a rail appears once there is somewhere to go', railBefore);
 
 // ---- 3: wheel down, write, come back --------------------------------------
@@ -142,6 +158,7 @@ const topBefore = await ink(0, 0.25);
 check('stroke 1 is at the top to begin with', topBefore > 100, `${topBefore} ink pixels`);
 
 // a real WheelEvent on the canvas: CDP's own mouseWheel does not survive touch emulation
+// (the same dispatch is reused as `wheelDown()` further down, once the strip is being built)
 await ev(
   `document.querySelector('canvas').dispatchEvent(new WheelEvent('wheel', {deltaY: 400, bubbles: true, cancelable: true})), 1`
 );
@@ -186,15 +203,112 @@ check(
 );
 
 // ---- 4: the export grows with the strip ------------------------------------
-// The clipboard is out of reach headless, so the exported bitmap is measured through the
-// same call the button makes. What matters is the SHAPE: a strip must not come back as
-// one 3:2 page, because that page would look like a complete drawing.
-const shape = await ev(`(async () => {
-  const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.includes('הורד PNG'));
+// `exportCanvas` is a component export no script can reach, so the bitmap is measured
+// where it surfaces: a file on disk. `Page.setDownloadBehavior` above is what makes that
+// land.
+//
+// It used to be the download button that wrote that file. That button is gone — the board
+// exists to get handwriting into a conversation, and that is a paste — so the file now
+// comes from "העתק כתמונה" taking its fallback: headless Chrome has no focused document,
+// the clipboard write throws, and `copyPng` writes the PNG instead. The measurement is
+// unchanged and the fallback is now covered too.
+//
+// This block used to find the button, never click it, and pass on `'clicked'` — while the
+// header above promised it measured the export. It was the one check of the four that
+// could not have failed.
+//
+// What matters is the SHAPE. `exportCanvas` sizes the image as max(PAGE, bottom + pad),
+// so a strip that came back as one 3:2 page would mean everything below the first screen
+// was dropped — and that page would look like a complete drawing, which is why this fails
+// silently in the first place.
+const PAGE = 1 / 1.5; // ink.ts: ASPECT is 1.5, and PAGE is one exported page of it
+
+// The strip has to be longer than a page before "longer than a page" can be asserted of
+// the export, and one wheel step does not get there: `maxTop()` is `inkBottom - viewH/2`,
+// so the board only ever scrolls half a screen past the last stroke. Writing at the
+// bottom and scrolling again is the only way down, which is exactly how it is used. Three
+// rounds clear a page with room to spare; the first measured run stopped at 0.49 of one.
+const wheelDown = () =>
+  ev(
+    `document.querySelector('canvas').dispatchEvent(new WheelEvent('wheel', {deltaY: 900, bubbles: true, cancelable: true})), 1`
+  );
+for (let r = 1; r <= 3; r++) {
+  await wheelDown();
+  await wait(300);
+  await strokeAt(0.85, `stroke ${r + 3}, extending the strip`);
+}
+
+// The clipboard is where the export lands, and the clipboard is the point: this button
+// exists so the drawing can be pasted into a conversation with Claude. Reading it back is
+// therefore not a proxy for the artifact, it IS the artifact.
+//
+// The first replacement for the old download-button check assumed `copyPng` would fall
+// back to writing a file, because CLAUDE.md says the Clipboard API needs a focused
+// document and headless has none. Measured on Chrome 152: the write succeeds, the toast
+// says "הועתק ללוח", and no file is written. The note is out of date; this reads the
+// bitmap instead.
+await send('Browser.grantPermissions', {
+  permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite']
+}).catch(() => {});
+
+// "העתק כתמונה" is desktop-only since 12.09.2026 (the paste happens in a conversation, and
+// the conversation is on the desktop), and this script writes as the tablet. So it does what
+// a person does: writes on the pad, then flips to the desktop view to copy. The role buttons
+// flip in place, so the room and the strip drawn in it carry across. Without this the check
+// had been failing on "no button" ever since the copy button left the tablet.
+await ev(
+  `[...document.querySelectorAll('.roles .btn')].find((b) => b.textContent.trim() === 'תצוגה')?.click()`
+);
+await wait(1200);
+
+const clicked = await ev(`(() => {
+  const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.includes('העתק כתמונה'));
   if (!btn) return 'no button';
+  btn.click();
   return 'clicked';
 })()`);
-check('the export button is there', shape === 'clicked', String(shape));
+check('the export button is there', clicked === 'clicked', String(clicked));
+
+await wait(1500);
+const shot = JSON.parse(
+  (await ev(`(async () => {
+    try {
+      for (const it of await navigator.clipboard.read()) {
+        if (!it.types.includes('image/png')) continue;
+        const blob = await it.getType('image/png');
+        const bmp = await createImageBitmap(blob);
+        return JSON.stringify({ w: bmp.width, h: bmp.height, bytes: blob.size });
+      }
+      return JSON.stringify({ error: 'no image on the clipboard' });
+    } catch (e) { return JSON.stringify({ error: String(e.message) }); }
+  })()`)) || '{"error":"nothing came back"}'
+);
+
+check('the copy put a PNG on the clipboard', !shot.error && shot.bytes > 0,
+  shot.error ?? `${shot.bytes} bytes`);
+
+if (!shot.error) {
+  check('the export is a real bitmap', shot.w > 0 && shot.h > 0, `${shot.w}x${shot.h}`);
+  check(
+    'the export is taller than one page',
+    shot.h > shot.w * PAGE + 1,
+    `${shot.w}x${shot.h} — one page would be ${shot.w}x${Math.round(shot.w * PAGE)}`
+  );
+}
+
+
+// leave nothing behind in the database
+// The page asks with its own <dialog> now, so the answer is a click and not a stubbed
+// `window.confirm`. Waiting for the dialog to be open rather than for a clock: it is
+// shown a microtask after the button, and clicking a button that is not there yet is a
+// silent no-op that would leave the room uncleared for the next run to count.
+await ev(
+  `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'נקה')?.click()`
+);
+for (let i = 0; i < 20 && !(await ev(`!!document.querySelector('dialog.ask[open]')`)); i++)
+  await wait(100);
+await ev(`document.querySelector('dialog.ask[open] [data-ask="ok"]')?.click()`);
+await wait(1500);
 
 console.log(bad ? `\n${bad} FAILED` : '\nall checks passed');
 ws.close();
