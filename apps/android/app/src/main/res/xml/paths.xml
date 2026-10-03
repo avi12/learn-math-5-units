@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the share staging directory. The app has nothing else worth handing out. -->
+<paths>
+    <cache-path name="share" path="share/" />
+</paths>

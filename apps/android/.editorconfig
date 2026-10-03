@@ -1,0 +1,19 @@
+# The web side's lint rules (eslint.config.js, .oxlintrc.json), translated for Kotlin.
+# ktlint reads this file; detekt carries the logic rules in config/detekt.yml.
+root = true
+
+[*]
+charset = utf-8
+indent_size = 2
+indent_style = space
+insert_final_newline = true
+max_line_length = 120
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+ktlint_code_style = intellij_idea
+# @stylistic/comma-dangle: never
+ij_kotlin_allow_trailing_comma = false
+ij_kotlin_allow_trailing_comma_on_call_site = false
+# @stylistic/no-multiple-empty-lines max 1 is ktlint's own default
+ij_kotlin_imports_layout = *,java.**,javax.**,kotlin.**,^

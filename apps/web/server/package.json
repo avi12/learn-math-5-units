@@ -1,0 +1,6 @@
+{
+  "name": "avi-math-study-server",
+  "private": true,
+  "type": "module",
+  "description": "Serves the built site on Cloud Run. No dependencies, by design — node: builtins only."
+}

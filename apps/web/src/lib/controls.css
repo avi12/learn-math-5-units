@@ -1,0 +1,327 @@
+/* Controls the whole app shares: toolbar rows, button states, the pickers.
+
+   They lived in App.svelte's scoped <style> while App.svelte was the only component.
+   Split into components, the same rule would have had to be copied into each one that
+   draws a picker or an active button — so they live here once, beside the skin. */
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  justify-content: space-between;
+  margin-top: 14px;
+}
+.group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn[data-active='true'] {
+  border-color: var(--border-strong);
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: var(--cyber-glow-primary);
+}
+.rid {
+  font-family: var(--font-mono);
+  font-size: .85em;
+  opacity: .75;
+  direction: ltr;
+  display: inline-block;
+}
+.btn.big {
+  padding-block: 12px;
+  font-size: 15px;
+}
+/* The skin had no disabled state, because until redo nothing in these pages was ever
+   offered and unavailable at the same time. Dimmed and un-hoverable, not hidden: a
+   control that vanishes when it has nothing to do is a control you cannot learn. */
+.btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+.btn:disabled:hover {
+  background: var(--surface-2);
+}
+/* ---- the three pickers ---------------------------------------------------
+   Chamfered, outlined, mono — the same HUD language as everything else. The chevron
+   is drawn on the LABEL and not on the select, because a select gets no reliable
+   pseudo-element; the label is already `position: relative` for exactly this. */
+.topic {
+  position: relative;
+  flex: 1 1 240px;
+  min-width: 0;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.07em;
+  color: var(--fg-muted);
+}
+.topic.narrow {
+  flex: 0 0 auto;
+}
+.topic.narrow select {
+  min-width: 5.5rem;
+}
+.topic select {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* room on the inline-end for the chevron — which in RTL is the left side */
+  padding: 9px 12px;
+  padding-inline-end: 34px;
+  border: 2px solid var(--border);
+  background: var(--surface-2);
+  color: var(--fg);
+  font: var(--t-body-m);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: background-color var(--dur-short) var(--ease-emph);
+  clip-path: polygon(
+    var(--chamfer-s) 0, 100% 0,
+    100% calc(100% - var(--chamfer-s)), calc(100% - var(--chamfer-s)) 100%,
+    0 100%, 0 var(--chamfer-s));
+  /* ONE line when closed. A long name, wrapped, grew the closed control to three lines
+     and took ~40px off the board on the tablet. The open list still shows it whole. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topic select::picker(select) {
+  white-space: normal;
+}
+.topic select:hover {
+  background-color: var(--hover);
+}
+/* A clipped box eats an outline, so the focus ring is drawn inside it. */
+.topic select:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--primary), var(--cyber-glow-primary);
+}
+.topic::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: 13px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  transform: translateY(-70%) rotate(45deg);
+  /* PHYSICAL right+bottom, on purpose. A square rotated 45deg with those two edges is
+     the "v" a dropdown wants; the logical pair resolves to LEFT in RTL and draws "<".
+     The page is dir=rtl everywhere, so naming the physical sides is the honest way to
+     say "down" here rather than the direction-aware one. */
+  border-right: 2px solid var(--primary);
+  border-bottom: 2px solid var(--primary);
+  pointer-events: none;
+}
+
+/* The open list is the half a plain <select> never let anyone style. `base-select`
+   hands it over: the popup becomes a real element, so it gets the same 2px outline,
+   the same chamfer and the same cyan selection as every other surface. Chrome 135+;
+   anywhere else this whole block is skipped and the control above still looks right,
+   with the browser's own popup — which is why the fallback is styled first and not
+   as an afterthought. */
+@supports (appearance: base-select) {
+  .topic select,
+  .topic select::picker(select) {
+    appearance: base-select;
+  }
+  .topic select::picker-icon {
+    display: none; /* the label draws the chevron */
+  }
+  .topic select::picker(select) {
+    /* Same knob, same reason: `::picker()` is not `*`, `::before` or `::after`, so the
+       skin's global reduced-motion rule does not reach it either. */
+    --pick-dur: var(--dur-medium);
+    /* It unrolls from its top edge rather than sliding in — the list resolving onto
+       the screen, which is the same gesture as the dialog's slit, one level quieter. */
+    opacity: 0;
+    transform-origin: top center;
+    transform: scaleY(0.86) translateY(-4px);
+    transition:
+      opacity var(--pick-dur) var(--ease-emph),
+      transform var(--pick-dur) var(--ease-emph),
+      overlay var(--pick-dur) allow-discrete,
+      display var(--pick-dur) allow-discrete;
+    margin-block-start: 6px;
+    padding: 0;
+    border: 2px solid var(--border-strong);
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+    clip-path: polygon(
+      var(--chamfer) 0, 100% 0,
+      100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%,
+      0 100%, 0 var(--chamfer));
+  }
+  /* The picker is a hundred rows long, so it has to be READ, not scanned: a block
+     header that carries the card treatment — uppercase, tracked out, a 2px rule and
+     the signature 44px stub under it — and a hairline between exercises. Sticky, so
+     the block you are inside never scrolls out of sight while you look for a rung. */
+  .topic optgroup {
+    padding: 0;
+    border: none;
+  }
+  .topic optgroup legend {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: block;
+    padding: 0;
+    background: var(--surface-2);
+    color: var(--fg);
+    font-family: var(--font-mono);
+  }
+  /* The rung: quieter, and it carries the workbook's own pips so the two read as the
+     same thing in two places. */
+  .topic optgroup legend .grung {
+    display: flex;
+    align-items: stretch;
+    color: var(--fg-muted);
+    font: var(--t-label-m);
+    font-family: var(--font-mono);
+    letter-spacing: 0.08em;
+  }
+  .topic optgroup legend .grung .tx {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px 7px 6px;
+    border-block-end: 1px solid var(--border);
+  }
+  .topic .pips {
+    display: inline-flex;
+    gap: 3px;
+  }
+  .topic .pips i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.3;
+  }
+  .topic .pips i.on {
+    opacity: 1;
+    background: var(--primary);
+  }
+  /* ---- the skill tree ---------------------------------------------------
+     A trunk down the inline-start edge with a node on it for every row: hollow
+     diamonds for the exercises, a filled square for the rung they hang off, and the
+     chosen one lit. The trunk is drawn on `.tw`, one segment per row, top to bottom —
+     so consecutive rows join into a continuous line without anyone computing heights.
+     Every node punches a hole in the trunk with its own background, which is what
+     makes it read as ON the line rather than beside it. */
+  .topic select:open::picker(select) {
+    opacity: 1;
+    transform: none;
+  }
+  @starting-style {
+    .topic select:open::picker(select) {
+      opacity: 0;
+      transform: scaleY(0.86) translateY(-4px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .topic select::picker(select) {
+      --pick-dur: 0.001ms;
+    }
+  }
+  .topic option {
+    display: flex;
+    align-items: stretch;
+    padding: 0;
+    background: var(--surface);
+    color: var(--fg);
+    font: var(--t-body-m);
+    font-family: var(--font-mono);
+  }
+  .topic .tw {
+    position: relative;
+    flex: 0 0 46px;
+  }
+  /* the trunk segment */
+  .topic .tw::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 25px;
+    width: 2px;
+    background: var(--fg-subtle);
+    opacity: 0.55;
+  }
+  /* the node */
+  .topic .tw::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    inset-inline-start: 19px;
+    width: 14px;
+    height: 14px;
+    margin-block-start: -7px;
+    transform: rotate(45deg);
+    border: 2px solid var(--fg-subtle);
+    background: var(--surface);
+    transition: border-color var(--dur-short) var(--ease-emph);
+  }
+  .topic .tx {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 9px 14px 9px 6px;
+    border-block-end: 1px solid var(--border);
+  }
+  .topic option:hover .tw::after {
+    border-color: var(--primary);
+  }
+  /* the rung: a square rather than a diamond, and it is the branch the three hang off */
+  .topic legend .grung .tw::after {
+    transform: none;
+    width: 12px;
+    height: 12px;
+    margin-block-start: -6px;
+    inset-inline-start: 20px;
+    border-color: var(--primary);
+    background: var(--primary);
+  }
+  /* the chapter's first rung starts the trunk, so nothing is drawn above its node */
+  .topic optgroup:first-of-type legend .grung .tw::before {
+    inset-block-start: 50%;
+  }
+  /* the chapter list is a plain list: no trunk, just the row */
+  .topic.chapter option .tx,
+  .topic.narrow option .tx {
+    padding-inline: 14px;
+  }
+  /* the last row of a block ends it */
+  .topic option.leaf .tw::before {
+    inset-block-end: 50%;
+  }
+  .topic option.leaf .tx {
+    border-block-end: none;
+    color: var(--fg-muted);
+  }
+  /* The CONTAINER pair, not primary/on-primary. In the light palette the latter is a
+     navy fill with cyan text, and cyan on small text is the one thing that palette
+     forbids — it fills, ink writes. The container pair reads correctly in both: pale
+     cyan behind ink here, dark teal behind light cyan in the dark skin. */
+  .topic option:checked {
+    background: var(--primary-container);
+    color: var(--on-primary-container);
+    font-weight: 700;
+  }
+  .topic option:checked .tw::after {
+    border-color: var(--primary);
+    background: var(--primary);
+    box-shadow: var(--cyber-glow-primary);
+  }
+  .topic option:checked .tx {
+    border-block-end-color: var(--primary);
+  }
+  .topic option:hover,
+  .topic option:focus {
+    background: var(--hover);
+  }
+  .topic option::checkmark {
+    display: none; /* the fill says which one is chosen */
+  }
+}
