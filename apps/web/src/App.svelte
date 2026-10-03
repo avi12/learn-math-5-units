@@ -128,7 +128,7 @@
   }
 </script>
 
-<div class="page" class:pinned={isPad} dir="rtl">
+<div class="page" class:pinned={isPad} class:mirror={!isPad} dir="rtl">
   <header>
     <div class="brand">
       <span class="mark chamfer-s">∫</span>
@@ -167,33 +167,35 @@
   <main>
     <QuestionCard {choice} {role} oncheck={checkWithClaude} />
 
-    <Surface
-      bind:this={surface}
-      {room}
-      readonly={!isPad}
-      fill={isPad}
-      onparts={(n, at) => {
-        parts = n;
-        // The ONLY writer of `part`. It follows the board rather than being held here,
-        // so the picker cannot say one thing while the screen shows another — which is
-        // also what keeps a shrinking strip honest: an erase or a clear moves the board,
-        // and the index that arrives with it is already inside the new count.
-        part = at;
-      }}
-      {tool}
-      size={size.value}
-      {isSnapping}
-      gridCell={gridCell(grid.value)}
-      onpen={(down) => {
-        penDown = down;
-        // Drawing again is what makes "forward" meaningless, so the stack empties on the
-        // way DOWN — before the stroke exists, not after it has landed.
-        if (down) {
-          history.forgetRedo();
-        }
-      }}
-      onaction={(a) => history.record(a)}
-    />
+    <div class="slot">
+      <Surface
+        bind:this={surface}
+        {room}
+        readonly={!isPad}
+        fill={isPad}
+        onparts={(n, at) => {
+          parts = n;
+          // The ONLY writer of `part`. It follows the board rather than being held here,
+          // so the picker cannot say one thing while the screen shows another — which is
+          // also what keeps a shrinking strip honest: an erase or a clear moves the board,
+          // and the index that arrives with it is already inside the new count.
+          part = at;
+        }}
+        {tool}
+        size={size.value}
+        {isSnapping}
+        gridCell={gridCell(grid.value)}
+        onpen={(down) => {
+          penDown = down;
+          // Drawing again is what makes "forward" meaningless, so the stack empties on the
+          // way DOWN — before the stroke exists, not after it has landed.
+          if (down) {
+            history.forgetRedo();
+          }
+        }}
+        onaction={(a) => history.record(a)}
+      />
+    </div>
 
     {#if isPad}
       <PadTools bind:tool {size} bind:isSnapping {grid} />
@@ -242,6 +244,38 @@
     max-width: 1180px;
     margin: 0 auto;
     padding: 20px 18px 64px;
+  }
+
+  /* The desktop mirror fits the viewport too, but for the opposite reason: everything
+     around the board (the tools, the QR to pair the tablet) has to stay on screen, so the
+     board gets only the height that is left. The slot is that leftover; the board keeps
+     its 3:2 page shape inside it, as wide as the slot's height allows. `min-height` is
+     the floor below which a short window scrolls the page instead of shrinking the board
+     to nothing. On the pad the slot is not a box at all. */
+  .slot {
+    display: contents;
+  }
+  .page.mirror {
+    height: 100svh;
+    padding-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+  }
+  .page.mirror main {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .page.mirror .slot {
+    display: block;
+    flex: 1 1 0;
+    min-height: 200px;
+    container-type: size;
+  }
+  .page.mirror .slot :global(.host) {
+    width: min(100cqw, 150cqh);
+    max-width: none;
   }
 
   /* The pad is pinned to the viewport: the board must be on screen at every moment, and
