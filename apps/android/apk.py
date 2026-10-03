@@ -1,6 +1,6 @@
 """Build the WebView wrapper, and install it if a tablet is plugged in.
 
-    python scripts/apk.py [--install]
+    python apps/android/apk.py [--install]
 
 Neither Gradle nor a JDK is on PATH on this machine, and the ones that are installed are
 the wrong versions for AGP: `java` is 24 and Android Studio's bundled JBR is 25, while
@@ -13,8 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-PROJECT = ROOT / "android"
+PROJECT = Path(__file__).resolve().parent
 GRADLE_HOME = Path.home() / ".gradle"
 SDK = Path.home() / "AppData" / "Local" / "Android" / "Sdk"
 APK = PROJECT / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk"
@@ -29,7 +28,7 @@ def find(pattern: str, root: Path, name: str) -> Path:
 
 def main() -> int:
     if not PROJECT.exists():
-        raise SystemExit("android/ is missing")
+        raise SystemExit(f"{PROJECT} is missing")
     # AGP 8.5 runs on 17 or 21; take the newest provisioned JDK that is not newer than 21
     jdk = find("jdks/*-21-*/", GRADLE_HOME, "JDK 21")
     gradle = find("wrapper/dists/gradle-8.9-bin/*/gradle-8.9/bin/gradle.bat", GRADLE_HOME, "Gradle 8.9")

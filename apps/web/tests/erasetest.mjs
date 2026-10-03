@@ -5,7 +5,7 @@
  * differently from the ink: the empty middle of a circle, the hollow of a rectangle, and
  * a stroke that passes close by without being touched.
  */
-import { hits, pack } from './src/lib/ink.ts';
+import { hits, pack } from '../src/lib/ink.ts';
 
 const S = (t, pts, w = 6) => ({ t, c: 'ink', w, p: pack(pts.map(([x, y]) => ({ x, y, pr: 0.5 }))) });
 const R = 0.02;

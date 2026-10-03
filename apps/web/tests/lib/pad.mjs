@@ -15,17 +15,11 @@
  * it *bypasses* the role detection, and the detection is part of what these tests are for.
  */
 
-import { readFileSync } from 'node:fs';
+import { firebaseProject } from '@learn-math/shared/env';
 
-/** The Firebase project the tests seed and read over REST — from `.env`, the same file
- *  the app is built from, so a test can never talk to a different database than the app. */
-export const PROJECT = (() => {
-  if (process.env.VITE_FIREBASE_PROJECT_ID) return process.env.VITE_FIREBASE_PROJECT_ID;
-  const env = readFileSync(new URL('../.env', import.meta.url), 'utf8');
-  const id = env.match(/^VITE_FIREBASE_PROJECT_ID=(.+)$/m)?.[1]?.trim();
-  if (!id) throw new Error('VITE_FIREBASE_PROJECT_ID is not set - copy .env.example to .env');
-  return id;
-})();
+/** The Firebase project the tests seed and read over REST — the same root `.env` the app
+ *  is built from, so a test can never talk to a different database than the app. */
+export const PROJECT = firebaseProject();
 
 /** A document path's prefix, as Firestore's REST API names it. */
 export const DOCS = `projects/${PROJECT}/databases/(default)/documents`;

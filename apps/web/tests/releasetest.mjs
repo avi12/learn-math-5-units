@@ -36,7 +36,7 @@ if (!url || !port) {
 }
 
 /** What the bundle under test believes it is. Same file the page will ask hosting for. */
-const OWN = readFileSync('dist/build-id.txt', 'utf-8').trim();
+const OWN = readFileSync(new URL('../dist/build-id.txt', import.meta.url), 'utf-8').trim();
 
 /** The build hosting will claim once the run wants a deploy to have happened.
  *
