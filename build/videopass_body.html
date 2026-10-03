@@ -1,0 +1,453 @@
+<title>עשרה בלוקים, עשרה סרטונים</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Share+Tech+Mono&family=Heebo:wght@400;500;700;800&family=Miriam+Libre:wght@400;700&display=swap">
+<style>
+/* ==== token sheet, pasted from ~/.claude/artifact-cyberpunk.css ========== */
+/*TOKENS*/
+
+/* ==== Hebrew stacks: Chakra Petch and Share Tech Mono have no Hebrew ===== */
+:root {
+  --font-sans: "Chakra Petch", "Heebo", "Assistant", system-ui, sans-serif;
+  --font-mono: "Share Tech Mono", "Miriam Libre", "Cousine", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  direction: rtl;
+  background: var(--cyber-body), var(--bg);
+  color: var(--fg);
+  font: var(--t-body-l);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1000px; margin: 0 auto; padding: var(--s-8) var(--s-5) 96px; }
+
+h1, h2, h3 {
+  margin: 0;
+  font-family: var(--font-sans);
+  letter-spacing: 0.07em;
+  text-shadow: var(--cyber-glow-text);
+  text-wrap: balance;
+}
+h1 { font: 800 34px/42px var(--font-sans); letter-spacing: 0.06em; }
+h2 { font: 700 21px/28px var(--font-sans); }
+
+p { margin: 0; }
+a { color: var(--fg); text-decoration-color: var(--primary); text-underline-offset: 3px; }
+a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+
+.mono { font-family: var(--font-mono); }
+.sub  { color: var(--fg-muted); font-family: var(--font-mono); font-size: 13px; line-height: 20px; }
+
+/* ---- masthead ---------------------------------------------------------- */
+.mast {
+  display: flex; flex-direction: column; gap: var(--s-4);
+  padding-bottom: var(--s-6); margin-bottom: var(--s-8);
+  border-bottom: 2px solid var(--border);
+  background: linear-gradient(var(--cyber-stripe), var(--cyber-stripe))
+    bottom right / 88px 4px no-repeat;
+}
+.eyebrow {
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.18em;
+  color: var(--fg-subtle); text-transform: uppercase;
+}
+.lede { max-width: 62ch; color: var(--fg-muted); font-size: 15px; line-height: 24px; }
+
+/* ---- run strip: the checks, as instrument readouts --------------------- */
+/* flex, not grid: when the five readouts wrap, the last one stretches to fill its
+   row instead of sitting stranded at one column width */
+.run { display: flex; flex-wrap: wrap; gap: var(--s-3); }
+.readout {
+  display: flex; flex-direction: column; gap: 2px;
+  flex: 1 1 150px;
+  padding: var(--s-3) var(--s-4);
+  border: 2px solid var(--border); background: var(--surface);
+  clip-path: polygon(var(--chamfer-s) 0, 100% 0, 100% calc(100% - var(--chamfer-s)),
+    calc(100% - var(--chamfer-s)) 100%, 0 100%, 0 var(--chamfer-s));
+}
+.readout b {
+  font-family: var(--font-mono); font-size: 20px; line-height: 24px;
+  font-weight: 400; color: var(--fg); text-shadow: var(--cyber-glow-primary);
+  font-variant-numeric: tabular-nums;
+}
+.readout span {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em;
+  color: var(--fg-subtle); text-transform: uppercase;
+}
+.readout[data-flag="true"] { border-color: var(--warn); }
+.readout[data-flag="true"] b { text-shadow: none; }
+
+/* ---- section scaffolding ----------------------------------------------- */
+section { margin-top: 64px; }
+.shead { display: flex; align-items: baseline; gap: var(--s-4); flex-wrap: wrap; margin-bottom: var(--s-3); }
+.shead .idx {
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.14em;
+  color: var(--fg-subtle);
+}
+.caption { max-width: 70ch; margin-top: var(--s-3); color: var(--fg-muted);
+  font-family: var(--font-mono); font-size: 13px; line-height: 21px; }
+.caption b { color: var(--fg); }
+
+/* ---- the ten blocks ---------------------------------------------------- */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: var(--s-4); margin-top: var(--s-5); }
+.blk {
+  display: flex; flex-direction: column; gap: var(--s-2);
+  padding: var(--s-4);
+  border: 2px solid var(--border); background: var(--surface);
+  background-image: var(--cyber-sheen);
+  clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer));
+}
+.blk header { display: flex; align-items: baseline; gap: var(--s-3); }
+.blk .n {
+  font-family: var(--font-mono); font-size: 26px; line-height: 26px;
+  color: var(--fg); text-shadow: var(--cyber-glow-primary); font-variant-numeric: tabular-nums;
+}
+.blk .topic { font: 700 14px/19px var(--font-sans); letter-spacing: 0.05em; }
+.blk .gain { font-size: 13.5px; line-height: 21px; color: var(--fg-muted); }
+.blk .gain b { color: var(--fg); font-weight: 700; }
+.blk footer { margin-top: auto; padding-top: var(--s-2); display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.tag {
+  padding: 2px 8px; border: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
+  color: var(--fg-subtle); text-transform: uppercase;
+}
+.tag[data-kind="new"] { border-color: var(--ok); color: var(--ok); }
+
+/* ---- diagram frames ---------------------------------------------------- */
+.figbox { margin-top: var(--s-5); border: 2px solid var(--border); background: var(--surface); padding: var(--s-5);
+  clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer)); }
+.scroll-x { overflow-x: auto; }
+.figbox svg { display: block; min-width: 660px; width: 100%; height: auto; }
+.figbox svg text { font-family: var(--font-sans); }
+.figbox svg text.m { font-family: var(--font-mono); }
+
+/* ---- the two bugs, before/after ---------------------------------------- */
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--s-4); margin-top: var(--s-5); }
+.panel { padding: var(--s-4) var(--s-5); border: 2px solid var(--border); border-right: 6px solid var(--rail); background: var(--surface-2); }
+.panel[data-state="was"] { --rail: var(--danger); }
+.panel[data-state="now"] { --rail: var(--primary); }
+.panel .k { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; color: var(--fg-subtle); text-transform: uppercase; }
+.panel .v { margin-top: 6px; font: 700 15px/22px var(--font-sans); letter-spacing: 0.04em; }
+.panel .why { margin-top: var(--s-2); font-size: 13.5px; line-height: 21px; color: var(--fg-muted); }
+
+/* ---- callout ----------------------------------------------------------- */
+.callout {
+  margin-top: var(--s-5); padding: var(--s-4) var(--s-5);
+  border: 2px solid var(--border); border-right: 6px solid var(--warn);
+  background: var(--warn-container); color: var(--fg);
+  font-size: 14px; line-height: 22px;
+}
+
+/* ---- table ------------------------------------------------------------- */
+.tbl { margin-top: var(--s-5); overflow-x: auto; }
+table { width: 100%; min-width: 560px; border-collapse: collapse; font-family: var(--font-mono); font-size: 13px; }
+th { padding: var(--s-2) var(--s-3); border-bottom: 2px solid var(--border); color: var(--fg-muted);
+  font-size: 10px; letter-spacing: 0.12em; text-align: start; text-transform: uppercase; font-weight: 600; }
+td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+tbody tr:nth-child(even) { background: var(--table-zebra); }
+td.note { color: var(--fg-muted); font-size: 12px; }
+td.ok { color: var(--ok); }
+
+/* ---- footer ------------------------------------------------------------ */
+.foot { margin-top: 72px; padding-top: var(--s-5); border-top: 2px solid var(--border);
+  display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-6); align-items: baseline; }
+.foot .sub { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .001ms !important; animation-duration: .001ms !important; }
+}
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="eyebrow">מדרגות 571 · 04.09.2026</p>
+    <h1>עשרה בלוקים, עשרה סרטונים</h1>
+    <p class="lede">
+      כל פאנל &rdquo;איך פותרים&ldquo; בחוברת נכתב מחדש מתוך הסרטון שצמוד לאותו בלוק — לא
+      מהתמלול עצמו, אלא מהשיטה שהמורה מלמד בו. בדרך התגלו שני בלוקים שהצביעו על הנושא של
+      בלוק אחר, ושהחוברת בכלל לא הייתה ניתנת לבנייה מחדש.
+    </p>
+    <div class="run">
+      <div class="readout"><b>10</b><span>בלוקים נכתבו מחדש</span></div>
+      <div class="readout"><b>69</b><span>צעדי הסבר · היו 51</span></div>
+      <div class="readout"><b>154</b><span>בדיקות sympy · הכול עבר</span></div>
+      <div class="readout"><b>513</b><span>נוסחאות KaTeX · 0 כשלים</span></div>
+      <div class="readout" data-flag="true"><b>0.225</b><span>דמיון מרבי · מכוון</span></div>
+    </div>
+  </header>
+
+  <section>
+    <div class="shead">
+      <span class="idx">01</span>
+      <h2>מה כל סרטון הוסיף</h2>
+    </div>
+    <p class="caption">
+      ה־<b>why</b> כבר היה בכל בלוק — האינטואיצייה. מה שהיה חסר זו הפרוצדורה. כל תא כאן הוא
+      הדבר האחד שהסרטון לימד ושהטקסט הקודם לא אמר.
+    </p>
+    <div class="grid">
+
+      <article class="blk">
+        <header><span class="n">01</span><span class="topic">שברים, שורשים ותחום הגדרה</span></header>
+        <p class="gain">הבדיקה מוצבת במשוואה <b>כפי שהייתה לפני</b> ההעלאה בריבוע. ולמה בכלל: ממעלה ראשונה יש פתרון אחד, ריבועית שניים — ההעלאה <b>מייצרת</b> את הנוסף.</p>
+        <footer><span class="tag">6 צעדים</span><span class="tag">35 דק'</span></footer>
+      </article>
+
+      <article class="blk">
+        <header><span class="n">02</span><span class="topic">סדרות</span></header>
+        <p class="gain">אינדקס גדול מ־1? <b>לפרק מיד</b> לנוסחת האיבר הכללי, כמהלך ראשון ולא כטריק. והאינדקס הוא הצבה, לא כפל.</p>
+        <footer><span class="tag">6 צעדים</span><span class="tag">40 דק'</span></footer>
+      </article>
+
+      <article class="blk">
+        <header><span class="n">03</span><span class="topic">אינדוקצייה מתמטית</span></header>
+        <p class="gain">הצעד מתחיל בזיהוי <b>מה בדיוק מתווסף</b>. הצבת ההנחה היא הרגע שבו האינדוקצייה נגמרת ומתחילה אלגברה.</p>
+        <footer><span class="tag">6 צעדים</span><span class="tag">35 דק'</span></footer>
+      </article>
+
+      <article class="blk">
+        <header><span class="n">04</span><span class="topic">הסתברות</span></header>
+        <p class="gain">מתי טבלה ומתי עץ. לסגור את הטבלה כולה <b>לפני</b> שקוראים את השאלות — ואז כל סעיף הוא קריאה של תא.</p>
+        <footer><span class="tag">6 צעדים</span><span class="tag">40 דק'</span></footer>
+      </article>
+
+      <article class="blk">
+        <header><span class="n">05</span><span class="topic">גאומטרייה במישור</span></header>
+        <p class="gain">לא למהר אל השאלה — קודם <b>לחלוב את הנתונים</b>. ושלושת משפטי הפרופורצייה במעגל, שלא הופיעו כלל.</p>
+        <footer><span class="tag">8 צעדים</span><span class="tag">45 דק'</span></footer>
+      </article>
+
+      <article class="blk">
+        <header><span class="n">06</span><span class="topic">טריגונומטרייה במישור</span></header>
+        <p class="gain">בהוכחת זהות <b>אין חובה לטפס מצד לצד</b> — מפשטים כל אגף בנפרד עד ששניהם מגיעים לאותו ביטוי.</p>
+        <footer><span class="tag">7 צעדים</span><span class="tag">45 דק'</span></footer>
+      </article>
+
+      <article class="blk">
+        <header><span class="n">07</span><span class="topic">נגזרת וחקירת פונקציות</span></header>
+        <p class="gain"><b>למה</b> משווים רק את המונה לאפס. ואסימפטוטה אנכית היא קיר — אופקית מותר לחצות.</p>
+        <footer><span class="tag">7 צעדים</span><span class="tag">50 דק'</span></footer>
+      </article>
+
+      <article class="blk">
+        <header><span class="n">08</span><span class="topic">פונקציות טריגונומטריות</span></header>
+        <p class="gain">חלוקה בקוסינוס שהופכת את המשוואה למשוואה בטנגנס — ומחזור הטנגנס הוא <b>π ולא 2π</b>.</p>
+        <footer><span class="tag">8 צעדים</span><span class="tag">45 דק'</span><span class="tag" data-kind="new">פלייליסט חדש</span></footer>
+      </article>
+
+      <article class="blk">
+        <header><span class="n">09</span><span class="topic">בעיות קיצון</span></header>
+        <p class="gain">&rdquo;הוכיחו ש־S ≥ 2ab&ldquo; היא <b>שאלת מינימום בתחפושת</b>. ודמיון משולשים הוא הגשר למשתנה אחד.</p>
+        <footer><span class="tag">7 צעדים</span><span class="tag">45 דק'</span></footer>
+      </article>
+
+      <article class="blk">
+        <header><span class="n">10</span><span class="topic">אינטגרל ושטחים</span></header>
+        <p class="gain">לא לקרוא גבול מהסרטוט — <b>הייתה שאלת בגרות</b> שבה החיתוך היה קרוב לראשית ולא בה.</p>
+        <footer><span class="tag">8 צעדים</span><span class="tag">45 דק'</span><span class="tag" data-kind="new">פלייליסט חדש</span></footer>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <span class="idx">02</span>
+      <h2>שני בלוקים הצביעו על הנושא של בלוק אחר</h2>
+    </div>
+    <p class="caption">
+      אף אחד מהשניים לא היה קישור שבור, ולכן שום בדיקה אוטומטית לא יכלה לתפוס אותם. רק
+      קריאת כותרת הפלייליסט מול כותרת הבלוק מגלה שהחיצים חוצים.
+    </p>
+
+    <div class="figbox">
+      <div class="scroll-x">
+        <svg viewBox="0 0 720 290" role="img" aria-label="בלוק 08 הצביע על הפלייליסט של בלוק 06, ובלוק 10 על זה של בלוק 07; שניהם הופנו מחדש">
+          <defs>
+            <marker id="bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0 0 L10 5 L0 10 z" fill="var(--danger)"/>
+            </marker>
+            <marker id="good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0 0 L10 5 L0 10 z" fill="var(--primary)"/>
+            </marker>
+          </defs>
+
+          <text class="m" x="612" y="18" text-anchor="middle" font-size="11" letter-spacing="1.6" fill="var(--fg-subtle)">בלוק</text>
+          <text class="m" x="200" y="18" text-anchor="middle" font-size="11" letter-spacing="1.6" fill="var(--fg-subtle)">פלייליסט</text>
+
+          <rect x="540" y="36" width="148" height="44" fill="var(--surface-2)" stroke="var(--border)" stroke-width="2"/>
+          <text x="614" y="63" text-anchor="middle" font-size="13" font-weight="700" fill="var(--fg)">08 · פונקציות טריגו'</text>
+
+          <rect x="540" y="180" width="148" height="44" fill="var(--surface-2)" stroke="var(--border)" stroke-width="2"/>
+          <text x="614" y="207" text-anchor="middle" font-size="13" font-weight="700" fill="var(--fg)">10 · אינטגרל ושטחים</text>
+
+          <rect x="88" y="36" width="216" height="44" fill="var(--surface-3)" stroke="var(--border)" stroke-width="2"/>
+          <text x="196" y="56" text-anchor="middle" font-size="12" fill="var(--fg-muted)">טריגו' עם מעגל, כיתה י'</text>
+          <text class="m" x="196" y="72" text-anchor="middle" font-size="10.5" fill="var(--danger)">החומר של בלוק 06</text>
+
+          <rect x="88" y="108" width="216" height="44" fill="var(--primary-container)" stroke="var(--border)" stroke-width="2"/>
+          <text x="196" y="128" text-anchor="middle" font-size="12" font-weight="700" fill="var(--on-primary-container)">חקירת פונקצייה טריגונומטרית</text>
+          <text class="m" x="196" y="144" text-anchor="middle" font-size="10.5" fill="var(--on-primary-container)">32 סרטונים</text>
+
+          <rect x="88" y="180" width="216" height="44" fill="var(--surface-3)" stroke="var(--border)" stroke-width="2"/>
+          <text x="196" y="200" text-anchor="middle" font-size="12" fill="var(--fg-muted)">חקירת פונקצייה רציונלית</text>
+          <text class="m" x="196" y="216" text-anchor="middle" font-size="10.5" fill="var(--danger)">הפלייליסט של בלוק 07</text>
+
+          <rect x="88" y="252" width="216" height="44" fill="var(--primary-container)" stroke="var(--border)" stroke-width="2"/>
+          <text x="196" y="272" text-anchor="middle" font-size="12" font-weight="700" fill="var(--on-primary-container)">אינטגרלים, שאלון ראשון</text>
+          <text class="m" x="196" y="288" text-anchor="middle" font-size="10.5" fill="var(--on-primary-container)">37 סרטונים</text>
+
+          <path d="M540 55 L316 55" fill="none" stroke="var(--danger)" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#bad)"/>
+          <path d="M540 199 L316 199" fill="none" stroke="var(--danger)" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#bad)"/>
+          <g stroke="var(--danger)" stroke-width="2.5">
+            <path d="M414 48 L430 64"/><path d="M430 48 L414 64"/>
+            <path d="M414 192 L430 208"/><path d="M430 192 L414 208"/>
+          </g>
+
+          <path d="M540 70 C 468 70, 392 130, 316 130" fill="none" stroke="var(--primary)" stroke-width="2.5" marker-end="url(#good)"/>
+          <path d="M540 214 C 468 214, 392 274, 316 274" fill="none" stroke="var(--primary)" stroke-width="2.5" marker-end="url(#good)"/>
+        </svg>
+      </div>
+      <p class="caption" style="margin-top:16px">
+        הקווים המקווקווים הם מה שהיה. בלוק 08, שהוא נגזרות של פונקציות טריגונומטריות, שלח את
+        הלומד לטריגונומטרייה במישור — כלומר לחומר של בלוק 06. הקווים הרצופים הם ההפניה החדשה,
+        לשני פלייליסטים של אותו ערוץ שכבר משמש בכל שאר הבלוקים.
+      </p>
+    </div>
+
+    <div class="pair">
+      <div class="panel" data-state="was">
+        <p class="k">בלוק 08 · היה</p>
+        <p class="v">טריגונומטרייה עם מעגל, כיתה י'</p>
+        <p class="why">משפט הקוסינוסים, מרובע חסום, מעגל חוסם. הכול נכון — ושייך לבלוק 06.</p>
+      </div>
+      <div class="panel" data-state="now">
+        <p class="k">בלוק 08 · עכשיו</p>
+        <p class="v">חקירת פונקצייה טריגונומטרית</p>
+        <p class="why">גזירה, תחום הגדרה, נקודות קיצון, וכל הפתרונות שבתחום. זה מה שהבלוק מלמד.</p>
+      </div>
+      <div class="panel" data-state="was">
+        <p class="k">בלוק 10 · היה</p>
+        <p class="v">הפלייליסט של בלוק 07</p>
+        <p class="why">בתירוץ שהסעיפים האחרונים בחקירת פונקצייה רציונלית מחשבים שטח.</p>
+      </div>
+      <div class="panel" data-state="now">
+        <p class="k">בלוק 10 · עכשיו</p>
+        <p class="v">אינטגרלים, שאלון ראשון</p>
+        <p class="why">קורס מסודר: אינטגרל מסוים, שטח בין שתי פונקציות, ושטחים מפוצלים.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <span class="idx">03</span>
+      <h2>ובדרך: החוברת לא הייתה ניתנת לבנייה מחדש</h2>
+    </div>
+    <p class="caption">
+      <span class="mono">rebuild.py</span> מסרב לרוץ פעמיים על אותו קובץ — הוא מזריק הסבר, 60
+      תרגילים ופרומפטים לתוך HTML קיים. לכן בנייה חוזרת מחייבת עותק של הדף <b>מלפני</b>
+      ההזרקה, והעותק הזה חי בתיקיית סשן זמנית.
+    </p>
+
+    <div class="figbox">
+      <div class="scroll-x">
+        <svg viewBox="0 0 720 214" role="img" aria-label="צנרת הבנייה של החוברת, והמעבר של קובץ הבסיס מתיקייה זמנית אל תוך המאגר">
+          <defs>
+            <marker id="flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0 0 L10 5 L0 10 z" fill="var(--fg-muted)"/>
+            </marker>
+            <marker id="feed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0 0 L10 5 L0 10 z" fill="var(--primary)"/>
+            </marker>
+          </defs>
+
+          <rect x="556" y="76" width="136" height="48" fill="var(--surface-2)" stroke="var(--border)" stroke-width="2"/>
+          <text class="m" x="624" y="97" text-anchor="middle" direction="ltr" font-size="12" fill="var(--fg)">content.py</text>
+          <text x="624" y="113" text-anchor="middle" font-size="11" fill="var(--fg-subtle)">מקור האמת לתוכן</text>
+
+          <rect x="374" y="76" width="136" height="48" fill="var(--surface-2)" stroke="var(--border)" stroke-width="2"/>
+          <text class="m" x="442" y="97" text-anchor="middle" direction="ltr" font-size="12" fill="var(--fg)">rebuild.py</text>
+          <text x="442" y="113" text-anchor="middle" font-size="11" fill="var(--fg-subtle)">מרנדר ומזריק</text>
+
+          <rect x="192" y="76" width="136" height="48" fill="var(--surface-2)" stroke="var(--border)" stroke-width="2"/>
+          <text class="m" x="260" y="97" text-anchor="middle" direction="ltr" font-size="12" fill="var(--fg)">skin.py</text>
+          <text x="260" y="113" text-anchor="middle" font-size="11" fill="var(--fg-subtle)">cyberskin + charset</text>
+
+          <rect x="28" y="76" width="118" height="48" fill="var(--primary-container)" stroke="var(--border)" stroke-width="2"/>
+          <text x="87" y="105" text-anchor="middle" font-size="13" font-weight="700" fill="var(--on-primary-container)">Artifact</text>
+
+          <path d="M556 100 L520 100" fill="none" stroke="var(--fg-muted)" stroke-width="2" marker-end="url(#flow)"/>
+          <path d="M374 100 L338 100" fill="none" stroke="var(--fg-muted)" stroke-width="2" marker-end="url(#flow)"/>
+          <path d="M192 100 L156 100" fill="none" stroke="var(--fg-muted)" stroke-width="2" marker-end="url(#flow)"/>
+
+          <rect x="366" y="8" width="152" height="44" fill="var(--primary-container)" stroke="var(--border)" stroke-width="2"/>
+          <text class="m" x="442" y="27" text-anchor="middle" direction="ltr" font-size="11.5" fill="var(--on-primary-container)">workbook.base.html</text>
+          <text class="m" x="442" y="43" text-anchor="middle" font-size="10" fill="var(--on-primary-container)">pages/ · במאגר</text>
+          <path d="M442 52 L442 72" fill="none" stroke="var(--primary)" stroke-width="2.5" marker-end="url(#feed)"/>
+
+          <rect x="366" y="152" width="152" height="44" fill="none" stroke="var(--danger)" stroke-width="2" stroke-dasharray="6 5"/>
+          <text class="m" x="442" y="171" text-anchor="middle" font-size="10.5" fill="var(--danger)">scratchpad זמני</text>
+          <text x="442" y="187" text-anchor="middle" font-size="11" fill="var(--danger)">נמחק בסוף הסשן</text>
+          <path d="M442 152 L442 134" fill="none" stroke="var(--danger)" stroke-width="2" stroke-dasharray="5 4"/>
+          <g stroke="var(--danger)" stroke-width="2.5">
+            <path d="M434 132 L450 148"/><path d="M450 132 L434 148"/>
+          </g>
+        </svg>
+      </div>
+      <p class="caption" style="margin-top:16px">
+        הבסיס הוא הדף אחרי הסקין ואחרי הסרטוטים, לפני הזרקת ההסבר והתרגילים. הוא נמצא עכשיו
+        ב־<span class="mono">pages/workbook.base.html</span>, במאגר. הלולאה נבדקה: העתקה,
+        <span class="mono">rebuild</span> ו־<span class="mono">skin</span> משחזרים את הדף שפורסם
+        <b>בית אחר בית</b>.
+      </p>
+    </div>
+
+    <div class="callout">
+      <b>ההשלכה לפעם הבאה:</b> כל שינוי בכרטיסי הווידאו או בסרטוטים חייב להיכנס גם לקובץ
+      הבסיס, אחרת ההרצה הבאה של <span class="mono">rebuild.py</span> תחזיר את הישן. לכן
+      <span class="mono">fixvids.py</span> מתקן את שני הקבצים.
+    </div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <span class="idx">04</span>
+      <h2>מה נבדק לפני הפרסום</h2>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead>
+          <tr><th>בדיקה</th><th>מה היא שואלת</th><th>תוצאה</th></tr>
+        </thead>
+        <tbody>
+          <tr><td dir="ltr">verify9.py</td><td class="note">כל טענה מספרית בתרגילים, מול sympy</td><td class="ok">154 / 154</td></tr>
+          <tr><td dir="ltr">KaTeX 0.18.5</td><td class="note">כל נוסחה בדף מתרנדרת</td><td class="ok">513 · 0 כשלים</td></tr>
+          <tr><td dir="ltr">dupcheck.py</td><td class="note">תרגיל שחוזר על תרגיל אחר בחוברת</td><td class="ok">אין חזרות</td></tr>
+          <tr><td dir="ltr">qsim.py</td><td class="note">30 שאלות מדרגה 3 מול 82 שאלות ב־18 שאלונים</td><td>0.225 · מכוון</td></tr>
+          <tr><td dir="ltr">oEmbed</td><td class="note">שני הפלייליסטים החדשים — כותרת, ערוץ, תמונה</td><td class="ok">אומתו</td></tr>
+          <tr><td dir="ltr">Chrome headless</td><td class="note">עשרת הפאנלים, בהיר וכהה</td><td class="ok">נצפו</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caption">
+      ה־0.225 הוא בלוק 02 תרגיל 1, והוא מעל הסף <span class="mono">0.20</span> בכוונה: התבנית
+      &rdquo;בונים סדרה חדשה מ־aₙ, מוכיחים שהיא הנדסית, מוצאים את מנתה&ldquo; מופיעה בשישה
+      מתשעה שאלוני 35571. כששאלון חוזר על תבנית כל שנה, שחזורה הוא לימוד הפורמט — והאובייקט
+      שלנו, ריבועי האיברים, שונה מכולם.
+    </p>
+  </section>
+
+  <footer class="foot">
+    <p class="sub">התוצר: <a href="https://claude.ai/code/artifact/474015de-e74f-459d-b11c-6f5ec4294762">מדרגות 571</a></p>
+    <p class="sub">מקור האמת לתוכן: <span class="mono">build/content.py</span></p>
+    <p class="sub">מקור האמת לעיצוב: <span class="mono">data/cyberskin.css</span></p>
+  </footer>
+
+</div>
