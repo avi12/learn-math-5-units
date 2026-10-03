@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "description": "The workbook's build: KaTeX rendering and Whisper transcription. The Python scripts in build/ call into these.",
+  "author": "Avi (https://avi12.com)",
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/avi12/learn-math-5-units",
   "scripts": {
     "transcribe": "node build/transcribe.mjs",
     "transcribe:batch": "node build/transcribe_batch.mjs"

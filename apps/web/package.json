@@ -25,5 +25,8 @@
     "jsqr": "^1.4.0",
     "qrcode": "^1.5.4"
   },
-  "description": "The pad: a pen board on the tablet, mirrored live to the desktop."
+  "description": "The pad: a pen board on the tablet, mirrored live to the desktop.",
+  "author": "Avi (https://avi12.com)",
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/avi12/learn-math-5-units"
 }

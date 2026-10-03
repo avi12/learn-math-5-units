@@ -1,11 +1,12 @@
 {
   "name": "learn-math-5-units",
   "private": true,
-  "license": "GPL-3.0-or-later",
-  "author": "Avi (https://avi12.com)",
   "repository": "github:avi12/learn-math-5-units",
   "type": "module",
   "description": "5-unit math bagrut: the pad app, its Android wrapper, the Chrome extension, and the workbook with its Claude examiner.",
+  "author": "Avi (https://avi12.com)",
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/avi12/learn-math-5-units",
   "workspaces": [
     "shared",
     "apps/web",

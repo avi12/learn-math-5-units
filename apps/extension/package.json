@@ -4,6 +4,9 @@
   "type": "module",
   "version": "1.0.0",
   "description": "Chrome extension: takes the board and the topic's marking criteria into a Claude conversation.",
+  "author": "Avi (https://avi12.com)",
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/avi12/learn-math-5-units",
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",

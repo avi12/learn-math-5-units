@@ -2,5 +2,8 @@
   "name": "avi-math-study-server",
   "private": true,
   "type": "module",
-  "description": "Serves the built site on Cloud Run. No dependencies, by design — node: builtins only."
+  "description": "Serves the built site on Cloud Run. No dependencies, by design — node: builtins only.",
+  "author": "Avi (https://avi12.com)",
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/avi12/learn-math-5-units"
 }
