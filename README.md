@@ -12,6 +12,22 @@
 > ⚠️ פרויקט אישי, לא חומר רשמי. כללי הבחינה משתנים — הנתון המחייב הוא תמיד מה שמודפס על
 > השאלון ובחוזר העדכני של משרד החינוך.
 
+## איך זה נראה
+
+המחשב, ב‑1080p: התרגיל מהחוברת, סרטוני "איך פותרים", כפתור הבדיקה, והלוח שמשקף את הטאבלט בזמן אמת.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/desktop-dark.png">
+  <img src="docs/screenshots/desktop-light.png" alt="הלוח במחשב: כרטיס התרגיל מעל הפתרון שנכתב בטאבלט" width="100%">
+</picture>
+
+הטאבלט, שעליו כותבים בעט — אותו תרגיל, עם כלי הציור.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tablet-dark.png">
+  <img src="docs/screenshots/tablet-light.png" alt="הלוח בטאבלט: פתרון בכתב יד מתחת לתרגיל" width="420">
+</picture>
+
 ## ארבעה חלקים, מאגר אחד
 
 | החלק | איפה | מה הוא עושה |
