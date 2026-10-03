@@ -22,7 +22,6 @@ The ⟦…⟧ markers become $…$: the pad renders the formulas, and in a chat 
 the prompt asks Claude to answer in.
 """
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -35,8 +34,8 @@ from exercises import RUNG_NAME, blocks as exercise_blocks  # noqa: E402
 from exvids import PICKS as EXVIDS, load as exvids_meta, videos as exvids  # noqa: E402
 from rebuild import prompt_text  # noqa: E402
 
-# The pad repo, cloned next to this one (or wherever AVI_MATH_STUDY points).
-PAD = Path(os.environ.get("AVI_MATH_STUDY", HERE.parent.parent / "avi-math-study")) / "src" / "lib" / "graders.json"
+# The pad, in the same repo: apps/web reads this file at build time.
+PAD = HERE.parent.parent / "apps" / "web" / "src" / "lib" / "graders.json"
 BASE = HERE.parent / "pages" / "workbook.base.html"
 
 
