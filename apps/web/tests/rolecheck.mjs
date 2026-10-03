@@ -83,5 +83,21 @@ const back = await box();
 check('back on the mirror, the 3:2 page returns', Math.abs(back.canvas - mirror.canvas) <= 1,
   `${mirror.canvas} -> ${back.canvas}`);
 
+// A tall window: the full-width page needs less than the leftover height, so the board
+// stops growing — and the tools must stay right under it, not drift to the bottom.
+await send('Emulation.setDeviceMetricsOverride', {
+  width: 1371, height: 2000, deviceScaleFactor: 1, mobile: false
+});
+await wait(800);
+const tall = await ev(`(() => {
+  const h = document.querySelector('.host').getBoundingClientRect();
+  const t = document.querySelector('.tools').getBoundingClientRect();
+  return { w: Math.round(h.width), h: Math.round(h.height), gap: Math.round(t.top - h.bottom),
+    main: Math.round(document.querySelector('main').getBoundingClientRect().width) };
+})()`);
+check('tall window: the board takes the full width', Math.abs(tall.w - tall.main) <= 1,
+  `${tall.w} of ${tall.main}`);
+check('and the tools sit right under it', tall.gap >= 0 && tall.gap < 40, `gap ${tall.gap}px`);
+
 console.log(bad ? `\n${bad} FAILED` : '\nthe board keeps its shape across a role switch');
 process.exit(bad ? 1 : 0);

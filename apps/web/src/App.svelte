@@ -19,7 +19,7 @@
   import { sendForCheck } from './lib/check';
   import { initialRole } from './lib/device';
   import { History } from './lib/history.svelte';
-  import { GRID_SCALE, gridCell, PEN_SIZE, type Tool } from './lib/ink';
+  import { ASPECT, GRID_SCALE, gridCell, PEN_SIZE, type Tool } from './lib/ink';
   import { confirm, provideAsk, say, toast } from './lib/notify.svelte';
   import { Choice } from './lib/pick.svelte';
   import { RoomValue } from './lib/roomvalue.svelte';
@@ -167,7 +167,7 @@
   <main>
     <QuestionCard {choice} {role} oncheck={checkWithClaude} />
 
-    <div class="slot">
+    <div class="slot" style:--aspect={ASPECT}>
       <Surface
         bind:this={surface}
         {room}
@@ -249,9 +249,12 @@
   /* The desktop mirror fits the viewport too, but for the opposite reason: everything
      around the board (the tools, the QR to pair the tablet) has to stay on screen, so the
      board gets only the height that is left. The slot is that leftover; the board keeps
-     its 3:2 page shape inside it, as wide as the slot's height allows. `min-height` is
-     the floor below which a short window scrolls the page instead of shrinking the board
-     to nothing. On the pad the slot is not a box at all. */
+     its 3:2 page shape inside it, as wide as the slot's height allows. On a tall screen
+     the leftover is more than a full-width page needs, so the slot does not grow: its
+     basis IS the full-width page height (100cqw of `main`), and it only shrinks from
+     there — the tools stay attached under the board instead of drifting to the bottom.
+     `min-height` is the floor below which a short window scrolls the page instead of
+     shrinking the board to nothing. On the pad the slot is not a box at all. */
   .slot {
     display: contents;
   }
@@ -266,10 +269,11 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
+    container-type: inline-size;
   }
   .page.mirror .slot {
     display: block;
-    flex: 1 1 0;
+    flex: 0 1 calc(100cqw / var(--aspect));
     min-height: 200px;
     container-type: size;
   }
