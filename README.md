@@ -17,8 +17,8 @@
 המחשב, ב‑1080p: התרגיל מהחוברת, סרטוני "איך פותרים", כפתור הבדיקה, והלוח שמשקף את הטאבלט בזמן אמת.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/desktop-dark.png">
-  <img src="docs/screenshots/desktop-light.png" alt="הלוח במחשב: כרטיס התרגיל מעל הפתרון שנכתב בטאבלט" width="100%">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/desktop-1080p-dark.png">
+  <img src="docs/screenshots/desktop-1080p-light.png" alt="הלוח במחשב: כרטיס התרגיל מעל הפתרון שנכתב בטאבלט" width="100%">
 </picture>
 
 הטאבלט, שעליו כותבים בעט — אותו תרגיל, עם כלי הציור.
