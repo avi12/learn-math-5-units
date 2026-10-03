@@ -1,5 +1,6 @@
 import { padOrigin } from '@learn-math/shared/env';
 import { defineConfig } from 'wxt';
+import pkg from './package.json' with { type: 'json' };
 
 /** Which deployed board the extension listens on: derived from the root `.env` by the same
  *  loader every other part uses. It is handed on as WXT_PAD_ORIGIN, because WXT gives WXT_*
@@ -25,6 +26,8 @@ export default defineConfig({
     name: 'לוח מתמטיקה → קלוד',
     description: 'לוקח את הלוח ואת קריטריוני הבדיקה של הנושא, ופותח איתם שיחה בקלוד.',
     default_locale: undefined,
+    /** The repo, read from package.json so the store link and npm agree. */
+    homepage_url: pkg.homepage,
     permissions: ['storage'],
     host_permissions: [`${PAD}/*`, 'https://claude.ai/*']
   }
