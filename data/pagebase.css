@@ -1,0 +1,90 @@
+/* Shared layout for the page series. Colour and shape come from
+   data/cyberskin.css via build/skin.py - nothing here defines a colour. */
+body{background:var(--surface);color:var(--on-surface);}
+.page{direction:rtl;background:var(--surface);color:var(--on-surface);font-family:var(--font-body);
+  font-size:16px;line-height:1.6;max-width:1000px;margin:0 auto;padding:0 20px 96px;-webkit-font-smoothing:antialiased;}
+.page *{box-sizing:border-box;}
+.page p{margin:0;}
+.page h1,.page h2,.page h3,.page h4{margin:0;text-wrap:balance;font-family:var(--font-display);}
+.page a{color:var(--primary);text-decoration-thickness:1px;text-underline-offset:3px;}
+.page a:focus-visible{outline:3px solid var(--primary);outline-offset:3px;border-radius:8px;}
+code{font-family:var(--font-mono);font-size:.88em;direction:ltr;unicode-bidi:isolate;
+  background:var(--sc-highest);border-radius:6px;padding:1px 7px;}
+.katex{direction:ltr;unicode-bidi:isolate;font-size:1.06em;}
+/* .tex (a formula) is styled once, in the skin's component pass - data/cyberskin.css */
+
+.hero{position:relative;overflow:hidden;margin-top:28px;border-radius:var(--r-xl);padding:52px 40px 44px;
+  background:repeating-linear-gradient(to right,var(--grid) 0 1px,transparent 1px 32px),
+             repeating-linear-gradient(to bottom,var(--grid) 0 1px,transparent 1px 32px),var(--sc-low);}
+.hero::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(125% 95% at 88% 0%,transparent 0%,var(--sc-low) 80%);}
+.hero > *{position:relative;z-index:1;}
+.eyebrow{font-size:12.5px;font-weight:700;letter-spacing:.12em;color:var(--tertiary);text-transform:uppercase;}
+.hero h1{font-size:clamp(36px,6vw,58px);font-weight:800;line-height:1.05;letter-spacing:-.02em;margin-top:14px;}
+.hero h1 em{font-style:normal;color:var(--primary);}
+.lede{margin-top:20px;font-size:19px;line-height:1.55;color:var(--on-surface-var);max-width:56ch;}
+
+section{margin-top:68px;}
+.shead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:8px;}
+.shead h2{font-size:clamp(24px,3.2vw,32px);font-weight:750;letter-spacing:-.015em;}
+.shead .num{font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--on-surface-var);
+  background:var(--sc-high);border-radius:var(--r-full);padding:3px 11px;}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px;}
+.stat{
+  background:var(--sc-lowest); border-radius:var(--r-full);
+  padding:10px 20px; display:flex; align-items:baseline; gap:9px;
+}
+.stat b{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--primary);}
+.stat span{font-size:13.5px;color:var(--on-surface-var);}
+.sub{color:var(--on-surface-var);font-size:16.5px;max-width:70ch;margin-bottom:24px;}
+
+.callout{border-radius:var(--r-xl);padding:26px 30px;background:var(--warn-container);color:var(--on-warn-container);}
+.callout h3{font-size:20px;font-weight:750;margin-bottom:10px;}
+.callout.why{background:var(--tertiary-container);color:var(--on-tertiary-container);}
+.callout.good{background:var(--success-container);color:var(--on-success-container);}
+.grid{display:grid;gap:16px;}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));}
+
+figure{margin:0;}
+.fig{background:var(--sc-low);border-radius:var(--r-xl);padding:26px 24px 20px;}
+figcaption{margin-top:16px;font-size:14.5px;line-height:1.55;color:var(--on-surface-var);}
+
+.chains{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));}
+.chain h4{font-size:15px;font-weight:750;margin-bottom:4px;}
+.chain .ch-note{font-size:13px;color:var(--on-surface-var);margin-bottom:14px;}
+.step{display:flex;justify-content:space-between;align-items:center;gap:14px;
+  background:var(--sc-high);border-radius:var(--r-m);padding:11px 16px;}
+.step.final{background:var(--success-container);color:var(--on-success-container);}
+.step .sset{font-size:12.5px;white-space:nowrap;opacity:.8;font-variant-numeric:tabular-nums;}
+.lnk{display:flex;align-items:center;justify-content:center;position:relative;height:42px;}
+.lnk::before{content:"";position:absolute;top:0;bottom:0;width:2px;background:var(--outline-variant);}
+.lnk span{position:relative;background:var(--sc-low);border-radius:var(--r-full);padding:3px 12px;
+  font-size:12px;color:var(--on-surface-var);}
+.lnk.oneway::before{background:var(--tertiary);width:3px;}
+.lnk.oneway span{background:var(--tertiary-container);color:var(--on-tertiary-container);font-weight:700;}
+
+.tablewrap{overflow-x:auto;border-radius:var(--r-xl);background:var(--sc-low);}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14.5px;}
+th,td{text-align:right;padding:14px 18px;vertical-align:top;}
+thead th{font-size:12.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--on-surface-var);
+  font-weight:700;background:var(--sc);}
+tbody tr + tr td{border-top:1px solid var(--outline-variant);}
+td.role{font-weight:700;white-space:nowrap;}
+td.arrow{font-size:19px;font-weight:700;text-align:center;white-space:nowrap;}
+td.arrow.safe{color:var(--success);}
+td.arrow.risk{color:var(--tertiary);}
+.blockvids{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(292px,1fr));margin-top:18px;}
+.bvid{display:grid;grid-template-columns:128px 1fr;gap:14px;align-items:stretch;background:var(--sc);
+  border-radius:var(--r-m);overflow:hidden;text-decoration:none;color:inherit;transition:background .3s var(--ease);}
+.bvid:hover{background:var(--sc-high);}
+.bvid .bthumb{position:relative;background:var(--sc-highest);}
+.bvid img{width:100%;height:100%;object-fit:cover;display:block;}
+.bvid .btag{position:absolute;inset-block-end:6px;inset-inline-start:6px;background:var(--primary);
+  color:var(--on-primary);font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);}
+.bvid .bm{padding:12px 0 12px 14px;display:flex;flex-direction:column;gap:4px;justify-content:center;}
+.bvid .bw{font-size:10.5px;font-weight:700;letter-spacing:.05em;color:var(--tertiary);text-transform:uppercase;}
+.bvid .bt{font-size:13.5px;font-weight:700;line-height:1.3;}
+.bvid .bc{font-size:12px;color:var(--on-surface-var);line-height:1.42;}
+@media(prefers-reduced-motion:reduce){.bvid{transition:none;}}
+.foot{margin-top:60px;padding-top:24px;border-top:1px solid var(--outline-variant);
+  font-size:13.5px;color:var(--on-surface-var);line-height:1.65;}

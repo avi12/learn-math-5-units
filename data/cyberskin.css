@@ -1,0 +1,678 @@
+/* ============================================================================
+   CYBERPUNK SKIN — the four bagrut pages.
+   Single source of truth for the look of pages/*.html. Applied by build/skin.py.
+
+   LAYER 1  tokens, pasted from ~/.claude/artifact-cyberpunk.css.
+            Only the two font stacks differ: Chakra Petch / Share Tech Mono have
+            no Hebrew, so a Hebrew face follows each of them in the stack.
+   LAYER 2  compat aliases — the M3 names the pages already use, re-pointed at
+            layer-1 tokens. No colour is redefined here, only renamed.
+   LAYER 3  the HUD component pass for these RTL Hebrew pages.
+
+   <head> needs:
+   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Share+Tech+Mono&family=Heebo:wght@400;500;700;800&family=Miriam+Libre:wght@400;700&display=swap">
+   ========================================================================= */
+
+/* ======================= LAYER 1 — TOKENS ================================ */
+
+:root {
+  --font-sans: "Chakra Petch", "Heebo", "Assistant", "Roboto Flex", system-ui, sans-serif;
+  --font-mono: "Share Tech Mono", "Miriam Libre", "Cousine", ui-monospace, "SF Mono", monospace;
+
+  /* Type scale - terminal-tight, heavy weights */
+  --t-display-s: 700 36px/43px var(--font-sans);
+  --t-headline-m: 700 24px/32px var(--font-sans);
+  --t-headline-s: 700 21px/29px var(--font-sans);
+  --t-title-l: 600 19px/26px var(--font-sans);
+  --t-title-m: 600 16px/22px var(--font-sans);
+  --t-title-s: 600 13px/18px var(--font-sans);
+  --t-body-l: 400 15px/22px var(--font-sans);
+  --t-body-m: 400 13px/19px var(--font-sans);
+  --t-body-s: 400 11px/16px var(--font-sans);
+  --t-label-l: 600 13px/18px var(--font-sans);
+  --t-label-m: 600 11px/16px var(--font-sans);
+  --t-label-s: 600 10px/14px var(--font-sans);
+
+  /* Hard-edged chassis - corners come from chamfers, not radii */
+  --shape-xs: 0; --shape-s: 0; --shape-m: 0;
+  --shape-l: 0; --shape-xl: 0; --shape-xxl: 0; --shape-full: 0;
+  --chamfer: 12px;
+  --chamfer-s: 7px;
+
+  /* Spacing */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px;
+  --s-5: 20px; --s-6: 24px; --s-7: 32px; --s-8: 40px;
+
+  /* Motion - snap, not bounce */
+  --ease-emph: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-short: 80ms;
+  --dur-medium: 140ms;
+  --dur-long: 200ms;
+
+  /* LIGHT: the same HUD language inverted. Cool concrete ground, ink-navy
+     outlines doing the structural work, electric cyan reserved for what the
+     dark skin lights up. Cyan never carries small text - it fills, ink writes. */
+  --bg: #d5e4f0;
+  --bg-elev: #c9dcec;
+  --surface: #edf5fc;
+  --surface-2: #dce9f6;
+  --surface-3: #c3d8ea;
+  --fg: #06182b;
+  --fg-muted: #2a4a66;
+  --fg-subtle: #547a99;
+  --border: #06182b;
+  --border-strong: #06182b;
+  --hover: rgb(6 24 43 / 8%);
+  --primary: #06182b;
+  --on-primary: #4fe9ff;
+  --primary-container: #8ee6ff;
+  --on-primary-container: #06182b;
+  --secondary: #00527a;
+  --secondary-container: #8ee6ff;
+  --on-secondary-container: #06182b;
+  --tertiary: #00668f;
+  --tertiary-container: #bfebff;
+  --on-tertiary-container: #002336;
+  --accent-2: #c4004e;
+  --accent-tint: rgb(0 179 230 / 32%);
+  --warn: #6e5200;
+  --warn-container: #fcee0a;
+  --danger: #c4004e;
+  --danger-container: #ffd9e5;
+  --on-danger: #ffffff;
+  --ok: #00668f;
+  --ok-container: #bfebff;
+  --table-zebra: rgb(6 24 43 / 3%);
+  --scrim: rgb(6 24 43 / 42%);
+  --tooltip-bg: #06182b;
+  --tooltip-fg: #4fe9ff;
+
+  /* Categorical / chart series - distinct in both schemes */
+  --cat-1: #0079a8; --cat-2: #c4004e; --cat-3: #5b3fd6; --cat-4: #00736b;
+  --cat-5: #9a4a12; --cat-6: #6e5200; --cat-7: #547a99;
+
+  /* Hard offset shadows - printed-plate depth, no glow */
+  --shadow-sm: 2px 2px 0 rgb(6 24 43 / 16%);
+  --shadow-md: 3px 3px 0 rgb(6 24 43 / 18%);
+  --shadow-lg: 6px 6px 0 rgb(6 24 43 / 22%);
+
+  /* Light: outlines carry the structure, so every glow is switched off */
+  --cyber-stripe: #00b3e6;
+  --cyber-glow-topbar: 0 3px 0 rgb(6 24 43 / 10%);
+  --cyber-glow-mark: none;
+  --cyber-glow-text: none;
+  --cyber-glow-primary: none;
+  --cyber-glow-danger: none;
+  --cyber-active-ring: inset 0 0 0 2px var(--border);
+  --cyber-sheen: none;
+  --cyber-body:
+    radial-gradient(900px 520px at 12% 0%, rgb(0 179 230 / 16%), transparent 62%),
+    linear-gradient(rgb(6 24 43 / 4%) 1px, transparent 1px) 0 0 / 100% 4px,
+    linear-gradient(90deg, rgb(0 121 168 / 10%) 1px, transparent 1px) 0 0 / 72px 72px,
+    linear-gradient(180deg, #00b3e6 0 3px, transparent 3px);
+
+  color-scheme: light dark;
+}
+
+/* --- DARK: explicit choice wins in both directions --------------------- */
+:root[data-theme="dark"] {
+  --bg: #060d14;
+  --bg-elev: #0a121b;
+  --surface: #0c1620;
+  --surface-2: #121e2a;
+  --surface-3: #1b2a3a;
+  --fg: #e2f4fa;
+  --fg-muted: #93b2c2;
+  --fg-subtle: #698a9c;
+  --border: #22394c;
+  --border-strong: #00e5ff;
+  --hover: rgb(0 229 255 / 12%);
+  --primary: #00e5ff;
+  --on-primary: #001820;
+  --primary-container: #04323e;
+  --on-primary-container: #9bf1ff;
+  --secondary: #4d9fff;
+  --secondary-container: #0a2742;
+  --on-secondary-container: #bbdcff;
+  --tertiary: #00e5ff;
+  --tertiary-container: #04323e;
+  --on-tertiary-container: #9bf1ff;
+  --accent-2: #4d9fff;
+  --accent-tint: rgb(0 229 255 / 18%);
+  --warn: #ffc24d;
+  --warn-container: #33270a;
+  --danger: #ff2a4d;
+  --danger-container: #3d0410;
+  --on-danger: #14000a;
+  --ok: #23e07a;
+  --ok-container: #06301c;
+  --table-zebra: rgb(0 229 255 / 3.5%);
+  --scrim: rgb(3 8 14 / 76%);
+  --tooltip-bg: #00e5ff;
+  --tooltip-fg: #001820;
+  --cat-1: #00e5ff; --cat-2: #ff2a4d; --cat-3: #c77dff; --cat-4: #6ee7b7;
+  --cat-5: #ff9e3d; --cat-6: #ffc24d; --cat-7: #698a9c;
+  --shadow-sm: 0 0 0 1px rgb(0 229 255 / 10%);
+  --shadow-md: 0 0 0 1px rgb(0 229 255 / 14%), 0 6px 20px rgb(0 0 0 / 60%);
+  --shadow-lg: 0 0 0 1px rgb(0 229 255 / 24%), 0 0 44px rgb(0 229 255 / 8%), 0 18px 50px rgb(0 0 0 / 75%);
+  --cyber-stripe: #00e5ff;
+  --cyber-glow-topbar: 0 1px 0 rgb(0 229 255 / 16%), 0 10px 30px rgb(0 0 0 / 50%);
+  --cyber-glow-mark: 0 0 14px rgb(0 229 255 / 45%);
+  --cyber-glow-text: 0 0 22px rgb(0 229 255 / 28%);
+  --cyber-glow-primary: 0 0 14px rgb(0 229 255 / 35%);
+  --cyber-glow-danger: 0 0 14px rgb(255 42 77 / 32%);
+  --cyber-active-ring: inset 0 0 0 1px rgb(0 229 255 / 50%);
+  --cyber-sheen: linear-gradient(180deg, rgb(0 229 255 / 6%), transparent 120px);
+  --cyber-body:
+    radial-gradient(1100px 600px at 78% -10%, rgb(77 159 255 / 12%), transparent 65%),
+    radial-gradient(900px 520px at 12% 0%, rgb(0 229 255 / 12%), transparent 60%),
+    linear-gradient(rgb(0 229 255 / 3.5%) 1px, transparent 1px) 0 0 / 100% 3px,
+    linear-gradient(90deg, rgb(0 229 255 / 2.5%) 1px, transparent 1px) 0 0 / 64px 64px;
+}
+
+/* --- DARK: OS default (no explicit choice stamped) --------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #060d14;
+    --bg-elev: #0a121b;
+    --surface: #0c1620;
+    --surface-2: #121e2a;
+    --surface-3: #1b2a3a;
+    --fg: #e2f4fa;
+    --fg-muted: #93b2c2;
+    --fg-subtle: #698a9c;
+    --border: #22394c;
+    --border-strong: #00e5ff;
+    --hover: rgb(0 229 255 / 12%);
+    --primary: #00e5ff;
+    --on-primary: #001820;
+    --primary-container: #04323e;
+    --on-primary-container: #9bf1ff;
+    --secondary: #4d9fff;
+    --secondary-container: #0a2742;
+    --on-secondary-container: #bbdcff;
+    --tertiary: #00e5ff;
+    --tertiary-container: #04323e;
+    --on-tertiary-container: #9bf1ff;
+    --accent-2: #4d9fff;
+    --accent-tint: rgb(0 229 255 / 18%);
+    --warn: #ffc24d;
+    --warn-container: #33270a;
+    --danger: #ff2a4d;
+    --danger-container: #3d0410;
+    --on-danger: #14000a;
+    --ok: #23e07a;
+    --ok-container: #06301c;
+    --table-zebra: rgb(0 229 255 / 3.5%);
+    --scrim: rgb(3 8 14 / 76%);
+    --tooltip-bg: #00e5ff;
+    --tooltip-fg: #001820;
+    --cat-1: #00e5ff; --cat-2: #ff2a4d; --cat-3: #c77dff; --cat-4: #6ee7b7;
+    --cat-5: #ff9e3d; --cat-6: #ffc24d; --cat-7: #698a9c;
+    --shadow-sm: 0 0 0 1px rgb(0 229 255 / 10%);
+    --shadow-md: 0 0 0 1px rgb(0 229 255 / 14%), 0 6px 20px rgb(0 0 0 / 60%);
+    --shadow-lg: 0 0 0 1px rgb(0 229 255 / 24%), 0 0 44px rgb(0 229 255 / 8%), 0 18px 50px rgb(0 0 0 / 75%);
+    --cyber-stripe: #00e5ff;
+    --cyber-glow-topbar: 0 1px 0 rgb(0 229 255 / 16%), 0 10px 30px rgb(0 0 0 / 50%);
+    --cyber-glow-mark: 0 0 14px rgb(0 229 255 / 45%);
+    --cyber-glow-text: 0 0 22px rgb(0 229 255 / 28%);
+    --cyber-glow-primary: 0 0 14px rgb(0 229 255 / 35%);
+    --cyber-glow-danger: 0 0 14px rgb(255 42 77 / 32%);
+    --cyber-active-ring: inset 0 0 0 1px rgb(0 229 255 / 50%);
+    --cyber-sheen: linear-gradient(180deg, rgb(0 229 255 / 6%), transparent 120px);
+    --cyber-body:
+      radial-gradient(1100px 600px at 78% -10%, rgb(77 159 255 / 12%), transparent 65%),
+      radial-gradient(900px 520px at 12% 0%, rgb(0 229 255 / 12%), transparent 60%),
+      linear-gradient(rgb(0 229 255 / 3.5%) 1px, transparent 1px) 0 0 / 100% 3px,
+      linear-gradient(90deg, rgb(0 229 255 / 2.5%) 1px, transparent 1px) 0 0 / 64px 64px;
+  }
+}
+
+/* ============================== BASE ==================================== */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  /* Atmosphere - scanlines over a faint grid, lit from the top corners */
+  background: var(--cyber-body), var(--bg);
+  color: var(--fg);
+  font: var(--t-body-m);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Chamfer utilities - the corner cut IS the design language */
+.chamfer {
+  clip-path: polygon(
+    var(--chamfer) 0, 100% 0,
+    100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%,
+    0 100%, 0 var(--chamfer));
+}
+.chamfer-s {
+  clip-path: polygon(
+    var(--chamfer-s) 0, 100% 0,
+    100% calc(100% - var(--chamfer-s)), calc(100% - var(--chamfer-s)) 100%,
+    0 100%, 0 var(--chamfer-s));
+}
+
+/* Headings: uppercase, tracked out, glow only in dark */
+h1, h2, h3 {
+  font-family: var(--font-sans);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  text-shadow: var(--cyber-glow-text);
+}
+
+/* Secondary / metadata text runs mono - the terminal register */
+.sub, .meta, .caption, figcaption, small, code, pre, kbd, .num {
+  font-family: var(--font-mono);
+}
+.sub, .meta, .caption, figcaption { color: var(--fg-muted); }
+
+table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); }
+th {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 2px solid var(--border);
+  color: var(--fg-muted);
+  font: var(--t-label-m);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--border); }
+tbody tr:nth-child(even) { background: var(--table-zebra); }
+
+/* Images / thumbnails read as surveillance feed */
+.thumb { border-radius: 0; filter: grayscale(1) contrast(1.08); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* =================== LAYER 2 — COMPAT ALIASES ============================
+   The pages were authored against Material 3 token names. Each one is re-
+   pointed here at a layer-1 token, so no page rule hardcodes a colour and
+   the palette still has exactly one home.                                  */
+
+:root {
+  /* tonal surfaces */
+  --sc-lowest: var(--bg-elev);
+  --sc-low: var(--surface);
+  --sc: var(--surface-2);
+  --sc-high: var(--surface-3);
+  --sc-highest: var(--surface-3);
+  --surface-dim: var(--bg);
+
+  /* text + lines */
+  --on-surface: var(--fg);
+  --on-surface-var: var(--fg-muted);
+  --outline: var(--border);
+  --outline-variant: var(--border);
+  --grid: color-mix(in srgb, var(--border) 38%, transparent);
+
+  /* semantic pairs the pages ask for but the sheet names differently */
+  --success: var(--ok);
+  --success-container: var(--ok-container);
+  --on-success-container: var(--fg);
+  --on-warn-container: var(--fg);
+
+  /* every corner radius collapses - chamfers replace them */
+  --r-xl: 0; --r-l: 0; --r-m: 0; --r-full: 0;
+
+  --ease: var(--ease-emph);
+  --font-display: var(--font-sans);
+  --font-body: var(--font-sans);
+}
+
+/* =================== LAYER 3 — HUD COMPONENT PASS ======================== */
+
+/* ---- chassis ---------------------------------------------------------- */
+body { background: var(--cyber-body), var(--bg); color: var(--fg); }
+.page { background: transparent; color: var(--fg); font-family: var(--font-body); }
+.page a { color: var(--secondary); text-underline-offset: 4px; }
+.page a:focus-visible, .page .vid:focus-visible, .page summary:focus-visible {
+  outline: 2px solid var(--border-strong); outline-offset: 3px; border-radius: 0;
+}
+
+/* the corner cut, on every panel */
+.hero, .card, .fig, .callout, .tablewrap, .block, .phase, .topic, .rule,
+.link, .vid, .prompt, .do, .dont, .bvid, .rung, details.ans, .vidline {
+  clip-path: polygon(
+    var(--chamfer) 0, 100% 0,
+    100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%,
+    0 100%, 0 var(--chamfer));
+}
+/* controls get the smaller cut */
+.stat, .chip, .shead .num, .pdf, .vid .play, .bvid .btag, .topic .tag,
+.step, .lnk span {
+  clip-path: polygon(
+    var(--chamfer-s) 0, 100% 0,
+    100% calc(100% - var(--chamfer-s)), calc(100% - var(--chamfer-s)) 100%,
+    0 100%, 0 var(--chamfer-s));
+  border-radius: 0;
+}
+
+/* 2px outlines carry the structure */
+.hero, .card, .fig, .tablewrap, .block, .phase, .topic, .rule, .link,
+.vid, .prompt, .do, .dont, .bvid, .rung, details.ans, .vidline {
+  border: 2px solid var(--border);
+  background-image: var(--cyber-sheen);
+}
+.stat, .chip, .shead .num, .pdf, .step, .lnk span, .topic .tag {
+  border: 1px solid var(--border);
+}
+
+/* ---- hero: outlined HUD plate, accent stripe on top ------------------- */
+.hero {
+  padding: 46px 38px 40px;
+  background:
+    linear-gradient(180deg, var(--cyber-stripe) 0 4px, transparent 4px),
+    var(--cyber-sheen),
+    repeating-linear-gradient(to right, var(--grid) 0 1px, transparent 1px 32px),
+    repeating-linear-gradient(to bottom, var(--grid) 0 1px, transparent 1px 32px),
+    var(--surface);
+}
+.hero::after { background: radial-gradient(125% 95% at 88% 0%, transparent 0%, var(--surface) 84%); }
+.hero h1 {
+  font-size: clamp(30px, 5.2vw, 50px); font-weight: 700; line-height: 1.12;
+  letter-spacing: .085em; text-transform: uppercase; text-shadow: var(--cyber-glow-text);
+}
+.hero h1 em { color: var(--primary); text-shadow: var(--cyber-glow-primary); }
+.eyebrow { font-family: var(--font-mono); letter-spacing: .18em; color: var(--tertiary); }
+.lede { font-family: var(--font-sans); font-size: 18px; color: var(--fg-muted); }
+.stat { background: var(--bg-elev); padding: 9px 18px; }
+.stat b { font-family: var(--font-mono); font-weight: 400; font-size: 20px;
+  color: var(--primary); text-shadow: var(--cyber-glow-primary); }
+.stat span { font-family: var(--font-mono); font-size: 12.5px; color: var(--fg-muted); }
+
+/* ---- section head: 2px rule + the signature 44px accent stub ---------- */
+.shead {
+  padding-bottom: 12px; margin-bottom: 20px;
+  border-bottom: 2px solid var(--border);
+  background: linear-gradient(var(--cyber-stripe), var(--cyber-stripe))
+    bottom right / 44px 4px no-repeat;
+}
+.shead h2 {
+  font-size: clamp(21px, 2.9vw, 28px); font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase; text-shadow: var(--cyber-glow-text);
+}
+.shead .num { background: var(--surface-2); color: var(--fg-muted); font-weight: 400; padding: 3px 10px; }
+.page h3, .page h4 { letter-spacing: .05em; }
+.callout h3, .phase h3, .bhead h3, .do h3, .dont h3, .chain h4, .topic h4, .rule b {
+  font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+}
+
+/* ---- callouts: colour-coded inline-start rail, no fill --------------- */
+.callout {
+  padding: 22px 26px; color: var(--fg);
+  background: color-mix(in srgb, var(--warn-container) 34%, var(--surface));
+  border: 2px solid var(--border); border-inline-start: 6px solid var(--warn);
+}
+.callout h3 { color: var(--warn); }
+.callout.why {
+  background: var(--surface-2); color: var(--fg);
+  border-inline-start-color: var(--accent-2);
+}
+.callout.why h3 { color: var(--accent-2); }
+.callout.good {
+  background: color-mix(in srgb, var(--ok-container) 55%, var(--surface));
+  color: var(--fg); border-inline-start-color: var(--ok);
+}
+.callout.good h3 { color: var(--ok); }
+
+/* ---- figures, tables ------------------------------------------------- */
+.fig { background: var(--surface); padding: 24px 22px 18px; }
+figcaption { font-family: var(--font-mono); color: var(--fg-muted); }
+.legend { font-family: var(--font-mono); color: var(--fg-muted); }
+.tablewrap { background: var(--surface); }
+/* Both scroll sideways at phone width. KaTeX's hidden MathML copy of each formula is
+   position:absolute, and an absolute box is clipped only by a scroller that is also its
+   containing block. Without this, a formula in a scrolled caption sits outside the scroller
+   and makes the whole page scroll sideways. */
+.fig, .tablewrap { position: relative; }
+thead th {
+  font-family: var(--font-mono); font-weight: 400; letter-spacing: .1em;
+  color: var(--fg-muted); background: var(--surface-2);
+  border-bottom: 2px solid var(--border);
+}
+tbody tr + tr td { border-top: 1px solid var(--border); }
+tbody tr:nth-child(even) { background: var(--table-zebra); }
+td { border-bottom: 0; }
+td.mins { color: var(--primary); }
+td.arrow.safe { color: var(--ok); }
+td.arrow.risk { color: var(--danger); }
+
+/* ---- cards, phases, topics ------------------------------------------- */
+.card, .fig, .block, .phase, .topic, .rule, .link, .do, .dont { background: var(--surface); }
+.phase .when, .phase .when b { font-family: var(--font-mono); }
+.phase .when b { font-weight: 400; color: var(--primary); text-shadow: var(--cyber-glow-primary); }
+.phase.exam { background: var(--primary-container); color: var(--on-primary-container); border-color: var(--border-strong); }
+.phase.exam .chip { background: var(--surface); border-color: var(--border); }
+.chip { background: var(--surface-2); color: var(--fg-muted); font-family: var(--font-mono); padding: 4px 11px; }
+.topic .tag { font-weight: 400; }
+.rule::before { color: var(--tertiary); }
+.do h3 { color: var(--ok); }
+.dont h3 { color: var(--danger); }
+.prompt { background: var(--bg-elev); font-family: var(--font-mono); }
+
+/* ---- chains (equals-sign page) --------------------------------------- */
+.step { background: var(--surface-3); padding: 10px 15px; }
+.step.final { background: var(--ok-container); color: var(--fg); border-color: var(--ok); }
+.step .sset { font-family: var(--font-mono); opacity: 1; color: var(--fg-muted); }
+.lnk::before { background: var(--border); }
+.lnk span { background: var(--surface); color: var(--fg-muted); font-family: var(--font-mono); }
+.lnk.oneway::before { background: var(--tertiary); }
+.lnk.oneway span { background: var(--tertiary-container); color: var(--on-tertiary-container); }
+.chain .ch-note { font-family: var(--font-mono); color: var(--fg-muted); }
+
+/* ---- video cards: surveillance feed until you hover ------------------ */
+.vid, .bvid { background: var(--surface); color: var(--fg); }
+.vid .vt, .bvid .bt { color: var(--fg); }
+.vid:hover, .bvid:hover { background: var(--surface-2); }
+.vid .thumb, .bvid .bthumb { background: var(--surface-3); }
+.vid .thumb img, .bvid img { filter: grayscale(1) contrast(1.08); transition: filter var(--dur-long) var(--ease-emph); }
+.vid:hover .thumb img, .bvid:hover img { filter: none; }
+.vid .play, .bvid .btag {
+  background: var(--primary); color: var(--on-primary);
+  font-family: var(--font-mono); font-weight: 400; letter-spacing: .08em;
+  box-shadow: var(--cyber-glow-primary);
+}
+.vid .meta { font-family: var(--font-sans); }
+.vid .who, .bvid .bw { font-family: var(--font-mono); font-weight: 400; letter-spacing: .12em; color: var(--tertiary); }
+.vid .vt, .bvid .bt { font-family: var(--font-sans); letter-spacing: .02em; }
+.vid .cap, .bvid .bc { font-family: var(--font-mono); color: var(--fg-muted); }
+
+/* ---- workbook blocks -------------------------------------------------- */
+.block { background: var(--surface); padding: 26px 28px; }
+.bnum { font-family: var(--font-mono); font-weight: 400; color: var(--primary); text-shadow: var(--cyber-glow-primary); }
+.bwhy { color: var(--fg-muted); }
+.vidline { background: var(--surface-2); font-family: var(--font-mono); color: var(--fg-muted); padding: 10px 15px; }
+.vidline b { color: var(--tertiary); }
+/* the three rungs must read as a rising ladder in BOTH schemes. Fills alone
+   cannot: light collapses secondary-container and primary-container onto the
+   same cyan. So the level is carried by an inline-start rail, fill only tops it. */
+.rung { border-inline-start-width: 6px; }
+.rung.r1 { background: var(--surface-2); border-inline-start-color: var(--fg-subtle); }
+.rung.r2 { background: var(--surface-2); border-inline-start-color: var(--tertiary); }
+.rung.r3 {
+  background: var(--primary-container); color: var(--on-primary-container);
+  border-color: var(--border-strong); border-inline-start-color: var(--primary);
+}
+.rlabel { font-family: var(--font-mono); font-weight: 400; letter-spacing: .14em; opacity: 1; }
+.pips i, .legend i { border-radius: 0; }
+.srcline { font-family: var(--font-mono); }
+.pdf { background: var(--bg-elev); color: var(--fg); font-family: var(--font-mono); font-weight: 400; }
+.pdf:hover { background: var(--hover); }
+details.ans { background: var(--surface-2); }
+details.ans summary { font-family: var(--font-mono); font-weight: 400; letter-spacing: .06em; color: var(--fg-muted); }
+details.ans summary::before { color: var(--tertiary); }
+details.ans .abody { color: var(--fg-muted); }
+details.ans .abody b { color: var(--fg); }
+
+/* ---- exam figures: the drawing that ships with a geometry question ---- */
+.qfig {
+  margin-top: 14px; padding: 12px; background: var(--surface);
+  border: 2px solid var(--border);
+  clip-path: polygon(
+    var(--chamfer-s) 0, 100% 0,
+    100% calc(100% - var(--chamfer-s)), calc(100% - var(--chamfer-s)) 100%,
+    0 100%, 0 var(--chamfer-s));
+}
+.qfig svg {
+  display: block; width: 100%; max-width: 520px; height: auto;
+  margin-inline: auto; color: var(--fg);
+}
+
+/* ---- inline code / math ---------------------------------------------- */
+.page code, .m {
+  font-family: var(--font-mono); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 0; color: var(--fg);
+  /* a URL or an expression has no spaces to break at; on a phone one of them pushed the
+     whole year page 66px sideways */
+  overflow-wrap: anywhere;
+}
+.katex { color: var(--fg); }
+/* A formula is part of the sentence, not a scroll box. Every page used to make `.tex` an
+   inline-block with `overflow-x: auto`, so that a formula wider than its column would
+   scroll instead of breaking the layout. In practice KaTeX overhangs its own box by a
+   pixel or two (a root sign, a fraction bar), and Chrome drew a scrollbar under formulas
+   as short as sqrt(x+4) — Avi: "לא טוב שיש גלילה אופקית". Inline, KaTeX breaks a long
+   formula at its top-level = and + like any other text, so nothing needs to scroll.
+   It lives here, in the pass, because the pass comes after every page's own `.tex` rule. */
+.tex {
+  display: inline; max-width: none; overflow: visible;
+  vertical-align: baseline; padding-block: 0;
+}
+/* The one case inline cannot solve: a formula with no top-level = or + to break at (a
+   cross product inside \left( \right)) that is wider than a phone's column — it pushed
+   the whole page sideways. On a phone, and only there, a formula is its own scroll box
+   again. Measured on all twelve hub pages: in that box a formula scrolls only when it
+   truly does not fit (the one-pixel overhang that put a bar under a short formula was
+   the pad's, not the hub's). Letting the PARAGRAPH scroll instead was tried and measured
+   too: overflow-x forces overflow-y off `visible`, and hundreds of paragraphs with a tall
+   fraction lost their top and bottom. */
+@media (max-width: 600px) {
+  .tex {
+    display: inline-block; max-width: 100%; overflow-x: auto; overflow-y: hidden;
+    vertical-align: middle; padding-block: 2px;
+  }
+}
+
+/* ---- footer ----------------------------------------------------------- */
+.foot {
+  border-top: 2px solid var(--border); font-family: var(--font-mono);
+  color: var(--fg-muted);
+  background: linear-gradient(var(--cyber-stripe), var(--cyber-stripe))
+    top right / 44px 4px no-repeat;
+}
+
+/* ---- how the exercise is solved: the procedure, before the practice ---- */
+.howto {
+  margin-top: 16px; padding: 16px 18px;
+  border: 2px solid var(--border); background: var(--surface-2);
+  clip-path: polygon(
+    var(--chamfer-s) 0, 100% 0,
+    100% calc(100% - var(--chamfer-s)), calc(100% - var(--chamfer-s)) 100%,
+    0 100%, 0 var(--chamfer-s));
+}
+.howto .hlabel {
+  display: block; margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 2px solid var(--border);
+  background: linear-gradient(var(--cyber-stripe), var(--cyber-stripe))
+    bottom right / 44px 3px no-repeat;
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: .12em;
+  color: var(--fg-muted);
+}
+.howto ol { margin: 0; padding-inline-start: 1.35em; display: grid; gap: 9px; }
+.howto li { font-size: 14px; line-height: 1.65; color: var(--fg-muted); }
+.howto li b { color: var(--fg); }
+.howto .trap {
+  margin: 13px 0 0; padding: 10px 13px;
+  border: 1px solid var(--border); border-inline-start: 5px solid var(--warn);
+  background: var(--warn-container);
+  font-size: 13px; line-height: 1.6; color: var(--fg);
+}
+
+/* The trinomial guide carries two of these panels back to back - why it works, then
+   how it is done. Same chassis, but the "why" one takes the accent-2 rail the page
+   already uses for .callout.why, so the pair does not read as one long list. The rail
+   carries it, not a text colour: accent-2 on 12px mono is exactly the small coloured
+   text the light palette forbids. */
+.howto.why { border-inline-start: 6px solid var(--accent-2); }
+
+/* The tools panel: the rules a block assumes, as a three-column grid.
+   It shares the how-to chassis on purpose — same box, same label — because it is the
+   same kind of thing: teaching that sits above the exercises. What separates the two is
+   SHAPE, not colour: the how-to is an ordered list you walk down, this is a table you
+   look into. That matters in the light palette, where a third coloured rail would have
+   collapsed into the same cyan as everything else. */
+.howto.tools .tgrid { display: grid; gap: 0; }
+.howto.tools .trow {
+  display: grid; grid-template-columns: minmax(7em, auto) 1fr auto;
+  gap: 12px; align-items: baseline;
+  padding: 7px 0; border-block-end: 1px solid var(--border);
+}
+.howto.tools .trow:last-child { border-block-end: 0; }
+.howto.tools .tn { font-size: 13.5px; color: var(--fg); font-weight: 500; }
+.howto.tools .tf { font-size: 14px; color: var(--fg-muted); line-height: 1.6; }
+/* A chip, not coloured text: cyan fills and ink writes, so an 11px label never rides
+   on the accent itself. */
+.howto.tools .tg {
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em;
+  padding: 2px 7px; white-space: nowrap; align-self: center;
+}
+.howto.tools .tg.sheet {
+  background: var(--primary-container); color: var(--on-primary-container);
+}
+.howto.tools .tg.head {
+  background: transparent; color: var(--fg-muted);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.howto.tools .tnote {
+  margin: 10px 0 0; font-family: var(--font-mono); font-size: 11.5px;
+  color: var(--fg-subtle);
+}
+@media (max-width: 620px) {
+  .howto.tools .trow { grid-template-columns: 1fr auto; }
+  .howto.tools .tf { grid-column: 1 / -1; }
+}
+
+
+/* ---- three exercises to a rung, so each one needs its own plate --------- */
+.qx { margin-top: 12px; padding-inline-start: 10px; border-inline-start: 2px solid var(--border); }
+.qx:first-of-type { margin-top: 10px; }
+.qn {
+  display: inline-block; margin-bottom: 5px; padding: 1px 9px;
+  border: 1px solid var(--border); background: var(--surface);
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em;
+  color: var(--fg-muted);
+}
+
+/* ---- the prompt the reader hands to Claude with their own solution ------ */
+details.cprompt { margin-top: 16px; border: 2px solid var(--border); background: var(--surface-2); }
+details.cprompt summary {
+  padding: 11px 15px; cursor: pointer; list-style: none;
+  font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .06em; color: var(--fg);
+}
+details.cprompt summary::-webkit-details-marker { display: none; }
+details.cprompt summary::before { content: "⌘ "; color: var(--tertiary); }
+details.cprompt[open] summary { border-bottom: 2px solid var(--border); }
+.cbody { padding: 14px 15px; }
+.cbody .note { margin: 0 0 10px; font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-subtle); line-height: 1.7; }
+pre.prompt {
+  margin: 0; padding: 13px 15px; max-height: 380px; overflow: auto;
+  border: 1px solid var(--border); background: var(--surface);
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.75;
+  color: var(--fg); white-space: pre-wrap; word-break: break-word;
+}
+/* No copy button: the page ships no JavaScript. The <pre> below is selectable text,
+   which is all a block meant to be carried elsewhere actually needs. */
+pre.prompt::selection, pre.prompt *::selection {
+  background: var(--primary-container); color: var(--on-primary-container);
+}
