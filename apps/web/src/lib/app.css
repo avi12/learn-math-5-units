@@ -64,3 +64,18 @@ h2 {
     padding: 0 var(--s-4);
   }
 }
+
+/* Icons arrive as raw SVG (src/lib/icons/*.svg?raw via {@html}), so they carry no size:
+   the container gives it. Every icon sits at the start of a button or a video chip, and
+   `.btn` is already a flex row with a gap — the glyph only has to refuse to be squeezed
+   by a long Hebrew label, and `block` kills the inline baseline gap under it. */
+:root {
+  --icon-size: 16px;
+}
+.btn > svg,
+.vlink > svg {
+  flex: none;
+  display: block;
+  width: var(--icon-size);
+  height: var(--icon-size);
+}

@@ -1,234 +1,137 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
-  import QRCode from 'qrcode';
-  import Surface from './lib/Surface.svelte';
-  import Formula from './lib/Formula.svelte';
-  import { clearAll, deleteDoc, joinRoom, newRoom, room as makeRoom, roomId, strokeRef } from './lib/room';
+  /** The page: which device this is, the room both devices share, and how the parts sit
+   *  on the screen. Each part owns its own job —
+   *    QuestionCard   which exercise, and the question itself
+   *    Surface        the board
+   *    PadTools       what the pen draws with (tablet)
+   *    CopyTools      the board out to the clipboard (desktop)
+   *    RoomJoin       the tablet's ways into the desktop's room
+   *    ConnectCards   the desktop's code and link for the tablet
+   *  — and this file only wires them together. */
+  import { onMount } from 'svelte';
+  import Ask from './lib/Ask.svelte';
+  import ConnectCards from './lib/ConnectCards.svelte';
+  import CopyTools from './lib/CopyTools.svelte';
+  import PadTools from './lib/PadTools.svelte';
+  import QuestionCard from './lib/QuestionCard.svelte';
+  import RoomJoin from './lib/RoomJoin.svelte';
+  import Surface, { type SurfaceApi } from './lib/Surface.svelte';
+  import { sendForCheck } from './lib/check';
+  import { initialRole } from './lib/device';
+  import { History } from './lib/history.svelte';
+  import { GRID_SCALE, gridCell, PEN_SIZE, type Tool } from './lib/ink';
+  import { confirm, provideAsk, say, toast } from './lib/notify.svelte';
+  import { Choice } from './lib/pick.svelte';
+  import { RoomValue } from './lib/roomvalue.svelte';
+  import { readFlag, writeFlag } from './lib/preferences';
+  import { joinUrl, qrImage } from './lib/qr';
   import { watchRelease } from './lib/release';
-  import { scan } from './lib/scan';
+  import { clearAll, room as makeRoom, roomId, unsentWrites } from './lib/room';
   import { pad } from './lib/spen';
-  import { CHECK_MESSAGE, TOPICS, extensionPresent, requestCheck } from './lib/check';
-  import type { Pen, Tool } from './lib/ink';
+  import iconDisplay from './lib/icons/IconDisplay.svg?raw';
+  import iconPad from './lib/icons/IconPad.svg?raw';
+  import iconRedo from './lib/icons/IconRedo.svg?raw';
+  import iconTrash from './lib/icons/IconTrash.svg?raw';
+  import iconUndo from './lib/icons/IconUndo.svg?raw';
 
   const id = roomId();
   const room = makeRoom(id);
+  const inWrapper = !!pad();
 
-  // The tablet gets the pen, the desktop gets the mirror. ?role= overrides.
-  const forced = new URL(location.href).searchParams.get('role');
-  let role = $state<'pad' | 'board'>(
-    forced === 'pad' || forced === 'board'
-      ? forced
-      : matchMedia('(pointer: coarse)').matches
-        ? 'pad'
-        : 'board'
-  );
+  let role = $state(initialRole());
+  const isPad = $derived(role === 'pad');
 
   let tool = $state<Tool>('ink');
-  let pen = $state<Pen>('ink');
-  let size = $state(6);
-  let surface = $state<{
-    keys(): string[];
-    exportCanvas(w?: number): HTMLCanvasElement;
-    exportLines(w?: number): { key: string; canvas: HTMLCanvasElement }[];
-  }>();
-  /** identifies the current drawing, so recognition re-runs only on real change */
-  let strokeKey = $state('');
-  /** the pen is on the glass right now — the formula bar waits it out */
+  /* Shape corners snap to the notebook grid. Per device, like the question fold, and
+     on by default: a straight line in a math notebook is meant to sit on the squares. */
+  const SNAP_KEY = 'avi-math-snap';
+  let isSnapping = $state(readFlag(SNAP_KEY));
+  $effect(() => writeFlag(SNAP_KEY, isSnapping));
+
+  const grid = new RoomValue(id, 'grid', GRID_SCALE);
+  const size = new RoomValue(id, 'size', PEN_SIZE);
+
+  let surface = $state<SurfaceApi>();
+  /** How many page-sized parts the strip exports as, and which one the board is sitting
+   *  on. One part means a strip that fits a page, and then there is nothing to choose. */
+  let parts = $state(1);
+  let part = $state(0);
+  /** the pen is on the glass right now — a reload waits it out. See lib/release.ts. */
   let penDown = $state(false);
-  let toast = $state('');
   let qr = $state('');
-  let formula = $state<{ value(): string }>();
-  let showTex = $state(false);
   /** the QR blown up, for scanning from across the desk */
   let bigQr = $state(false);
 
-  const TOOLS: [Tool, string][] = [
-    ['ink', 'עט'],
-    ['erase', 'מחק'],
-    ['line', 'ישר'],
-    ['rect', 'מלבן'],
-    ['ellipse', 'מעגל']
-  ];
-  const PENS: [Pen, string][] = [
-    ['ink', 'דיו'],
-    ['accent', 'הדגשה'],
-    ['warn', 'הערה'],
-    ['danger', 'תיקון']
-  ];
+  const history = new History(id);
+  const choice = new Choice(id);
 
-  /** A device that scans is a device that is HELD. Inside the wrapper that is certain;
-   *  otherwise it takes a touch-primary pointer and a camera. The desktop is the screen
-   *  SHOWING the code — a scan button there is a button that can only ever fail, and it
-   *  is the mirror image of the mistake the QR made by being board-only. */
-  const canScan =
-    !!pad() ||
-    (matchMedia('(pointer: coarse)').matches && !!navigator.mediaDevices?.getUserMedia);
-
-  /** What the QR encodes. Explicitly role=pad: the code is scanned BY the tablet, and
-   *  encoding location.href would hand it `role=board` and open a second mirror — two
-   *  screens watching each other and nothing to write on. */
-  const joinUrl = `${location.origin}${location.pathname}?role=pad&room=${id}`;
+  let ask = $state<Ask>();
+  $effect(() => provideAsk(ask));
 
   onMount(() => {
-    void QRCode.toDataURL(joinUrl, { margin: 1, width: 300 }).then((d) => (qr = d));
-    // A deploy reaches the tab over the Firestore socket that is already open; see
-    // lib/release.ts for why it waits for the pen before it takes the page away.
+    // Inside the wrapper no code is ever shown (see the chip below), so it is not made.
+    if (!inWrapper) {
+      void qrImage(joinUrl(id)).then((d) => (qr = d));
+    }
+
+    // A deploy reaches the tab by asking hosting what is live; see lib/release.ts for
+    // why it waits before it takes the page away, and what it waits for.
     return watchRelease({
-      busy: () => penDown,
+      // The pen on the glass, OR ink the server has not taken. The second one was
+      // missing and it is the one that loses work: Firestore is on the memory cache, so
+      // the queue of unsent strokes dies with the document. On 19.09.2026 the write
+      // quota ran out while the tablet had a full board of working on it, and a deploy
+      // at that moment would have reloaded the page and thrown all of it away — the
+      // auto-reload doing exactly what it was asked to do, to the worst possible end.
+      // A tab that cannot save yet stays where it is, however old its bundle.
+      busy: () => penDown || unsentWrites() > 0,
       oncoming: () => say('גרסה חדשה עלתה — הדף ייטען מחדש', true),
       onstuck: () => say('יש גרסה חדשה אבל הדפדפן מגיש גרסה ישנה. רענן ידנית.', true)
     });
   });
 
-  /** A sticky toast is one the page is not going to outlive, so it must not fade. */
-  function say(t: string, sticky = false) {
-    toast = t;
-    if (!sticky) setTimeout(() => (toast = ''), 2400);
-  }
-
   function undoLast() {
-    const k = surface?.keys() ?? [];
-    if (!k.length) return say('אין מה לבטל');
-    void deleteDoc(strokeRef(id, k[k.length - 1]));
-  }
-
-  async function copyPng() {
-    const c = surface?.exportCanvas();
-    if (!c) return;
-    const blob: Blob | null = await new Promise((r) => c.toBlob(r, 'image/png'));
-    if (!blob) return say('הייצוא נכשל');
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      say('הועתק ללוח — הדבק בקלוד');
-    } catch {
-      void download(blob);
-      say('הדפדפן חסם העתקה — הקובץ ירד במקום');
-    }
-  }
-
-  function downloadPng() {
-    const c = surface?.exportCanvas();
-    if (!c) return;
-    c.toBlob((b) => b && void download(b), 'image/png');
-  }
-
-  /** Inside the Android wrapper an <a download> does nothing at all — a WebView ignores
-   *  downloads, and a blob: URL cannot be handed to a system downloader either. So the
-   *  bytes go over the bridge and out through the share sheet, which on a tablet is the
-   *  more useful destination anyway. In a browser tab nothing changes. */
-  async function download(blob: Blob) {
-    const name = `math-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
-    const bridge = pad();
-    if (bridge) {
-      const b64 = await blobToBase64(blob);
-      if (!bridge.share(name, blob.type || 'image/png', b64)) say('השיתוף נכשל');
+    const a = history.undo();
+    if (!a) {
+      say('אין מה לבטל');
       return;
     }
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(a.href);
+
+    if (a.kind !== 'erase') {
+      return;
+    }
+
+    say(a.items.length === 1 ? 'הוחזרה משיכה שנמחקה' : `הוחזרו ${a.items.length} משיכות שנמחקו`);
   }
 
-  function blobToBase64(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onerror = () => reject(r.error);
-      // readAsDataURL gives "data:<mime>;base64,<payload>"; the bridge wants the payload
-      r.onload = () => resolve(String(r.result).split(',', 2)[1] ?? '');
-      r.readAsDataURL(blob);
-    });
+  function redoLast() {
+    if (!history.redo()) {
+      say('אין מה להחזיר');
+    }
   }
 
-  async function copyTex() {
-    const tex = formula?.value() ?? '';
-    if (!tex.trim()) return say('אין עדיין נוסחה');
-    await navigator.clipboard.writeText(tex);
-    say('ה-LaTeX הועתק');
-  }
+  async function clearBoard() {
+    if (!(await confirm('למחוק הכול?'))) {
+      return;
+    }
 
-  /** The tablet's way into the room the desktop is already watching. On the desktop the
-   *  QR and the link do this job; on the pad there was nothing at all, which is exactly
-   *  the device that needs it. */
-  function askRoom() {
-    const v = prompt('הדבק את הקישור מהמחשב, או את מזהה החדר:', '');
-    if (v === null || !v.trim()) return;
-    if (v.includes(id)) return say('אתה כבר בחדר הזה');
-    if (!joinRoom(v)) say('לא מצאתי מזהה חדר בטקסט הזה');
+    void clearAll(id);
   }
-
-  async function copyLink() {
-    await navigator.clipboard.writeText(joinUrl);
-    say('הקישור הועתק');
-  }
-
-  /* ---- "I finished — check me" ---------------------------------------------
-     The topic is chosen rather than guessed: the criteria a bagrut marker uses are
-     per-topic, and a check against the wrong list is worse than no check. It is
-     remembered, because in one sitting every exercise is from the same block. */
-  const TOPIC_KEY = 'avi-math-topic';
-  let topic = $state(localStorage.getItem(TOPIC_KEY) ?? TOPICS[0].id);
-  $effect(() => localStorage.setItem(TOPIC_KEY, topic));
 
   async function checkWithClaude() {
-    const c = surface?.exportCanvas(1600);
-    if (!c) return;
-    const chosen = TOPICS.find((t) => t.id === topic) ?? TOPICS[0];
-    const blob: Blob | null = await new Promise((r) => c.toBlob(r, 'image/png'));
-    if (!blob) return say('הייצוא נכשל');
-    const image = `data:image/png;base64,${await blobToBase64(blob)}`;
-
-    if (extensionPresent()) {
-      requestCheck({ type: CHECK_MESSAGE, image, prompt: chosen.prompt, topic: chosen.title });
-      say('נשלח לקלוד — נפתחת שיחה חדשה');
+    const board = surface?.exportCanvas(1600);
+    if (!board) {
       return;
     }
-    // No extension here. Everything still goes out, it just needs one paste — which is
-    // exactly the flow that existed before the button, so nothing is lost.
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': blob, 'text/plain': new Blob([chosen.prompt], { type: 'text/plain' }) })
-      ]);
-      say('אין תוסף — התמונה והפרומפט הועתקו, הדבק בקלוד');
-    } catch {
-      await navigator.clipboard.writeText(chosen.prompt).catch(() => {});
-      say('אין תוסף — הפרומפט הועתק. העתק את התמונה בנפרד');
-    }
-  }
 
-  /* ---- scanning the desktop's code ----------------------------------------
-     The tablet cannot type 32 hex characters and, inside the wrapper, has nothing to
-     paste from either. The camera is the way in. */
-  let scanning = $state(false);
-  let cam = $state<HTMLVideoElement>();
-  let stopScan: (() => void) | null = null;
-
-  async function startScan() {
-    scanning = true;
-    await tick(); // the <video> has to exist before the camera can be pointed at it
-    try {
-      stopScan = await scan(cam!, (text) => {
-        closeScan();
-        if (!joinRoom(text)) say('אין מזהה חדר בקוד הזה');
-      });
-    } catch {
-      scanning = false;
-      say('אין גישה למצלמה');
-    }
-  }
-
-  function closeScan() {
-    stopScan?.();
-    stopScan = null;
-    scanning = false;
+    say(await sendForCheck(board, choice.topic, choice.exercise, choice.section || null));
   }
 </script>
 
-<div class="page" class:pinned={role === 'pad'} dir="rtl">
+<div class="page" class:pinned={isPad} dir="rtl">
   <header>
     <div class="brand">
-      <span class="mark">∫</span>
+      <span class="mark chamfer-s">∫</span>
       <div>
         <h1>לוח מתמטיקה</h1>
         <p class="sub">כותבים בטאבלט, רואים במחשב</p>
@@ -236,164 +139,92 @@
     </div>
     <div class="roles">
       <!-- The code lives in the room, at the top of it. It used to sit in a card below
-           the board, the toolbars and the formula bar — present, and three screens away
+           the board and the toolbars — present, and three screens away
            from the person holding the tablet, which is the same as absent.
-           Shown in BOTH roles, and hidden only inside the Android wrapper. The role is a
-           guess (`pointer: coarse`), and a desktop that guessed wrong had no code at all
-           — which is the one failure that leaves the tablet with nothing to scan. The
-           wrapper, by contrast, is known for certain: it is the tablet. -->
-      {#if qr && !pad()}
+           This chip is the FALLBACK, not the main way in: the "חיבור הטאבלט" card at the
+           bottom carries the same code with the link and the room id beside it, and it is
+           the one to scan. But that card is desktop-only, and the role is a guess
+           (`pointer: coarse`), so a desktop that guessed 'pad' would be left with no code
+           at all — the one failure that leaves the tablet with nothing to scan.
+           So: shown exactly where the card is not, and never both at once. Inside the
+           Android wrapper neither appears; the wrapper is known for certain to be the
+           tablet, and it is already in the room. -->
+      {#if qr && isPad}
         <button class="qrchip" onclick={() => (bigQr = true)} title="הגדל כדי לסרוק מהטאבלט">
           <img src={qr} alt="קוד QR לחדר הזה" />
           <span>סרוק<code class="rid">{id.slice(0, 6)}</code></span>
         </button>
       {/if}
-      <button class="btn" data-active={role === 'pad'} onclick={() => (role = 'pad')}>לוח כתיבה</button>
-      <button class="btn" data-active={role === 'board'} onclick={() => (role = 'board')}>תצוגה</button>
+      <button class="btn" data-active={isPad} onclick={() => (role = 'pad')}>
+        {@html iconPad}לוח כתיבה
+      </button>
+      <button class="btn" data-active={!isPad} onclick={() => (role = 'board')}>
+        {@html iconDisplay}תצוגה
+      </button>
     </div>
   </header>
 
   <main>
+    <QuestionCard {choice} {role} oncheck={checkWithClaude} />
+
     <Surface
       bind:this={surface}
       {room}
-      readonly={role === 'board'}
-      fill={role === 'pad'}
+      readonly={!isPad}
+      fill={isPad}
+      onparts={(n, at) => {
+        parts = n;
+        // The ONLY writer of `part`. It follows the board rather than being held here,
+        // so the picker cannot say one thing while the screen shows another — which is
+        // also what keeps a shrinking strip honest: an erase or a clear moves the board,
+        // and the index that arrives with it is already inside the new count.
+        part = at;
+      }}
       {tool}
-      {pen}
-      {size}
-      onstrokes={(keys) => (strokeKey = keys.join(','))}
-      onpen={(down) => (penDown = down)}
+      size={size.value}
+      {isSnapping}
+      gridCell={gridCell(grid.value)}
+      onpen={(down) => {
+        penDown = down;
+        // Drawing again is what makes "forward" meaningless, so the stack empties on the
+        // way DOWN — before the stroke exists, not after it has landed.
+        if (down) {
+          history.forgetRedo();
+        }
+      }}
+      onaction={(a) => history.record(a)}
     />
 
-    {#if role === 'pad'}
-      <div class="tools">
-        <div class="group">
-          {#each TOOLS as [t, label] (t)}
-            <button class="btn" data-tool={t} data-active={tool === t} onclick={() => (tool = t)}>
-              {label}
-            </button>
-          {/each}
-        </div>
-        <div class="group">
-          {#each PENS as [p, label] (p)}
-            <button class="btn swatch" data-pen={p} data-active={pen === p} onclick={() => (pen = p)}>
-              {label}
-            </button>
-          {/each}
-        </div>
-        <label class="group size">
-          {tool === 'erase' ? 'גודל המחק' : 'עובי'}
-          <input type="range" min="2" max="16" step="1" bind:value={size} />
-          <span class="num">{size}</span>
-        </label>
-      </div>
+    {#if isPad}
+      <PadTools bind:tool {size} bind:isSnapping {grid} />
     {/if}
-
-    <!-- The check sits on its own row, under the board and above everything else: it is
-         the end of the exercise, not another drawing tool. -->
-    <div class="tools check">
-      <label class="group topic">
-        נושא
-        <select bind:value={topic}>
-          {#each TOPICS as t (t.id)}
-            <option value={t.id}>{t.id} · {t.title}</option>
-          {/each}
-        </select>
-      </label>
-      <button class="btn big" data-variant="primary" onclick={checkWithClaude}>
-        סיימתי — שקלוד יבדוק
-      </button>
-    </div>
 
     <div class="tools">
       <div class="group">
-        <button class="btn" onclick={undoLast}>בטל אחרון</button>
-        <button class="btn" onclick={() => confirm('למחוק הכול?') && void clearAll(id)}>נקה</button>
+        <button class="btn" onclick={undoLast}>{@html iconUndo}בטל אחרון</button>
+        <!-- Disabled rather than shouting when there is nothing to redo. Undo is not,
+             because an empty board is the normal state and a permanently dead button
+             beside a live one reads as broken; a redo stack, by contrast, is empty
+             almost always, and a button that says so is the honest one. -->
+        <button class="btn" onclick={redoLast} disabled={!history.canRedo}>
+          {@html iconRedo}החזר
+        </button>
+        <button class="btn" onclick={clearBoard}>{@html iconTrash}נקה</button>
       </div>
-      <div class="group">
-        <button class="btn" data-variant="primary" onclick={copyPng}>העתק כתמונה</button>
-        <button class="btn" onclick={downloadPng}>{pad() ? 'שתף PNG' : 'הורד PNG'}</button>
-      </div>
-      {#if role === 'pad'}
-        <div class="group">
-          {#if canScan}
-            <button class="btn" data-variant="primary" onclick={startScan}>סרוק QR</button>
-          {/if}
-          <button class="btn" onclick={askRoom} title="הצטרף לחדר של המחשב">
-            חדר <code class="rid">{id.slice(0, 6)}</code>
-          </button>
-        </div>
+      {#if isPad}
+        <RoomJoin {id} />
+      {:else}
+        <CopyTools {surface} {parts} {part} />
       {/if}
     </div>
 
-    <section class="tex-pane">
-      <button class="btn wide" onclick={() => (showTex = !showTex)} aria-expanded={showTex}>
-        {showTex ? 'סגור את שורת הנוסחה' : 'נוסחה ב-LaTeX'}
-      </button>
-      {#if showTex}
-        <p class="note">
-          השורה קוראת את הקנבס וממירה ל-LaTeX. היא ממתינה שתרים את העט ותשתהה רגע לפני
-          שהיא מריצה, כדי לא לזהות משוואה באמצע הכתיבה. התוצאה נשארת ניתנת לעריכה, כי
-          זיהוי אף פעם לא מושלם ולתקן סימן אחד עדיף על להקליד הכול.
-        </p>
-        <Formula
-          bind:this={formula}
-          roomId={id}
-          readonly={role === 'board'}
-          {strokeKey}
-          {penDown}
-          getLines={() => surface?.exportLines(1200) ?? []}
-          getWhole={() => surface?.exportCanvas(1200)}
-        />
-        <div class="group">
-          <button class="btn" data-variant="primary" onclick={copyTex}>העתק LaTeX</button>
-        </div>
-      {/if}
-    </section>
-
-    <!-- Desktop only. On the tablet these two cards are noise: the QR exists to get the
-         tablet into the room, so by the time it is being read there it has done its job,
-         and the instructions are about pasting into Claude, which happens on the desktop.
-         Hiding them puts the canvas and its tools on the screen alone. -->
-    {#if role === 'board'}
-    <section class="pair">
-      <div class="card">
-        <h2 class="card-head">חיבור הטאבלט</h2>
-        <div class="qrrow">
-          {#if qr}<img class="qr" src={qr} alt="קוד QR לפתיחת אותו חדר בטאבלט" />{/if}
-          <div>
-            <p class="note">
-              סרוק פעם אחת מהטאבלט, או העתק את הקישור ושלח לעצמך. שני המכשירים נשארים באותו חדר
-              גם אחרי סגירה — הוא נשמר בדפדפן.
-            </p>
-            <div class="group">
-              <button class="btn" onclick={copyLink}>העתק קישור</button>
-              <button class="btn" onclick={() => confirm('לפתוח חדר חדש? הישן יישאר במקומו.') && newRoom()}>
-                חדר חדש
-              </button>
-            </div>
-            <p class="roomid">חדר <code>{id.slice(0, 8)}…</code></p>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2 class="card-head">מה עושים עם זה</h2>
-        <ol class="note">
-          <li>כותבים את התרגיל או מציירים את הצורה בטאבלט.</li>
-          <li>הכתב מופיע כאן במחשב תוך כדי כתיבה.</li>
-          <li><b>העתק כתמונה</b> ואז מדביקים ישירות בשיחה עם קלוד או שולחים למורה.</li>
-        </ol>
-        <p class="note dim">
-          שתי דרכים, לפי מה שאתה צריך: <b>תמונה</b> לכתב יד וצורות — קלוד קורא אותה ישירות.
-          <b>LaTeX</b> לנוסחה שצריכה להיות מדויקת, למשל לשלוח למורה בהודעה. שורת הנוסחה
-          מזהה את הכתב מהקנבס לבד ומריצה שוב בכל שינוי, ומה שיצא נשאר ניתן לתיקון.
-        </p>
-      </div>
-    </section>
+    {#if !isPad}
+      <ConnectCards {id} {qr} />
     {/if}
   </main>
+
+  <!-- One instance for the whole page: a modal is modal, so there is never a second. -->
+  <Ask bind:this={ask} />
 
   {#if bigQr}
     <button class="qrbig" onclick={() => (bigQr = false)} aria-label="סגור את הקוד">
@@ -403,17 +234,7 @@
     </button>
   {/if}
 
-  {#if scanning}
-    <div class="scanner">
-      <!-- svelte-ignore a11y_media_has_caption -->
-      <video bind:this={cam} muted playsinline></video>
-      <div class="reticle"></div>
-      <p class="shint">כוון את המצלמה אל הקוד שעל מסך המחשב</p>
-      <button class="btn" onclick={closeScan}>בטל</button>
-    </div>
-  {/if}
-
-  {#if toast}<div class="toast">{toast}</div>{/if}
+  {#if toast.text}<div class="toast chamfer-s">{toast.text}</div>{/if}
 </div>
 
 <style>
@@ -454,14 +275,9 @@
       display: none;
     }
   }
-  .page.pinned .tools {
+  /* the toolbars are rows of the components below; their spacing is the page's */
+  .page.pinned :global(.tools) {
     margin-top: 10px;
-  }
-  .page.pinned .tex-pane {
-    margin-top: 12px;
-    overflow-y: auto;
-    flex: 0 1 auto;
-    min-height: 0;
   }
   header {
     display: flex;
@@ -490,14 +306,6 @@
     color: var(--primary);
     font-size: 26px;
     text-shadow: var(--cyber-glow-primary);
-    clip-path: polygon(
-      var(--chamfer-s) 0,
-      100% 0,
-      100% calc(100% - var(--chamfer-s)),
-      calc(100% - var(--chamfer-s)) 100%,
-      0 100%,
-      0 var(--chamfer-s)
-    );
   }
   h1 {
     margin: 0;
@@ -513,118 +321,6 @@
   .roles {
     display: flex;
     gap: 8px;
-  }
-  .tools {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 18px;
-    justify-content: space-between;
-    margin-top: 14px;
-  }
-  .group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .size {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--fg-muted);
-  }
-  input[type='range'] {
-    accent-color: var(--primary);
-    width: 130px;
-  }
-  .btn[data-active='true'] {
-    border-color: var(--border-strong);
-    background: var(--primary);
-    color: var(--on-primary);
-    box-shadow: var(--cyber-glow-primary);
-  }
-  /* The swatch has to read on ANY button background. When a pen button is active the
-     button fills with --primary, which in the light palette is the same ink navy as the
-     "דיו" pen itself — so the chip was invisible exactly on the selected pen. Sitting it
-     on a --surface plate with a --border ring makes it independent of the button state
-     and of the theme. */
-  .swatch::before {
-    content: '';
-    width: 13px;
-    height: 13px;
-    flex: none;
-    background: var(--swatch);
-    box-shadow:
-      0 0 0 2px var(--surface),
-      0 0 0 3px var(--border);
-    margin-inline-end: 3px;
-  }
-  .swatch[data-pen='ink'] {
-    --swatch: var(--fg);
-  }
-  .swatch[data-pen='accent'] {
-    --swatch: var(--secondary);
-  }
-  .swatch[data-pen='warn'] {
-    --swatch: var(--warn);
-  }
-  .swatch[data-pen='danger'] {
-    --swatch: var(--danger);
-  }
-  .tex-pane {
-    display: grid;
-    gap: 12px;
-    margin-top: 22px;
-  }
-  .btn.wide {
-    justify-content: center;
-  }
-  .pair {
-    display: grid;
-    gap: 16px;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    margin-top: 26px;
-  }
-  .qrrow {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-  .qr {
-    width: 132px;
-    height: 132px;
-    border: 2px solid var(--border);
-    background: #fff;
-    image-rendering: pixelated;
-  }
-  .note {
-    margin: 0 0 12px;
-    font-family: var(--font-mono);
-    font-size: 12.5px;
-    line-height: 1.6;
-    color: var(--fg-muted);
-  }
-  .note.dim {
-    color: var(--fg-subtle);
-    margin-bottom: 0;
-  }
-  ol.note {
-    padding-inline-start: 1.2em;
-  }
-  ol.note li {
-    margin-block: 4px;
-  }
-  .rid {
-    font-family: var(--font-mono);
-    font-size: .85em;
-    opacity: .75;
-    direction: ltr;
-    display: inline-block;
-  }
-  .roomid {
-    margin: 10px 0 0;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--fg-subtle);
   }
   /* the chip: small, always on screen, and a plain white plate because a QR has to be
      scannable and the dark palette would swallow it */
@@ -692,84 +388,6 @@
     color: var(--fg-muted);
     direction: ltr;
   }
-  .tools.check {
-    align-items: center;
-    gap: 12px;
-    margin-top: 14px;
-    padding: 12px 14px;
-    border: 2px solid var(--border-strong);
-    background: var(--surface);
-  }
-  .topic {
-    flex: 1 1 240px;
-    min-width: 0;
-    gap: 10px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--fg-muted);
-  }
-  .topic select {
-    flex: 1 1 auto;
-    min-width: 0;
-    padding: 8px 10px;
-    border: 2px solid var(--border);
-    background: var(--surface-2);
-    color: var(--fg);
-    font: var(--t-body-m);
-    font-family: var(--font-sans);
-  }
-  .btn.big {
-    padding-block: 12px;
-    font-size: 15px;
-  }
-  .scanner {
-    position: fixed;
-    inset: 0;
-    z-index: 20;
-    display: grid;
-    place-items: center;
-    background: var(--scrim);
-  }
-  .scanner video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  /* the frame is the instruction: people aim at a box without being told to */
-  .reticle {
-    position: relative;
-    width: min(62vw, 62vh);
-    aspect-ratio: 1;
-    border: 3px solid var(--primary);
-    box-shadow:
-      0 0 0 100vmax var(--scrim),
-      var(--cyber-glow-primary);
-    clip-path: polygon(
-      var(--chamfer) 0,
-      100% 0,
-      100% calc(100% - var(--chamfer)),
-      calc(100% - var(--chamfer)) 100%,
-      0 100%,
-      0 var(--chamfer)
-    );
-  }
-  .shint {
-    position: absolute;
-    inset-block-start: 24px;
-    inset-inline: 0;
-    margin: 0;
-    text-align: center;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--fg);
-    text-shadow: 0 1px 6px var(--scrim);
-  }
-  .scanner .btn {
-    position: absolute;
-    inset-block-end: 28px;
-  }
   .toast {
     position: fixed;
     inset-block-end: 22px;
@@ -782,13 +400,5 @@
     font-family: var(--font-mono);
     font-size: 13px;
     box-shadow: var(--shadow-md);
-    clip-path: polygon(
-      var(--chamfer-s) 0,
-      100% 0,
-      100% calc(100% - var(--chamfer-s)),
-      calc(100% - var(--chamfer-s)) 100%,
-      0 100%,
-      0 var(--chamfer-s)
-    );
   }
 </style>

@@ -9,6 +9,7 @@ once you have run `firebase login` — see `npm run deploy:cli`.
 import gzip
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -117,15 +118,21 @@ def push_rules(tok):
 
 
 def stamp_release(tok):
-    """Tell the tabs that are already open which build is now live.
+    """Nudge the tabs that are already open: a deploy has just finished, go and look.
 
     They are listening to this document over the Firestore socket they hold anyway, so a
-    deploy reaches a tablet lying on the table without polling and without a server. The
-    id comes from dist/build-id.txt, written by the same vite run that baked it into the
-    bundle — one value, so a client can always tell "that is me" from "that is newer".
+    deploy reaches a tablet lying on the table in about a second. What it carries is a
+    courtesy, not an instruction — src/lib/release.ts reads the live build from
+    build-id.txt over HTTP and never from here. That split exists because this document
+    is served from a client-side CACHE when Firestore cannot be reached, and a stale copy
+    that reads as fresh sent every open tab into a reload loop on 19.09.2026.
 
-    Written LAST, after the hosting release is live. The other order tells a tab to
-    reload before the new files are being served, and it comes back on the old bundle.
+    Written LAST, after the hosting release is live. The other order tells a tab to go
+    and look before the new files are being served, and it comes back on the old bundle.
+
+    NOT FATAL, for the same reason. The deploy that is already live must not be reported
+    as a failure because an optional nudge could not be written — that happened, on a
+    spent Firestore quota, and it read as "the deploy broke" when the site was fine.
 
     The REST API is used rather than the client SDK because this token belongs to a
     project member: it is authorised by IAM and does not go through firestore.rules,
@@ -136,10 +143,17 @@ def stamp_release(tok):
     url = (f"https://firestore.googleapis.com/v1/projects/{PROJECT}/databases/(default)"
            "/documents/meta/release"
            "?updateMask.fieldPaths=build&updateMask.fieldPaths=at")
-    call("PATCH", url, tok,
-         body={"fields": {"build": {"stringValue": build},
-                          "at": {"timestampValue": now}}})
-    print("release stamped:", build)
+    try:
+        call("PATCH", url, tok,
+             body={"fields": {"build": {"stringValue": build},
+                              "at": {"timestampValue": now}}})
+        print("release stamped:", build)
+    except SystemExit as e:
+        # `call` raises with the URL on one line and the server's JSON under it; the
+        # useful half is the status line, not the closing brace of the body.
+        why = next((l.strip() for l in str(e).splitlines() if "HTTP" in l), str(e).strip())
+        print(f"release NOT stamped: {why}")
+        print("  open tabs will pick this build up from build-id.txt within 30s instead.")
 
 
 def main():

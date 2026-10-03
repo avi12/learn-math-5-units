@@ -22,16 +22,38 @@ service cloud.firestore {
       allow create, update: if room_ok(room) && stroke_ok();
     }
 
-    match /rooms/{room}/latex/{slot} {
-      allow read, delete: if room_ok(room);
-      allow create, update: if room_ok(room)
-        && request.resource.data.tex is string
-        && request.resource.data.tex.size() < 5000;
-    }
-
     match /rooms/{room}/live/{slot} {
       allow read, delete: if room_ok(room);
       allow create, update: if room_ok(room) && stroke_ok();
+    }
+
+    // Which exercise the room is on: `block:tier.n` plus a section letter. Both are
+    // chosen from a fixed list the app ships, so the only thing worth bounding here is
+    // the size — a client that has been tampered with cannot turn this slot into
+    // storage. The section is one Hebrew letter or the empty string.
+    match /rooms/{room}/pick/{slot} {
+      allow read, delete: if room_ok(room);
+      allow create, update: if room_ok(room)
+        && request.resource.data.keys().hasOnly(['pick', 'section'])
+        && request.resource.data.pick is string
+        && request.resource.data.pick.size() < 40
+        && request.resource.data.section is string
+        && request.resource.data.section.size() < 4;
+    }
+
+    // The room's slider settings, one number each: `grid` is the square size and `size`
+    // the ink thickness. The bounds are GRID_SCALE and PEN_SIZE in src/lib/ink.ts and
+    // must be changed in both places.
+    function pref_ok(slot) {
+      return request.resource.data.keys().hasOnly(['value'])
+          && request.resource.data.value is number
+          && ((slot == 'grid' && request.resource.data.value >= 1 && request.resource.data.value <= 4)
+           || (slot == 'size' && request.resource.data.value >= 2 && request.resource.data.value <= 16));
+    }
+
+    match /rooms/{room}/prefs/{slot} {
+      allow read, delete: if room_ok(room);
+      allow create, update: if room_ok(room) && pref_ok(slot);
     }
 
     // The build the last deploy put live, so an open tab can hear about a new version

@@ -17,6 +17,101 @@ export const ASPECT = 1.5; // width : height
 /** The visible height of one exported page, in the normalised units above. */
 export const PAGE = 1 / ASPECT;
 
+/** One square of the notebook grid behind the board at scale 1, in normalised units:
+ *  forty to a width, which is about the 5mm square of an A4 notebook. Normalised and not
+ *  pixels, so the tablet and the desktop mirror draw the same squares under the same ink.
+ *  The grid is CSS behind the canvas, never ink: the rubber cannot touch it and exports
+ *  skip it. */
+const SQUARES_ACROSS = 40;
+const GRID_BASE = 1 / SQUARES_ACROSS;
+
+/** A slider's range. The one home for each one: the slider, the stored value and
+ *  firestore.rules all follow these bounds (the rules file repeats them; see there). */
+export type Range = { readonly min: number; readonly max: number; readonly step: number; readonly initial: number };
+
+/** The grid-size slider: how many base squares one square spans. */
+/** Fine steps, so the squares grow with the finger instead of in seven jumps. Snapped
+ *  points still land on the lines: four stored decimals (see `pack`) are within a twentieth
+ *  of a pixel of any multiple of these cells. */
+export const GRID_SCALE: Range = { min: 1, max: 4, step: 0.1, initial: 1 };
+
+/** The thickness slider: pen width, and the rubber's size with it. */
+export const PEN_SIZE: Range = { min: 2, max: 16, step: 1, initial: 6 };
+
+/** Any value onto a range's steps — a tampered or stale stored value cannot leave it. */
+export function clampToRange(range: Range, value: number): number {
+  if (!Number.isFinite(value)) {
+    return range.initial;
+  }
+  // rounded to the step's own decimals, so 0.1 steps read 1.3 and not 1.3000000000000003
+  const decimals = (String(range.step).split('.')[1] ?? '').length;
+  const stepped = Number((Math.round(value / range.step) * range.step).toFixed(decimals));
+  return Math.min(range.max, Math.max(range.min, stepped));
+}
+
+/** One square, in normalised units, at a given slider scale. */
+export function gridCell(scale: number): number {
+  return GRID_BASE * scale;
+}
+
+/** The nearest grid crossing — where a shape's corner lands when snapping is on.
+ *  Normalised y is measured from the top of the strip, and the grid's horizontal lines
+ *  sit on multiples of the cell there, so this needs no scroll offset. */
+export function snapPoint(point: Pt, cell: number): Pt {
+  const toNearestLine = (value: number) => Math.round(value / cell) * cell;
+  return { ...point, x: toNearestLine(point.x), y: toNearestLine(point.y) };
+}
+
+/** How far the first horizontal grid line sits above the top edge of a view scrolled to
+ *  `top`, in normalised units. The same multiples-of-the-cell rule as `snapPoint`, said
+ *  once here so the squares on screen and the crossings a shape snaps to cannot disagree. */
+export function gridPhase(top: number, cell: number): number {
+  return top % cell;
+}
+
+/** Margin left under the lowest ink in an exported image, in normalised units. */
+const EXPORT_PAD = 0.03;
+
+/** How tall one copied part is, in normalised units.
+ *
+ *  Two pages, not one. One page was the safe end of the trade — 1800×1200 arrives in a
+ *  conversation almost untouched — but Avi's own board is about eleven pages long, and
+ *  one page per part made that eighteen pastes: "יש יותר מדי חלקים, אפשר שגובה התמונה
+ *  המועתקת יוכפל". Two pages is 1800×2400, which the 1568px long-edge limit scales to
+ *  1176×1568 — 65%, still plainly handwriting — and it halves the pastes. */
+export const PART = PAGE * 2;
+
+/** How much of one part repeats at the top of the next, in normalised units — about a
+ *  twentieth of a page. A line of writing that lands exactly on a cut is unreadable in
+ *  both halves; with a strip of overlap every line arrives whole in at least one part. */
+const PART_OVERLAP = 0.03;
+
+/** How tall the whole strip exports, in normalised units. One page is the floor, so a
+ *  short drawing exports exactly as it did before the board could scroll. */
+export function exportSpan(bottom: number): number {
+  return Math.max(PAGE, bottom + EXPORT_PAD);
+}
+
+/** Where each part of the export starts, in normalised units.
+ *
+ *  Avi (19.09.2026): "הדחיסה על הקנבס אצל claude.ai גדולה מדי… תאפשר לצלם בחלקים".
+ *  An image attached to a conversation is scaled down to roughly 1568px on its long
+ *  edge, and that edge is the strip's HEIGHT: six screens of writing exported as one
+ *  1800×7200 image arrives about 390px wide, which is not handwriting any more. So the
+ *  fix is not a bigger export — nothing can be big enough — it is fewer normalised
+ *  units per image, which is what a part is.
+ *
+ *  The last part is pulled UP to end at the bottom rather than left short. Parts of
+ *  different heights would land at different resolutions, and the odd one out would be
+ *  the END of the working — which is the answer, and the part worth reading most. */
+export function exportParts(bottom: number): number[] {
+  const span = exportSpan(bottom);
+  if (span <= PART + 1e-9) return [0];
+  const step = PART - PART_OVERLAP;
+  const n = Math.ceil((span - PART) / step) + 1;
+  return Array.from({ length: n }, (_, i) => Math.min(i * step, span - PART));
+}
+
 export type Tool = 'ink' | 'line' | 'rect' | 'ellipse' | 'erase';
 export type Pen = 'ink' | 'accent' | 'warn' | 'danger';
 
@@ -26,6 +121,14 @@ export interface Stroke {
   w: number;
   /** "x,y,pressure;x,y,pressure;…" with three decimals, x normalised by width. */
   p: string;
+  /** The client clock that orders strokes on the board. Written by `commit` and read by
+   *  `query(strokes, orderBy('n'))`.
+   *
+   *  Optional because a stroke does not have one until it is committed — but a stroke
+   *  being written BACK (undo of an erase, redo of a draw) must carry the one it had, or
+   *  it lands outside the ordering and simply does not appear. That bug shipped for the
+   *  length of one test run; the field is declared here so the type says so. */
+  n?: number;
 }
 
 const TOKEN: Record<Pen, string> = {
@@ -40,10 +143,33 @@ export function colour(pen: Pen): string {
   return v.trim() || '#000';
 }
 
+/** Every colour a rasterisation can come out in, as one string.
+ *
+ *  For cache keys. The same strokes under the other theme are a different picture, and a
+ *  cache that does not know that hands back the old one — which is exactly what happened:
+ *  the board kept its dark ink under the light palette and read as empty. See
+ *  `themecheck.mjs`.
+ *
+ *  Derived from `TOKEN` rather than listing the tokens again, so a fifth pen extends the
+ *  key by existing. And it reads the RESOLVED values instead of asking the media query:
+ *  that is what makes it right for every way the palette can move — the OS switching, a
+ *  stamped `data-theme`, the Android wrapper deciding for itself — rather than only for
+ *  the one way we happen to listen for today. */
+export function palette(): string {
+  const cs = getComputedStyle(document.documentElement);
+  return Object.values(TOKEN)
+    .map((t) => cs.getPropertyValue(t).trim())
+    .join('|');
+}
+
 export type Pt = { x: number; y: number; pr: number };
 
+/** Four decimals, not three: a snapped corner sits on a multiple of the grid cell, which
+ *  at most square sizes (GRID_SCALE) is not a round number. Three decimals stored 0.0625
+ *  as 0.063 — half a pixel off the grid line it snapped to, which gridcheck.mjs measured.
+ *  Four are within a twentieth of a pixel on a 1000px board. */
 export function pack(pts: Pt[]): string {
-  return pts.map((q) => `${q.x.toFixed(3)},${q.y.toFixed(3)},${q.pr.toFixed(2)}`).join(';');
+  return pts.map((q) => `${q.x.toFixed(4)},${q.y.toFixed(4)},${q.pr.toFixed(2)}`).join(';');
 }
 
 function unpack(p: string): Pt[] {
@@ -95,8 +221,30 @@ function ellipseOf(a: Pt, b: Pt): { cx: number; cy: number; rx: number; ry: numb
   };
 }
 
-function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number): void {
-  const pts = unpack(s.p);
+/** Points, parsed once per stroke instead of once per frame.
+ *
+ *  `unpack` splits a string and allocates an object per point. Doing that for every
+ *  stroke on every pointer event was measured (build/strokecost.mjs) at **62% of the
+ *  entire cost of a redraw** — 6.5ms of 10.5ms for 64 strokes at 12x CPU throttle, with
+ *  the canvas untouched. It is pure parsing, which is why no GPU would have helped it.
+ *
+ *  Keyed on the stroke OBJECT, not on its string: the Firestore listener only replaces
+ *  the objects whose documents actually changed, so an untouched stroke keeps its
+ *  identity across snapshots and stays cached. A WeakMap means an erased stroke's points
+ *  go with it. */
+const ptsCache = new WeakMap<Stroke, Pt[]>();
+
+function pointsOf(s: Stroke): Pt[] {
+  let pts = ptsCache.get(s);
+  if (!pts) {
+    pts = unpack(s.p);
+    ptsCache.set(s, pts);
+  }
+  return pts;
+}
+
+export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number): void {
+  const pts = pointsOf(s);
   if (!pts.length) return;
   ctx.save();
   ctx.strokeStyle = colour(s.c);
@@ -146,7 +294,7 @@ function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number): void {
  *  needs its geometry — hit-testing, for one — has to rebuild what was drawn from them
  *  and not use the diagonal that connects them. */
 function outline(s: Stroke): Pt[] {
-  const pts = unpack(s.p);
+  const pts = pointsOf(s);
   if (s.t === 'ink' || pts.length < 2) return pts;
   const a = pts[0];
   const b = pts[pts.length - 1];
@@ -176,6 +324,14 @@ function toSegment(px: number, py: number, a: Pt, b: Pt): number {
  *  document, so rubbing one out is a delete both devices already know how to apply —
  *  the same path the undo button uses. */
 export function hits(s: Stroke, x: number, y: number, r: number): boolean {
+  // The box first, and this is where nearly all of the work goes away. Excalidraw's
+  // geometry does the same thing for the same reason: an axis-aligned box test is a few
+  // comparisons against numbers that are already worked out, and it answers "no" for
+  // almost every stroke on the board. Only what survives it pays for a distance
+  // calculation per segment.
+  const b = boxOf(s);
+  if (!b) return false;
+  if (x + r < b.x0 || x - r > b.x1 || y + r < b.y0 || y - r > b.y1) return false;
   const pts = outline(s);
   if (!pts.length) return false;
   const reach = r + half(s.w);
@@ -189,8 +345,23 @@ export function hits(s: Stroke, x: number, y: number, r: number): boolean {
 /** The box a stroke's ink actually covers, in normalised units. */
 export type Box = { x0: number; x1: number; y0: number; y1: number };
 
+/** A stroke's box never changes — a stroke is immutable once written — so it is worked
+ *  out once and kept beside the stroke, like its points. Everything that follows leans
+ *  on this being free: the eraser rejects with it, the renderer culls with it, and
+ *  `bounds()` walks it on every snapshot. */
+const boxCache = new WeakMap<Stroke, Box | null>();
+
+export function boxOf(s: Stroke): Box | null {
+  let b = boxCache.get(s);
+  if (b === undefined) {
+    b = box(s);
+    boxCache.set(s, b);
+  }
+  return b;
+}
+
 function box(s: Stroke): Box | null {
-  const pts = unpack(s.p);
+  const pts = pointsOf(s);
   if (!pts.length) return null;
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const q of pts) {
@@ -281,156 +452,7 @@ function size(heights: number[]): number {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
-/** Split a drawing into writing lines, top to bottom.
- *
- * Two strokes share a line when their vertical extents overlap — transitively, and with
- * the small tolerance above. Overlap alone does most of the work, because a real equation
- * contains something tall (a descender, a bracket, an integral) and that glyph reaches
- * across every short thing beside it: the two bars of an '=', an exponent, a fraction bar.
- * The tolerance covers the rest, a fraction written with air around its bar being the case
- * that actually broke a pure overlap test.
- *
- * This exists because the recogniser reads ONE formula. Handed a picture of two lines it
- * answers with the first and silently drops the rest — measured, not guessed. Splitting
- * needs the stroke geometry, which is exactly what rasterising the canvas throws away, so
- * it has to happen here and not in the image.
- */
-export function lines(strokes: Stroke[]): Stroke[][] {
-  const boxes = strokes.map(box);
-  const drawn = strokes.map((_, i) => i).filter((i) => boxes[i]);
-  // a straight vertical annotation stroke does not get to bridge lines — see isPipe
-  const pipes = drawn.filter((i) => isPipe(boxes[i]!));
-  const idx = drawn.filter((i) => !isPipe(boxes[i]!));
-  idx.sort((a, b) => boxes[a]!.y0 - boxes[b]!.y0);
 
-  type Group = Box & { items: number[]; hs: number[] };
-  let groups: Group[] = [];
-  for (const i of idx) {
-    const b = boxes[i]!;
-    const g = groups[groups.length - 1];
-    const near = g ? Math.min(NEAR.max, Math.max(NEAR.min, size(g.hs) * NEAR.of)) : 0;
-    if (g && b.y0 <= g.y1 + near) {
-      g.y1 = Math.max(g.y1, b.y1);
-      g.x0 = Math.min(g.x0, b.x0);
-      g.x1 = Math.max(g.x1, b.x1);
-      g.items.push(i);
-      g.hs.push(b.y1 - b.y0);
-    } else {
-      groups.push({ ...b, items: [i], hs: [b.y1 - b.y0] });
-    }
-  }
-
-  // A fraction defeats the rule above, and the geometry alone cannot save it: the gap
-  // from a numerator to its bar is the same fraction of a character height as the gap
-  // between two written lines. Measured on a real drawing, both sit near 0.47 - there is
-  // no threshold that separates them.
-  //
-  // The bar itself is the signal. A stroke far wider than it is tall, spanning what sits
-  // above and below it, is a fraction bar, and nothing is ever written across two lines
-  // that way. So after grouping, adjacent groups are merged back whenever a bar in one
-  // of them covers the other horizontally.
-  //
-  // This matters because the two mistakes are not symmetric. Failing to split leaves the
-  // second equation unread - quiet, and the first answer is still right. Splitting a
-  // fraction feeds the model a bare horizontal line, and it answers with hallucinated
-  // prose from the papers it was trained on. Being slow to split is the safe direction.
-  // Loop until nothing merges, and not for a fixed number of passes: `groups.length`
-  // shrinks by one on every merge while a pass counter grows, so a bound of
-  // `pass < groups.length` stopped after about half the merges a deep stack needs. A
-  // continued fraction — numeral, bar, numeral, bar — came apart from two bars down.
-  // `merged` is the real termination condition and always was; each turn either removes
-  // a group or breaks, so this cannot run away.
-  for (;;) {
-    let merged = false;
-    for (let i = 0; i + 1 < groups.length; i++) {
-      const a = groups[i];
-      const b = groups[i + 1];
-      // Coverage is measured against a single stroke, not against the whole group. A
-      // group's x-extent stretches to whatever else sits on that line — an "= 4" off to
-      // the right — and the bar cannot be expected to reach under that too. It only has
-      // to sit over the thing it is a bar for.
-      const bridges = (from: Group, to: Group) =>
-        from.items.some(
-          (k) =>
-            isBar(boxes[k]!) &&
-            to.items.some(
-              (j) => covers(boxes[k]!, boxes[j]!) > 0.7 && gap(boxes[k]!, boxes[j]!) <= BAR_REACH
-            )
-        );
-      if (bridges(a, b) || bridges(b, a)) {
-        a.y1 = Math.max(a.y1, b.y1);
-        a.x0 = Math.min(a.x0, b.x0);
-        a.x1 = Math.max(a.x1, b.x1);
-        a.items.push(...b.items);
-        a.hs.push(...b.hs);
-        groups.splice(i + 1, 1);
-        merged = true;
-        break;
-      }
-    }
-    if (!merged) break;
-  }
-
-  // The vertical strokes held out above rejoin the line they cover most. One that covers
-  // no line at all — a bare "1" written alone — becomes its own, which is the honest
-  // answer: the alternative is attaching it to whichever line happens to be nearest.
-  for (const i of pipes) {
-    const b = boxes[i]!;
-    let best: Group | null = null;
-    let most = 0;
-    for (const g of groups) {
-      const over = Math.min(g.y1, b.y1) - Math.max(g.y0, b.y0);
-      if (over > most) {
-        most = over;
-        best = g;
-      }
-    }
-    if (best) {
-      best.items.push(i);
-      best.hs.push(b.y1 - b.y0);
-      best.y0 = Math.min(best.y0, b.y0);
-      best.y1 = Math.max(best.y1, b.y1);
-    } else {
-      groups.push({ ...b, items: [i], hs: [b.y1 - b.y0] });
-    }
-  }
-  groups.sort((a, b) => a.y0 - b.y0);
-
-  // drawing order is restored inside each line: later strokes paint over earlier ones
-  return groups.map((g) => g.items.sort((a, b) => a - b).map((i) => strokes[i]));
-}
-
-/** The part of a written line that is the EQUATION, without the note beside it.
- *
- *  Avi writes what he did to both sides in the margin: a long vertical bar and then
- *  `·(x−2)` or `−4x+8`. That is a note to himself, not part of the formula, and the
- *  recogniser is a formula reader — handed the two together it produced
- *  `x^2-5x+6=4(x-2)` for a line that was a FRACTION equal to 4. So the note is left out
- *  of the image the model gets. It stays on the board, of course.
- *
- *  Two conditions keep this away from real mathematics. The bar must be at least twice
- *  the median stroke height of its own line — an absolute-value bar is about as tall as
- *  the digits beside it, a margin divider is drawn far taller — and it must stand to the
- *  right of the middle of the ink, which `|x-3|=5` never does. If dropping would leave
- *  nothing, nothing is dropped. */
-export function equation(group: Stroke[]): Stroke[] {
-  const boxes = group.map(box);
-  const heights = boxes.filter(Boolean).map((b) => b!.y1 - b!.y0);
-  if (heights.length < 3) return group;
-  const tall = [...heights].sort((a, b) => a - b)[heights.length >> 1] * 2;
-  const x0 = Math.min(...boxes.filter(Boolean).map((b) => b!.x0));
-  const x1 = Math.max(...boxes.filter(Boolean).map((b) => b!.x1));
-  const middle = (x0 + x1) / 2;
-
-  let cut = Infinity;
-  for (const b of boxes) {
-    if (!b || !isPipe(b)) continue;
-    if (b.y1 - b.y0 >= tall && b.x0 > middle) cut = Math.min(cut, b.x0);
-  }
-  if (cut === Infinity) return group;
-  const kept = group.filter((_, i) => boxes[i] && boxes[i]!.x0 < cut);
-  return kept.length ? kept : group;
-}
 
 /** The box a whole drawing covers, or null if there is no ink. Callers use it for two
  *  things the strip made necessary: how far down the board you are allowed to scroll,
@@ -438,7 +460,7 @@ export function equation(group: Stroke[]): Stroke[] {
 export function bounds(strokes: Stroke[]): Box | null {
   let out: Box | null = null;
   for (const s of strokes) {
-    const b = box(s);
+    const b = boxOf(s);
     if (!b) continue;
     out = out
       ? {
@@ -470,7 +492,18 @@ export function render(
   }
   ctx.save();
   ctx.translate(0, -top * w);
-  for (const s of strokes) drawStroke(ctx, s, w);
+  // Only what is on screen. The board is a strip with no end, so most of what it holds
+  // is above or below the window at any moment, and a stroke outside it costs a full
+  // path either way — the canvas clips the pixels, not the work. tldraw calls this
+  // culling and does it from a spatial index; a single band test is enough here,
+  // because the strip has one axis and the box is already worked out.
+  const y0 = top;
+  const y1 = top + h / w;
+  for (const s of strokes) {
+    const b = boxOf(s);
+    if (b && (b.y1 < y0 || b.y0 > y1)) continue;
+    drawStroke(ctx, s, w);
+  }
   if (live) drawStroke(ctx, live, w);
   ctx.restore();
 }

@@ -38,10 +38,13 @@ export interface PenReport {
   hello?: boolean;
   /** the wrapper's version, for the ?pendebug readout */
   wrapper?: string;
+  /** the tablet's dark mode, as the wrapper reads it — see applyWrapperTheme */
+  dark?: boolean;
 }
 
 let held = false;
 let wrapper = '';
+let dark: boolean | null = null;
 let listener: ((v: boolean, r: PenReport) => void) | null = null;
 
 /** The wrapper's own side of the bridge. Present only inside the Android app. */
@@ -77,6 +80,23 @@ export function spenWrapper(): string {
   return wrapper;
 }
 
+/** Wear the theme the wrapper reported.
+ *
+ *  A WebView decides `prefers-color-scheme` from the app theme's `isLightTheme` and from
+ *  nothing else, and on the tablet this app exists for that road is closed twice: the
+ *  attribute is API 29 and the tablet is API 28, and One UI 1's "Night theme" is Samsung's
+ *  own and never sets the AOSP night bit. Measured in the running app: status bar black,
+ *  page told `light`. So the wrapper reads it natively and says so here.
+ *
+ *  This is the one place the raw report is turned into a decision, which is the rule the
+ *  rest of this file follows. `data-theme` is a switch the stylesheet already has — it is
+ *  what the desktop toggle would set — so nothing new is styled, and an ordinary browser
+ *  tab never reaches this line and keeps following the OS on its own. */
+function applyWrapperTheme(next: boolean) {
+  dark = next;
+  document.documentElement.dataset.theme = next ? 'dark' : 'light';
+}
+
 function decide(r: PenReport): boolean {
   const bits = r.buttonState ?? 0;
   return (bits & ERASE_BUTTONS) !== 0 || r.toolType === TOOL_TYPE_ERASER || r.button === true;
@@ -85,12 +105,25 @@ function decide(r: PenReport): boolean {
 /** Publish the hooks. Returns the teardown, so a component can own it. */
 export function installSpen(onchange?: (v: boolean, r: PenReport) => void): () => void {
   listener = onchange ?? null;
-  const set = (next: boolean, r: PenReport) => {
-    if (typeof r.wrapper === 'string') wrapper = r.wrapper;
-    if (next === held) return;
+  function set(next: boolean, r: PenReport): void {
+    if (typeof r.wrapper === 'string') {
+      wrapper = r.wrapper;
+    }
+
+    // Before the early return below: the theme arrives on `hello` and on a toggle, and
+    // both of those carry no button change at all.
+    if (typeof r.dark === 'boolean' && r.dark !== dark) {
+      applyWrapperTheme(r.dark);
+    }
+
+    if (next === held) {
+      return;
+    }
+
     held = next;
     listener?.(held, r);
-  };
+  }
+
   window.__pen = (r) => set(decide(r ?? {}), r ?? {});
   window.__spen = (down) => set(down === true, { button: down === true });
   return () => {
@@ -99,5 +132,8 @@ export function installSpen(onchange?: (v: boolean, r: PenReport) => void): () =
     listener = null;
     held = false;
     wrapper = '';
+    // Leave `data-theme` alone: the wrapper's answer is still the right one for this
+    // device, and clearing it would drop the page back to a media query that cannot work.
+    dark = null;
   };
 }
