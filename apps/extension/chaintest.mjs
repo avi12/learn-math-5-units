@@ -27,6 +27,8 @@
  * What is NOT covered, and still is not: the real DOM of claude.ai. It needs a login, and
  * it is the thing that will change one day and need fixing.
  */
+import { PRESENCE_FLAG, PRESENCE_READY } from '@learn-math/shared/protocol';
+
 const [, , port] = process.argv;
 if (!port) {
   console.log('usage: node chaintest.mjs <debug-port>');
@@ -97,9 +99,9 @@ await wait(9000);
 
 // 1. `document_start` is the whole point of pad.content.ts: the flag has to be there
 //    before the app renders, because the page's fallback needs the answer synchronously.
-const stamp = await page.ev(`document.documentElement.dataset.aviMathCheck ?? 'MISSING'`);
-check('the pad is stamped at document_start', stamp === 'ready', String(stamp));
-check('so the page takes the extension path', stamp === 'ready');
+const stamp = await page.ev(`document.documentElement.dataset.${PRESENCE_FLAG} ?? 'MISSING'`);
+check('the pad is stamped at document_start', stamp === PRESENCE_READY, String(stamp));
+check('so the page takes the extension path', stamp === PRESENCE_READY);
 
 // a board with nothing on it would still produce a payload, so put ink on it
 const rect = JSON.parse(

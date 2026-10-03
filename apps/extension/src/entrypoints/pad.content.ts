@@ -1,4 +1,4 @@
-import { CHECK_MESSAGE, type CheckPayload } from '../utils/protocol';
+import { CHECK_MESSAGE, PRESENCE_FLAG, PRESENCE_READY, type CheckPayload } from '@learn-math/shared/protocol';
 
 /** On the pad: hear the button, hand the payload to the background worker.
  *
@@ -18,7 +18,7 @@ export default defineContentScript({
   runAt: 'document_start',
 
   main() {
-    document.documentElement.dataset.aviMathCheck = 'ready';
+    document.documentElement.dataset[PRESENCE_FLAG] = PRESENCE_READY;
 
     window.addEventListener('message', (event: MessageEvent) => {
       // Only this page, only this message. A content script shares the page's window with

@@ -3,5 +3,7 @@
   "private": true,
   "type": "module",
   "description": "What more than one part of the project reads: the pad-extension contract, the config loader, and the look.",
-  "exports": {}
+  "exports": {
+    "./protocol": "./protocol.ts"
+  }
 }

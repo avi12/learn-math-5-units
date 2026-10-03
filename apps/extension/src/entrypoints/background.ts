@@ -1,5 +1,5 @@
+import { CHECK_MESSAGE } from '@learn-math/shared/protocol';
 import {
-  CHECK_MESSAGE,
   NEW_CHAT,
   PENDING,
   PENDING_TTL_MS,

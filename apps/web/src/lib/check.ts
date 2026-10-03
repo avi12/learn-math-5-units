@@ -16,6 +16,7 @@
  * those are written there; this file is only the page's half of the contract. A page that assumed the extension would be
  * there would be a button that silently does nothing on any other machine.
  */
+import { CHECK_MESSAGE, PRESENCE_FLAG, PRESENCE_READY, type CheckPayload } from '@learn-math/shared/protocol';
 import graders from './graders.json';
 import { blobToBase64, copyImageAndText, pngBlob } from './deliver';
 
@@ -146,23 +147,11 @@ function checkLabel(
   return `${topic.title} · ${exercise.label}${sec}`;
 }
 
-/** The message the extension listens for. Named, versioned, and matched on both ends. */
-const CHECK_MESSAGE = 'avi-math-check@1';
-
-interface CheckPayload {
-  type: typeof CHECK_MESSAGE;
-  /** the board as a PNG data URL */
-  image: string;
-  /** the full prompt, criteria included */
-  prompt: string;
-  topic: string;
-}
-
 /** Is the extension listening? It answers a ping by setting this flag on the document.
  *  Asked rather than assumed, because the fallback has to be chosen before the click
  *  does anything the user can see. */
 function extensionPresent(): boolean {
-  return document.documentElement.dataset.aviMathCheck === 'ready';
+  return document.documentElement.dataset[PRESENCE_FLAG] === PRESENCE_READY;
 }
 
 function requestCheck(payload: CheckPayload): void {
