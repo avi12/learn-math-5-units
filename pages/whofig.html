@@ -1,0 +1,456 @@
+<meta charset="utf-8">
+<title>מי מקבל סרטוט</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Share+Tech+Mono&family=Heebo:wght@400;500;700;800&family=Miriam+Libre:wght@400;700&display=swap">
+<style>
+/* ============================================================================
+   CYBERPUNK ARTIFACT SKIN — tokens pasted from ~/.claude/artifact-cyberpunk.css.
+   Only the two font stacks differ: Chakra Petch / Share Tech Mono carry no
+   Hebrew, so a Hebrew face follows each of them in the stack.
+   ========================================================================= */
+:root {
+  --font-sans: "Chakra Petch", "Heebo", "Assistant", "Roboto Flex", system-ui, sans-serif;
+  --font-mono: "Share Tech Mono", "Miriam Libre", "Cousine", ui-monospace, "SF Mono", monospace;
+
+  --t-display-s: 700 36px/43px var(--font-sans);
+  --t-headline-m: 700 24px/32px var(--font-sans);
+  --t-headline-s: 700 21px/29px var(--font-sans);
+  --t-title-l: 600 19px/26px var(--font-sans);
+  --t-title-m: 600 16px/22px var(--font-sans);
+  --t-title-s: 600 13px/18px var(--font-sans);
+  --t-body-l: 400 15px/22px var(--font-sans);
+  --t-body-m: 400 13px/19px var(--font-sans);
+  --t-body-s: 400 11px/16px var(--font-sans);
+  --t-label-l: 600 13px/18px var(--font-sans);
+  --t-label-m: 600 11px/16px var(--font-sans);
+  --t-label-s: 600 10px/14px var(--font-sans);
+
+  --shape-xs: 0; --shape-s: 0; --shape-m: 0;
+  --shape-l: 0; --shape-xl: 0; --shape-xxl: 0; --shape-full: 0;
+  --chamfer: 12px;
+  --chamfer-s: 7px;
+
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px;
+  --s-5: 20px; --s-6: 24px; --s-7: 32px; --s-8: 40px;
+
+  --ease-emph: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-short: 80ms;
+  --dur-medium: 140ms;
+  --dur-long: 200ms;
+
+  --bg: #d5e4f0;
+  --bg-elev: #c9dcec;
+  --surface: #edf5fc;
+  --surface-2: #dce9f6;
+  --surface-3: #c3d8ea;
+  --fg: #06182b;
+  --fg-muted: #2a4a66;
+  --fg-subtle: #547a99;
+  --border: #06182b;
+  --border-strong: #06182b;
+  --hover: rgb(6 24 43 / 8%);
+  --primary: #06182b;
+  --on-primary: #4fe9ff;
+  --primary-container: #8ee6ff;
+  --on-primary-container: #06182b;
+  --secondary: #00527a;
+  --secondary-container: #8ee6ff;
+  --on-secondary-container: #06182b;
+  --tertiary: #00668f;
+  --tertiary-container: #bfebff;
+  --on-tertiary-container: #002336;
+  --accent-2: #c4004e;
+  --accent-tint: rgb(0 179 230 / 32%);
+  --warn: #6e5200;
+  --warn-container: #fcee0a;
+  --danger: #c4004e;
+  --danger-container: #ffd9e5;
+  --on-danger: #ffffff;
+  --ok: #00668f;
+  --ok-container: #bfebff;
+  --table-zebra: rgb(6 24 43 / 3%);
+  --scrim: rgb(6 24 43 / 42%);
+  --tooltip-bg: #06182b;
+  --tooltip-fg: #4fe9ff;
+
+  --cat-1: #0079a8; --cat-2: #c4004e; --cat-3: #5b3fd6; --cat-4: #00736b;
+  --cat-5: #9a4a12; --cat-6: #6e5200; --cat-7: #547a99;
+
+  --shadow-sm: 2px 2px 0 rgb(6 24 43 / 16%);
+  --shadow-md: 3px 3px 0 rgb(6 24 43 / 18%);
+  --shadow-lg: 6px 6px 0 rgb(6 24 43 / 22%);
+
+  --cyber-stripe: #00b3e6;
+  --cyber-glow-topbar: 0 3px 0 rgb(6 24 43 / 10%);
+  --cyber-glow-mark: none;
+  --cyber-glow-text: none;
+  --cyber-glow-primary: none;
+  --cyber-glow-danger: none;
+  --cyber-active-ring: inset 0 0 0 2px var(--border);
+  --cyber-sheen: none;
+  --cyber-body:
+    radial-gradient(900px 520px at 12% 0%, rgb(0 179 230 / 16%), transparent 62%),
+    linear-gradient(rgb(6 24 43 / 4%) 1px, transparent 1px) 0 0 / 100% 4px,
+    linear-gradient(90deg, rgb(0 121 168 / 10%) 1px, transparent 1px) 0 0 / 72px 72px,
+    linear-gradient(180deg, #00b3e6 0 3px, transparent 3px);
+
+  color-scheme: light dark;
+}
+
+:root[data-theme="dark"] {
+  --bg: #060d14;
+  --bg-elev: #0a121b;
+  --surface: #0c1620;
+  --surface-2: #121e2a;
+  --surface-3: #1b2a3a;
+  --fg: #e2f4fa;
+  --fg-muted: #93b2c2;
+  --fg-subtle: #698a9c;
+  --border: #22394c;
+  --border-strong: #00e5ff;
+  --hover: rgb(0 229 255 / 12%);
+  --primary: #00e5ff;
+  --on-primary: #001820;
+  --primary-container: #04323e;
+  --on-primary-container: #9bf1ff;
+  --secondary: #4d9fff;
+  --secondary-container: #0a2742;
+  --on-secondary-container: #bbdcff;
+  --tertiary: #00e5ff;
+  --tertiary-container: #04323e;
+  --on-tertiary-container: #9bf1ff;
+  --accent-2: #4d9fff;
+  --accent-tint: rgb(0 229 255 / 18%);
+  --warn: #ffc24d;
+  --warn-container: #33270a;
+  --danger: #ff2a4d;
+  --danger-container: #3d0410;
+  --on-danger: #14000a;
+  --ok: #23e07a;
+  --ok-container: #06301c;
+  --table-zebra: rgb(0 229 255 / 3.5%);
+  --scrim: rgb(3 8 14 / 76%);
+  --tooltip-bg: #00e5ff;
+  --tooltip-fg: #001820;
+  --cat-1: #00e5ff; --cat-2: #ff2a4d; --cat-3: #c77dff; --cat-4: #6ee7b7;
+  --cat-5: #ff9e3d; --cat-6: #ffc24d; --cat-7: #698a9c;
+  --shadow-sm: 0 0 0 1px rgb(0 229 255 / 10%);
+  --shadow-md: 0 0 0 1px rgb(0 229 255 / 14%), 0 6px 20px rgb(0 0 0 / 60%);
+  --shadow-lg: 0 0 0 1px rgb(0 229 255 / 24%), 0 0 44px rgb(0 229 255 / 8%), 0 18px 50px rgb(0 0 0 / 75%);
+  --cyber-stripe: #00e5ff;
+  --cyber-glow-topbar: 0 1px 0 rgb(0 229 255 / 16%), 0 10px 30px rgb(0 0 0 / 50%);
+  --cyber-glow-mark: 0 0 14px rgb(0 229 255 / 45%);
+  --cyber-glow-text: 0 0 22px rgb(0 229 255 / 28%);
+  --cyber-glow-primary: 0 0 14px rgb(0 229 255 / 35%);
+  --cyber-glow-danger: 0 0 14px rgb(255 42 77 / 32%);
+  --cyber-active-ring: inset 0 0 0 1px rgb(0 229 255 / 50%);
+  --cyber-sheen: linear-gradient(180deg, rgb(0 229 255 / 6%), transparent 120px);
+  --cyber-body:
+    radial-gradient(1100px 600px at 78% -10%, rgb(77 159 255 / 12%), transparent 65%),
+    radial-gradient(900px 520px at 12% 0%, rgb(0 229 255 / 12%), transparent 60%),
+    linear-gradient(rgb(0 229 255 / 3.5%) 1px, transparent 1px) 0 0 / 100% 3px,
+    linear-gradient(90deg, rgb(0 229 255 / 2.5%) 1px, transparent 1px) 0 0 / 64px 64px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #060d14;
+    --bg-elev: #0a121b;
+    --surface: #0c1620;
+    --surface-2: #121e2a;
+    --surface-3: #1b2a3a;
+    --fg: #e2f4fa;
+    --fg-muted: #93b2c2;
+    --fg-subtle: #698a9c;
+    --border: #22394c;
+    --border-strong: #00e5ff;
+    --hover: rgb(0 229 255 / 12%);
+    --primary: #00e5ff;
+    --on-primary: #001820;
+    --primary-container: #04323e;
+    --on-primary-container: #9bf1ff;
+    --secondary: #4d9fff;
+    --secondary-container: #0a2742;
+    --on-secondary-container: #bbdcff;
+    --tertiary: #00e5ff;
+    --tertiary-container: #04323e;
+    --on-tertiary-container: #9bf1ff;
+    --accent-2: #4d9fff;
+    --accent-tint: rgb(0 229 255 / 18%);
+    --warn: #ffc24d;
+    --warn-container: #33270a;
+    --danger: #ff2a4d;
+    --danger-container: #3d0410;
+    --on-danger: #14000a;
+    --ok: #23e07a;
+    --ok-container: #06301c;
+    --table-zebra: rgb(0 229 255 / 3.5%);
+    --scrim: rgb(3 8 14 / 76%);
+    --tooltip-bg: #00e5ff;
+    --tooltip-fg: #001820;
+    --cat-1: #00e5ff; --cat-2: #ff2a4d; --cat-3: #c77dff; --cat-4: #6ee7b7;
+    --cat-5: #ff9e3d; --cat-6: #ffc24d; --cat-7: #698a9c;
+    --shadow-sm: 0 0 0 1px rgb(0 229 255 / 10%);
+    --shadow-md: 0 0 0 1px rgb(0 229 255 / 14%), 0 6px 20px rgb(0 0 0 / 60%);
+    --shadow-lg: 0 0 0 1px rgb(0 229 255 / 24%), 0 0 44px rgb(0 229 255 / 8%), 0 18px 50px rgb(0 0 0 / 75%);
+    --cyber-stripe: #00e5ff;
+    --cyber-glow-topbar: 0 1px 0 rgb(0 229 255 / 16%), 0 10px 30px rgb(0 0 0 / 50%);
+    --cyber-glow-mark: 0 0 14px rgb(0 229 255 / 45%);
+    --cyber-glow-text: 0 0 22px rgb(0 229 255 / 28%);
+    --cyber-glow-primary: 0 0 14px rgb(0 229 255 / 35%);
+    --cyber-glow-danger: 0 0 14px rgb(255 42 77 / 32%);
+    --cyber-active-ring: inset 0 0 0 1px rgb(0 229 255 / 50%);
+    --cyber-sheen: linear-gradient(180deg, rgb(0 229 255 / 6%), transparent 120px);
+    --cyber-body:
+      radial-gradient(1100px 600px at 78% -10%, rgb(77 159 255 / 12%), transparent 65%),
+      radial-gradient(900px 520px at 12% 0%, rgb(0 229 255 / 12%), transparent 60%),
+      linear-gradient(rgb(0 229 255 / 3.5%) 1px, transparent 1px) 0 0 / 100% 3px,
+      linear-gradient(90deg, rgb(0 229 255 / 2.5%) 1px, transparent 1px) 0 0 / 64px 64px;
+  }
+}
+
+/* ---- aliases the workbook's SVGs are written against ------------------- */
+:root { --outline: var(--border); --on-surface: var(--fg); --on-surface-var: var(--fg-muted); }
+
+/* ============================== BASE ==================================== */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--cyber-body), var(--bg);
+  color: var(--fg);
+  font: var(--t-body-m);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  direction: rtl;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: var(--s-8) var(--s-5) var(--s-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+h1, h2, h3 {
+  margin: 0;
+  font-family: var(--font-sans);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  text-shadow: var(--cyber-glow-text);
+  text-wrap: balance;
+}
+h1 { font: var(--t-display-s); letter-spacing: 0.09em; text-transform: uppercase; }
+h2 { font: var(--t-headline-s); letter-spacing: 0.07em; }
+p { margin: 0; }
+
+.lede { font: var(--t-body-l); color: var(--fg-muted); max-width: 62ch; }
+.meta, .caption, .num { font-family: var(--font-mono); }
+.caption { font: var(--t-body-m); font-family: var(--font-mono); color: var(--fg-muted); max-width: 70ch; }
+
+.card {
+  padding: var(--s-5);
+  border: 2px solid var(--border);
+  background: var(--surface);
+  background-image: var(--cyber-sheen);
+  box-shadow: var(--shadow-md);
+  clip-path: polygon(
+    var(--chamfer) 0, 100% 0,
+    100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%,
+    0 100%, 0 var(--chamfer));
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.card-head {
+  margin: 0;
+  padding-bottom: var(--s-3);
+  border-bottom: 2px solid var(--border);
+  background: linear-gradient(var(--cyber-stripe), var(--cyber-stripe)) bottom right / 44px 4px no-repeat;
+  font: var(--t-title-l);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 3px var(--s-3);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  font: var(--t-label-m);
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  clip-path: polygon(
+    var(--chamfer-s) 0, 100% 0,
+    100% calc(100% - var(--chamfer-s)), calc(100% - var(--chamfer-s)) 100%,
+    0 100%, 0 var(--chamfer-s));
+}
+.chiprow { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+/* ---- the count: two bars, one scale ---------------------------------- */
+.bars { display: flex; flex-direction: column; gap: var(--s-4); }
+.bar { display: grid; grid-template-columns: 1fr auto; gap: var(--s-2); align-items: center; }
+.bar .lab { font: var(--t-label-l); font-family: var(--font-mono); color: var(--fg-muted); }
+.bar .val { font-family: var(--font-mono); font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums;
+            color: var(--fg); grid-row: span 2; padding-inline-start: var(--s-4); }
+.bar .track { grid-column: 1; height: 26px; background: var(--surface-2); border: 2px solid var(--border); }
+.bar .fill { height: 100%; }
+.bar[data-kind="asked"] .fill { background: var(--cat-1); }
+.bar[data-kind="printed"] .fill { background: var(--cat-2); }
+
+/* ---- decision table --------------------------------------------------- */
+.scroll-x { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); }
+th {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 2px solid var(--border);
+  color: var(--fg-muted);
+  font: var(--t-label-m);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-align: right;
+}
+td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--border); vertical-align: top; }
+tbody tr:nth-child(even) { background: var(--table-zebra); }
+td.yes { color: var(--fg); font-weight: 700; }
+td.no  { color: var(--fg-subtle); }
+.tag {
+  display: inline-block; padding: 1px 8px; border: 2px solid var(--border);
+  font: var(--t-label-m); font-family: var(--font-mono); letter-spacing: .06em;
+}
+.tag[data-v="yes"] { background: var(--accent-tint); color: var(--fg); }
+.tag[data-v="no"]  { background: transparent; color: var(--fg-subtle); }
+
+/* ---- the figure, exactly as it ships in the workbook ------------------ */
+.qfig {
+  padding: 12px;
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+  clip-path: polygon(
+    var(--chamfer-s) 0, 100% 0,
+    100% calc(100% - var(--chamfer-s)), calc(100% - var(--chamfer-s)) 100%,
+    0 100%, 0 var(--chamfer-s));
+}
+.qfig svg { display: block; width: 100%; max-width: 520px; height: auto; margin-inline: auto; color: var(--fg); }
+
+.callout {
+  padding: var(--s-4) var(--s-5);
+  border: 2px solid var(--border);
+  border-inline-start: 6px solid var(--accent, var(--primary));
+  background: var(--surface-2);
+}
+.callout[data-kind="warn"] { --accent: var(--accent-2); }
+.callout b { color: var(--fg); }
+
+pre {
+  margin: 0; padding: var(--s-4);
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--fg);
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.7;
+  direction: ltr; text-align: left; overflow-x: auto;
+}
+code { font-family: var(--font-mono); padding: 1px 5px; border: 1px solid var(--border); background: var(--surface-2); direction: ltr; unicode-bidi: isolate; }
+
+.foot { font-family: var(--font-mono); color: var(--fg-subtle); font-size: 11px; letter-spacing: .06em; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+</style>
+
+<div class="page">
+
+  <header>
+    <h1>מי מקבל סרטוט</h1>
+    <p class="lede">בלוק 10 קיבל סרטוט. בלוק 07 לא — וזה לא עניין של טעם אלא של מה שהשאלון עצמו עושה.</p>
+  </header>
+
+  <section class="card">
+    <h2 class="card-head">הספירה שהכריעה</h2>
+    <div class="bars" role="img" aria-label="בפרק ד' של תשעה שאלוני 35571: 22 בקשות לסרטט סקיצה מול 6 סרטוטים מודפסים">
+      <div class="bar" data-kind="asked">
+        <div class="lab">&#8220;סרטטו סקיצה&#8221; — השאלון מבקש מהנבחן לצייר</div>
+        <div class="val">22</div>
+        <div class="track"><div class="fill" style="width:100%"></div></div>
+      </div>
+      <div class="bar" data-kind="printed">
+        <div class="lab">&#8220;בסרטוט שלפניכם&#8221; — השאלון מדפיס גרף</div>
+        <div class="val">6</div>
+        <div class="track"><div class="fill" style="width:27%"></div></div>
+      </div>
+    </div>
+    <p class="caption">פרק ד' (חדו&quot;א) בכל תשעת שאלוני 35571 שבמאגר, 2024–2026. בשאלת חקירה הסרטוט הוא <b>התוצר</b> של הנבחן; הוא מודפס רק כששאלה נשענת על גרף נתון — וזו, בפרק הזה, שאלת השטח.</p>
+  </section>
+
+  <section class="card">
+    <h2 class="card-head">ההכרעה לכל בלוק</h2>
+    <div class="scroll-x">
+      <table>
+        <thead>
+          <tr><th>בלוק</th><th>סרטוט</th><th>למה</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="yes">10 · אינטגרל ושטחים</td><td><span class="tag" data-v="yes">כן</span></td><td class="yes">שאלת השטח בשאלון פותחת ב&#8220;בסרטוט שלפניכם מתואר גרף הפונקצייה…&#8221;</td></tr>
+          <tr><td class="no">07 · חקירת פונקצייה</td><td><span class="tag" data-v="no">לא</span></td><td class="no">השאלון אומר &#8220;סרטטו סקיצה&#8221;. סרטוט כאן מוסר את האסימפטוטות ואת הקיצון — כלומר את התשובה</td></tr>
+          <tr><td class="no">08 · פונקציות טריגונומטריות</td><td><span class="tag" data-v="no">לא</span></td><td class="no">אותו דבר: שאלת חקירה</td></tr>
+          <tr><td class="no">04 · הסתברות</td><td><span class="tag" data-v="no">לא</span></td><td class="no">פרק ההסתברות בתשעת השאלונים לא מדפיס עץ או טבלה, אף פעם</td></tr>
+          <tr><td class="no">01 · 02 · 03</td><td><span class="tag" data-v="no">לא</span></td><td class="no">אין להם צורה לצייר</td></tr>
+          <tr><td class="yes">05 · 06 · 09</td><td><span class="tag" data-v="yes">כן</span></td><td class="yes">כבר היה — גאומטרייה, טריגונומטרייה ובעיית קיצון עם צורה</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout" data-kind="warn">
+      <p>ההנחיה שירשתי מהסשן הקודם אמרה ש&#8220;07 ו‑10 הם המקומות שבהם הבגרות תמיד מדפיסה סרטוט&#8221;. <b>לגבי 07 זה שגוי.</b> ההנחה נבדקה מול השאלונים לפני שצוירה, ולכן לא נכנסה לדף.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 class="card-head">הסרטוט שנכנס — בלוק 10</h2>
+    <div class="qfig">
+      <svg viewBox="0 0 700 380" role="img" aria-label="הפרבולה 4 פחות x בריבוע והישר x ועוד 2, ושתי נקודות החיתוך שלהם">
+        <line x1="78" y1="265" x2="638" y2="265" stroke="var(--outline)" stroke-width="2"/>
+        <line x1="350" y1="40" x2="350" y2="365" stroke="var(--outline)" stroke-width="2"/>
+        <polyline points="158.0,344.2 170.0,312.8 182.0,283.4 194.0,256.1 206.0,230.8 218.0,207.5 230.0,186.3 242.0,167.0 254.0,149.8 266.0,134.6 278.0,121.5 290.0,110.3 302.0,101.2 314.0,94.1 326.0,89.1 338.0,86.0 350.0,85.0 362.0,86.0 374.0,89.0 386.0,94.1 398.0,101.2 410.0,110.3 422.0,121.4 434.0,134.6 446.0,149.8 458.0,167.0 470.0,186.2 482.0,207.5 494.0,230.8 506.0,256.1 518.0,283.4 530.0,312.8 542.0,344.2" fill="none" stroke="var(--on-surface)" stroke-width="2.5"/>
+        <line x1="86.0" y1="323.5" x2="582.0" y2="44.5" stroke="var(--primary)" stroke-width="2.5"/>
+        <circle cx="430.0" cy="130.0" r="4.5" fill="var(--on-surface)"/>
+        <circle cx="190.0" cy="265.0" r="4.5" fill="var(--on-surface)"/>
+        <text x="600" y="332" text-anchor="middle" font-size="14" direction="ltr" fill="var(--on-surface-var)">f(x) = 4 &#8722; x&#178;</text>
+        <text x="470" y="46" text-anchor="middle" font-size="14" direction="ltr" fill="var(--primary)">g(x) = x + 2</text>
+        <text x="632" y="289" text-anchor="middle" font-size="14" font-weight="700" direction="ltr" fill="var(--on-surface-var)">x</text>
+        <text x="332" y="44" text-anchor="middle" font-size="14" font-weight="700" direction="ltr" fill="var(--on-surface-var)">y</text>
+      </svg>
+    </div>
+    <p class="caption">מצויר מהנתונים של התרגיל שלנו — הפרבולה <code>f(x) = 4 &#8722; x&#178;</code> והישר <code>g(x) = x + 2</code> — ולא מועתק מ‑PDF. הצבעים הם טוקנים, ולכן הוא מתהפך עם הנושא: בכהה הישר ציאן, בבהיר שניהם דיו.</p>
+    <div class="callout">
+      <p><b>בכוונה בלתי קריא כמדידה:</b> בלי רשת, בלי מספרים ובלי שיעורים לנקודות החיתוך. המלכודת של הבלוק היא &#8220;לא לקרוא גבול מהסרטוט&#8221; — נקודות החיתוך נפתרות מ‑<code>4 &#8722; x&#178; = x + 2</code>, לא נמדדות. הסרטוט אומר רק מי מעל מי.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 class="card-head">מה השתנה בצנרת</h2>
+    <p class="caption"><code>figs.py</code> מקבל עכשיו קובץ יעד. הבסיס חייב לקבל את הסרטוט <b>לפני</b> הבנייה, אחרת ההרצה הבאה מחזירה דף בלי סרטוט.</p>
+    <pre>python build/figs.py pages/workbook.base.html   # הסרטוט נכנס לבסיס
+cp pages/workbook.base.html pages/workbook.html
+python build/verify9.py && python build/rebuild.py
+python build/skin.py workbook.html
+python build/qsim.py && python build/dupcheck.py</pre>
+    <div class="chiprow">
+      <span class="chip">verify9 · 154 / 154</span>
+      <span class="chip">KaTeX · 513 נוסחאות · 0 כשלים</span>
+      <span class="chip">qsim · מקסימום 0.225</span>
+      <span class="chip">dupcheck · אין כפילות</span>
+      <span class="chip">4 סרטוטים · 05 06 09 10</span>
+    </div>
+  </section>
+
+  <p class="foot">מדרגות 571 · פורסם מחדש לאותו קישור · 04.09.2026</p>
+
+</div>
