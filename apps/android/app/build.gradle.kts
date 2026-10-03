@@ -18,13 +18,15 @@ android {
     versionCode = 2
     versionName = "2.1" // the page reads it as WRAPPER (Page.kt), via BuildConfig
 
-    // Which deployed board the wrapper opens. From `padHost` in local.properties (or
-    // -PpadHost=...), never from the source: the code is public, the board is not.
-    val padHost = providers.gradleProperty("padHost").orNull
-      ?: java.util.Properties().apply {
-        rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
-      }.getProperty("padHost")
-      ?: error("Set padHost=<your-site>.web.app in android/local.properties")
+    // Which deployed board the wrapper opens: the root .env, read the way shared/env.mjs
+    // reads it for every other part — PAD_ORIGIN if set, else the Firebase project's
+    // default site. Never in the source: the code is public, the board is not.
+    val env = rootProject.file("../../.env").takeIf { it.exists() }?.readLines().orEmpty()
+      .mapNotNull { line -> line.split("=", limit = 2).takeIf { it.size == 2 }?.let { it[0].trim() to it[1].trim() } }
+      .toMap()
+    val padHost = (env["PAD_ORIGIN"]?.removePrefix("https://")?.trimEnd('/'))
+      ?: env["VITE_FIREBASE_PROJECT_ID"]?.takeIf { it.isNotEmpty() }?.let { "$it.web.app" }
+      ?: error("Set VITE_FIREBASE_PROJECT_ID (or PAD_ORIGIN) in the repo root .env")
     buildConfigField("String", "PAD_HOST", "\"$padHost\"")
     manifestPlaceholders["padHost"] = padHost
   }

@@ -27,6 +27,7 @@
  * What is NOT covered, and still is not: the real DOM of claude.ai. It needs a login, and
  * it is the thing that will change one day and need fixing.
  */
+import { padOrigin } from '@learn-math/shared/env';
 import { PRESENCE_FLAG, PRESENCE_READY } from '@learn-math/shared/protocol';
 
 const [, , port] = process.argv;
@@ -93,7 +94,7 @@ await page.send('Page.enable');
 await page.send('Page.navigate', {
   // role=board, not pad: "סיימתי — שקלוד יבדוק" is desktop-only now, and this test is
   // about the desktop half of the chain anyway — the extension only exists there.
-  url: `${process.env.WXT_PAD_ORIGIN}/?role=board&room=${room}`
+  url: `${padOrigin()}/?role=board&room=${room}`
 });
 await wait(9000);
 

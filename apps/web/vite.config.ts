@@ -40,6 +40,8 @@ function exerciseHtmlPlugin(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   define: { __BUILD__: JSON.stringify(BUILD) },
+  // The one .env at the repo root (shared/env.mjs says why there is only one).
+  envDir: resolve(import.meta.dirname, '../..'),
   resolve: {
     alias: [
       /* Temml's Latin Modern stylesheet expects the font file beside it, and the package

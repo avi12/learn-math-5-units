@@ -30,8 +30,8 @@ import {
 import type { Stroke } from './ink';
 import { readPreference, writePreference } from './preferences';
 
-/** The Firebase project comes from `.env` (see `.env.example`), not from the source: the
- *  code is public and the deployed board is not, so every fork brings its own project. */
+/** The Firebase project comes from the root `.env` (see `.env.example` and shared/env.mjs),
+ *  not from the source: the code is public and the deployed board is not. */
 const env = import.meta.env;
 const app = initializeApp({
   apiKey: env.VITE_FIREBASE_API_KEY,

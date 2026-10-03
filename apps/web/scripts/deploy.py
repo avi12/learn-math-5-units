@@ -21,19 +21,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def _env(name: str) -> str:
-    """A value from `.env` (the same file Vite reads), or from the environment."""
-    if os.environ.get(name):
-        return os.environ[name]
-    env = ROOT / ".env"
-    for line in env.read_text(encoding="utf-8").splitlines() if env.exists() else []:
-        key, _, value = line.partition("=")
-        if key.strip() == name:
-            return value.strip()
-    raise SystemExit(f"{name} is not set - copy .env.example to .env and fill it in")
+# The one .env at the repo root, read by the same rules as every other part.
+sys.path.insert(0, str(ROOT.parent.parent / "shared"))
+import env  # noqa: E402
 
-
-PROJECT = _env("VITE_FIREBASE_PROJECT_ID")
+PROJECT = env.firebase_project()
 # The Hosting site; a project's default site has the project's own id.
 SITE = os.environ.get("FIREBASE_SITE", PROJECT)
 # Which gcloud account deploys. Unset = whatever `gcloud config get account` says;

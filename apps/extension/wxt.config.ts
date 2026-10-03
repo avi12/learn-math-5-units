@@ -1,20 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { padOrigin } from '@learn-math/shared/env';
 import { defineConfig } from 'wxt';
 
-/** Which deployed board the extension listens on — `WXT_PAD_ORIGIN` in `.env` (see
- *  `.env.example`). Never in the source: the code is public, the board is not. WXT hands
- *  WXT_* variables to the entrypoints too, so pad.content.ts reads the same value. */
-/* WXT loads .env for the entrypoints, but only after this file has been read. */
-const PAD =
-  process.env.WXT_PAD_ORIGIN ??
-  (() => {
-    try {
-      return readFileSync(new URL('.env', import.meta.url), 'utf8').match(/^WXT_PAD_ORIGIN=(.+)$/m)?.[1]?.trim();
-    } catch {
-      return undefined;
-    }
-  })();
-if (!PAD) throw new Error('Set WXT_PAD_ORIGIN in extension/.env, e.g. https://<your-site>.web.app');
+/** Which deployed board the extension listens on: derived from the root `.env` by the same
+ *  loader every other part uses. It is handed on as WXT_PAD_ORIGIN, because WXT gives WXT_*
+ *  variables to the entrypoints — that is how pad.content.ts's `matches` gets it. */
+const PAD = padOrigin();
+process.env.WXT_PAD_ORIGIN = PAD;
 
 /** The extension's manifest, minus what WXT works out from the entrypoints themselves.
  *
