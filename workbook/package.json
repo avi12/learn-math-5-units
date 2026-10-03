@@ -1,0 +1,14 @@
+{
+  "name": "@learn-math/workbook",
+  "private": true,
+  "type": "module",
+  "description": "The workbook's build: KaTeX rendering and Whisper transcription. The Python scripts in build/ call into these.",
+  "scripts": {
+    "transcribe": "node build/transcribe.mjs",
+    "transcribe:batch": "node build/transcribe_batch.mjs"
+  },
+  "devDependencies": {
+    "@huggingface/transformers": "^4.2.0",
+    "katex": "0.18.5"
+  }
+}

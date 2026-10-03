@@ -1,8 +1,6 @@
 {
-  "name": "avi-math-check-extension",
+  "name": "@learn-math/extension",
   "private": true,
-  "license": "GPL-3.0-or-later",
-  "author": "Avi (https://avi12.com)",
   "type": "module",
   "version": "1.0.0",
   "description": "Chrome extension: takes the board and the topic's marking criteria into a Claude conversation.",
@@ -12,22 +10,10 @@
     "zip": "wxt zip",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare",
-    "lint": "oxlint --type-aware --fix -c .oxlintrc.fix.json && eslint --fix && oxlint --type-aware",
     "fallow": "fallow dead-code && fallow health"
   },
   "devDependencies": {
-    "@stylistic/eslint-plugin": "^5.10.0",
     "@types/chrome": "^0.0.287",
-    "eslint": "^10.12.0",
-    "eslint-plugin-import-newlines": "^2.0.0",
-    "eslint-plugin-perfectionist": "^5.12.1",
-    "eslint-plugin-unused-imports": "^4.4.1",
-    "fallow": "^2.103.0",
-    "globals": "^17.13.0",
-    "oxlint": "^1.72.0",
-    "oxlint-tsgolint": "^0.24.0",
-    "typescript": "^5.7.2",
-    "typescript-eslint": "^8.71.0",
     "wxt": "^0.21.4"
   }
 }

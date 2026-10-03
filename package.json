@@ -5,13 +5,40 @@
   "author": "Avi (https://avi12.com)",
   "repository": "github:avi12/learn-math-5-units",
   "type": "module",
-  "description": "Build tooling for the bagrut study pages. The pages themselves are HTML in pages/; this file only declares what build/ needs from npm.",
+  "description": "5-unit math bagrut: the pad app, its Android wrapper, the Chrome extension, and the workbook with its Claude examiner.",
+  "workspaces": [
+    "shared",
+    "apps/web",
+    "apps/extension",
+    "workbook"
+  ],
   "scripts": {
-    "transcribe": "node build/transcribe.mjs",
-    "transcribe:batch": "node build/transcribe_batch.mjs"
+    "check": "npm run check -w apps/web && npm run compile -w apps/extension",
+    "build": "npm run build -w apps/web && npm run build -w apps/extension",
+    "lint": "oxlint --type-aware --fix -c .oxlintrc.fix.json && eslint --fix && oxlint --type-aware",
+    "stylelint": "stylelint \"apps/web/src/**/*.{svelte,css}\" --fix",
+    "deploy": "npm run deploy -w apps/web",
+    "apk": "python apps/android/apk.py",
+    "apk:install": "python apps/android/apk.py --install"
   },
   "devDependencies": {
-    "@huggingface/transformers": "^4.2.0",
-    "katex": "0.18.5"
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "eslint": "^10.12.0",
+    "eslint-plugin-import-newlines": "^2.0.0",
+    "eslint-plugin-perfectionist": "^5.12.1",
+    "eslint-plugin-svelte": "^3.23.0",
+    "eslint-plugin-unused-imports": "^4.4.1",
+    "fallow": "^2.103.0",
+    "globals": "^17.13.0",
+    "oxlint": "~1.72.0",
+    "oxlint-tsgolint": "~0.24.0",
+    "postcss": "^8.5.28",
+    "postcss-html": "^1.8.1",
+    "stylelint": "^17.16.0",
+    "stylelint-config-ccb": "^3.32.0",
+    "svelte-eslint-parser": "^1.8.1",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.71.0",
+    "@types/node": "^24.13.3"
   }
 }

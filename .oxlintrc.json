@@ -49,7 +49,7 @@
     "typescript/consistent-type-assertions": ["error", { "assertionStyle": "never" }],
     "import/first": "error",
     "import/default": "off",
-    "no-restricted-globals": ["error", { "name": "process", "message": "browser/Vite code does not run under Node - read config via import.meta.env, not process" }]
+    "no-restricted-globals": ["error", { "name": "process", "message": "browser/extension/Vite code does not run under Node - read config via import.meta.env, not process" }]
   },
   "overrides": [
     {
@@ -62,7 +62,7 @@
       }
     },
     {
-      "files": ["./*.mjs", "./lib/**", "./server/**", "**/*.config.ts", "**/*.config.js", "**/*.config.mjs"],
+      "files": ["**/*.mjs", "apps/web/server/**", "**/*.config.ts", "**/*.config.js", "**/*.config.mjs"],
       "env": {
         "node": true
       },
@@ -72,10 +72,13 @@
     }
   ],
   "ignorePatterns": [
-    "dist/**",
-    "node_modules/**",
-    "android/**",
-    "worker/.wrangler/**",
-    "server/dist/**"
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/.output/**",
+    "**/.wxt/**",
+    "apps/android/**",
+    "apps/web/worker/**",
+    "workbook/**",
+    "video/**"
   ]
 }

@@ -260,17 +260,23 @@ const browserGlobals = {
 // Node globals belong only to tooling that actually runs under Node (dev/build
 // scripts and config files). Browser/extension and Vite source must not see
 // `process` - oxlint enforces this via the matching env override.
-const nodeToolingFiles = ["./*.mjs", "./lib/**", "./server/**", "**/*.config.ts", "**/*.config.js", "**/*.config.mjs"];
+// Every .mjs in the repo is Node: the browser tests, the extension's chain test, the
+// workbook's render scripts and shared/env.mjs.
+const nodeToolingFiles = ["**/*.mjs", "apps/web/server/**", "**/*.config.ts", "**/*.config.js", "**/*.config.mjs"];
 
 export default [
   ...svelteEslint.configs["flat/recommended"],
   globalIgnores([
-    ".svelte-check/",
-    "dist/",
-    "node_modules/",
-    "android/",
-    "worker/.wrangler/",
-    "server/dist/"
+    "**/.svelte-check/",
+    "**/dist/",
+    "**/node_modules/",
+    "**/.output/",
+    "**/.wxt/",
+    "apps/android/",
+    "apps/web/worker/",
+    // The workbook's build scripts predate this config and are Python-first; not linted yet.
+    "workbook/",
+    "video/"
   ]),
   {
     files: ["**/*.{ts,js,mjs}"],
