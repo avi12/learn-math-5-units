@@ -274,7 +274,7 @@
     container-type: size;
   }
   .page.mirror .slot :global(.host) {
-    width: min(100cqw, 150cqh);
+    width: min(100cqw, 100cqh * var(--aspect));
     max-width: none;
   }
 

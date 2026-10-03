@@ -408,12 +408,9 @@
       return;
     }
 
-    // In fill mode the box is given by the layout; otherwise the old page shape stands.
-    // That shape is the canvas's outer box, border included, as it always was.
-    if (!fill) {
-      canvas.style.height = `${host.clientWidth / ASPECT}px`;
-    }
-
+    // The canvas's size is the layout's business (CSS): fill mode takes the box the page
+    // leaves it, the mirror is a 3:2 page through the host's aspect-ratio. Here it is only
+    // read, to size the bitmap behind it.
     const { width: w, height: h } = view();
     if (!w || !h) {
       return;
@@ -992,7 +989,7 @@
     <span>בדקו רשת. אם הרשת תקינה, מכסת Firestore היומית נגמרה ומתאפסת בחצות שעון פסיפיק.</span>
   </p>
 {/if}
-<div class="host" class:fill bind:this={host}>
+<div class="host" class:fill style:--aspect={ASPECT} bind:this={host}>
   <canvas
     bind:this={canvas}
     class:erasing={tool === 'erase' && !readonly}
@@ -1059,13 +1056,13 @@
   .host {
     position: relative;
     width: 100%;
-    max-width: calc(66vh * 1.5);
+    max-width: calc(66vh * var(--aspect));
     margin-inline: auto;
-    aspect-ratio: 3 / 2;
+    aspect-ratio: var(--aspect);
   }
   @supports (height: 1svh) {
     .host:not(.fill) {
-      max-width: calc(66svh * 1.5);
+      max-width: calc(66svh * var(--aspect));
     }
   }
   .host.fill {
