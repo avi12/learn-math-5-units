@@ -1,0 +1,47 @@
+{
+  "_": "The official exam rules for the sittings this workbook targets: which topics are out, and the adapted answer rules. Transcribed 17.09.2026 from the two ministry PDFs below (read as images, not only as extracted text, because pdftotext scrambles their RTL tables). The raw extractions are kept in exams/rules/. Read by the grounding audit and by the page builders; nothing else should restate these lists.",
+  "fetched": "2026-09-17",
+  "sources": {
+    "not_taught": "https://meyda.education.gov.il/files/Pop/0files/matmatika/Chativa-Elyona/mafmar/Topics-not-be-taught-in-Tashpaz.pdf",
+    "answer_rules": "https://meyda.education.gov.il/files/Pop/0files/matmatika/Chativa-Elyona/mafmar/exams-time.pdf",
+    "evaluation_page": "https://pop.education.gov.il/tchumey_daat/matmatika/chativa-elyona/teaching-mathematics/examination-evaluation/",
+    "circular": "https://meyda.education.gov.il/files/Pop/0files/matmatika/Chativa-Elyona/mafmar/hozer-mafmar-tashpaz.pdf"
+  },
+  "applies_to": "חורף תשפ\"ז וקיץ תשפ\"ז (winter + summer 2027)",
+  "answer_rules_updated": "23/08/2026",
+  "answer_rules": {
+    "35571": {
+      "regular": "5 שאלות, לפחות שאלה אחת מן הפרק הראשון או השני, ולפחות שאלה אחת מכל אחד מן הפרקים השלישי והרביעי. אם בוחרים בפרק הראשון - עונים על 2 סעיפים מתוך 4. 20 נק' לשאלה",
+      "adapted": "4 שאלות, לפחות שאלה אחת מן הפרק הרביעי. אם בוחרים בפרק הראשון - עונים על 2 סעיפים מתוך 4. 25 נק' לשאלה",
+      "adapted_points": 25,
+      "duration": "שלוש שעות וארבעים וחמש דקות"
+    },
+    "35572": {
+      "regular": "3 שאלות, לפחות שאלה אחת מכל פרק. 33.3 נק' לשאלה",
+      "adapted": "3 שאלות ללא הגבלת פרקים. 35 נק' לשאלה",
+      "adapted_points": 35,
+      "duration": "שעתיים וחצי"
+    }
+  },
+  "not_taught": {
+    "35571": [
+      {"area": "סדרות", "topic": "סדרה חשבונית"},
+      {"area": "אינדוקציה", "topic": "הוכחה של טענות המיוצגות באופן ויזואלי"},
+      {"area": "אינדוקציה", "topic": "בעיות התחלקות"},
+      {"area": "גאומטריה", "topic": "מרובע חוסם מעגל"},
+      {"area": "גאומטריה", "topic": "היחס במשולשים דומים בין היקפים, תיכונים, חוצי זוויות, רדיוסי מעגלים חוסמים ומעגלים חסומים"},
+      {"area": "חשבון דיפרנציאלי ואינטגרלי", "topic": "אינטגרל של פונקציות עם שורש"},
+      {"area": "חשבון דיפרנציאלי ואינטגרלי", "topic": "נפח גוף סיבוב"},
+      {"area": "חשבון דיפרנציאלי ואינטגרלי", "topic": "בעיות קיצון עם אינטגרל"},
+      {"area": "חשבון דיפרנציאלי ואינטגרלי", "topic": "בעיות קיצון בהקשרים מספריים, כלכליים, פיסיקליים (כגון תנועה), גאומטריים במרחב (גופים)"}
+    ],
+    "35572": [
+      {"area": "מספרים מרוכבים", "topic": "שילוב עם סדרה חשבונית"},
+      {"area": "חשבון דיפרנציאלי ואינטגרלי", "topic": "שילוב אינטגרל של פונקציית שורש או פונקציה טריגונומטרית"},
+      {"area": "חשבון דיפרנציאלי ואינטגרלי", "topic": "שילוב בעיית קיצון עם פונקציות טריגונומטריות או אינטגרל"},
+      {"area": "יישומים בגאומטריית המרחב", "topic": "גליל, חרוט, כדור"}
+    ]
+  },
+  "next_year": "Circular (hozer-mafmar-tashpaz, p.14): for examinees of תשפ\"ח onwards (winter and summer) the material includes all topics and no relief in answer rules is given; for 12th graders of תשפ\"ח, topics not taught in 11th grade in תשפ\"ז are not integrated. The 35572 plan date (winter 2028) falls in תשפ\"ח, whose adapted rules are not yet published.",
+  "graduates": "Evaluation page: \"החל משנת הלימודים תשפ\"ז בוגרים יבחנו לפי תוכנית הלימודים החדשה בלבד\"."
+}
