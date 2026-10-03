@@ -2,6 +2,9 @@
   "name": "avi-math-study",
   "private": true,
   "version": "0.0.0",
+  "license": "GPL-3.0-or-later",
+  "author": "Avi (https://avi12.com)",
+  "repository": "github:avi12/avi-math-study",
   "type": "module",
   "scripts": {
     "dev": "vite",
