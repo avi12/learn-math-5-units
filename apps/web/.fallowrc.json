@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/getfallow/fallow/main/schema/fallowrc.json",
+  "entry": [
+    "src/main.ts",
+    "server/index.ts",
+    "*.mjs",
+    "svelte.config.js"
+  ],
+  "ignoreDependencies": [
+    "postcss-html",
+    "stylelint-config-ccb"
+  ],
+  "health": {
+    "maxCognitive": 30,
+    "maxCrap": 10000
+  },
+  "rules": {
+    "unused-enum-members": "warn"
+  }
+}
