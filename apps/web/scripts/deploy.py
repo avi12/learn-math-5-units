@@ -19,9 +19,26 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PROJECT = "avi-math-study"
-SITE = "avi-math-study"
-ACCOUNT = "you@example.com"
+
+
+def _env(name: str) -> str:
+    """A value from `.env` (the same file Vite reads), or from the environment."""
+    if os.environ.get(name):
+        return os.environ[name]
+    env = ROOT / ".env"
+    for line in env.read_text(encoding="utf-8").splitlines() if env.exists() else []:
+        key, _, value = line.partition("=")
+        if key.strip() == name:
+            return value.strip()
+    raise SystemExit(f"{name} is not set - copy .env.example to .env and fill it in")
+
+
+PROJECT = _env("VITE_FIREBASE_PROJECT_ID")
+# The Hosting site; a project's default site has the project's own id.
+SITE = os.environ.get("FIREBASE_SITE", PROJECT)
+# Which gcloud account deploys. Unset = whatever `gcloud config get account` says;
+# set GCLOUD_ACCOUNT when the deploying account is not the default one.
+ACCOUNT = os.environ.get("GCLOUD_ACCOUNT", "")
 DIST = ROOT / "dist"
 
 
@@ -31,7 +48,7 @@ def token() -> str:
     if not exe:
         raise SystemExit("gcloud not found on PATH")
     out = subprocess.run(
-        [exe, "auth", "print-access-token", f"--account={ACCOUNT}"],
+        [exe, "auth", "print-access-token", *([f"--account={ACCOUNT}"] if ACCOUNT else [])],
         capture_output=True, text=True)
     # Every other failure in this file exits with a sentence. check=True would exit with
     # a traceback whose message is "returned non-zero exit status 1" — gcloud's own
@@ -42,7 +59,7 @@ def token() -> str:
     # An empty token is not an error to gcloud, but it becomes an opaque HTTP 401 from
     # the first call — a long way from the account that is actually not logged in.
     if not tok:
-        raise SystemExit(f"gcloud returned an empty token — is {ACCOUNT} logged in?")
+        raise SystemExit(f"gcloud returned an empty token — is {ACCOUNT or 'the default account'} logged in?")
     return tok
 
 

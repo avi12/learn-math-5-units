@@ -17,6 +17,16 @@ android {
     targetSdk = 34
     versionCode = 2
     versionName = "2.1" // the page reads it as WRAPPER (Page.kt), via BuildConfig
+
+    // Which deployed board the wrapper opens. From `padHost` in local.properties (or
+    // -PpadHost=...), never from the source: the code is public, the board is not.
+    val padHost = providers.gradleProperty("padHost").orNull
+      ?: java.util.Properties().apply {
+        rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+      }.getProperty("padHost")
+      ?: error("Set padHost=<your-site>.web.app in android/local.properties")
+    buildConfigField("String", "PAD_HOST", "\"$padHost\"")
+    manifestPlaceholders["padHost"] = padHost
   }
 
   buildTypes {

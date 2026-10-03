@@ -7,14 +7,14 @@ built INSIDE the image: what ships is what the image built, and there is no loca
 dist/ that could be an edit behind. .gcloudignore decides what the build gets to see.
 
 This does not touch Firebase Hosting. Until the links are switched over, Hosting is still
-what serves your-site.web.app and `python scripts/deploy.py` is still how the site is
+what serves the site and `python scripts/deploy.py` is still how the site is
 released — so a bad deploy here changes nothing that anyone is looking at, which is the
 whole reason the migration is done in this order.
 
 One-time setup, before the first run (both are per-project and stick):
 
     gcloud services enable cloudbuild.googleapis.com run.googleapis.com \
-        --project avi-math-study
+        --project <your-project-id>
 
 The account, the project and the Firestore rules push are taken from deploy.py rather than
 written again — it is the same project, the same login, and the same rules file. When
@@ -34,7 +34,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PROJECT = deploy.PROJECT
 ACCOUNT = deploy.ACCOUNT
 REGION = os.environ.get("REGION", "me-west1")
-SERVICE = os.environ.get("SERVICE", "avi-math-study")
+SERVICE = os.environ.get("SERVICE", PROJECT)
 IMAGE = os.environ.get("IMAGE", f"gcr.io/{PROJECT}/{SERVICE}")
 
 
@@ -44,7 +44,7 @@ def gcloud(*args: str, capture: bool = False) -> str:
     exe = shutil.which("gcloud") or shutil.which("gcloud.cmd")
     if not exe:
         raise SystemExit("gcloud not found on PATH")
-    argv = [exe, *args, f"--project={PROJECT}", f"--account={ACCOUNT}", "--quiet"]
+    argv = [exe, *args, f"--project={PROJECT}", *([f"--account={ACCOUNT}"] if ACCOUNT else []), "--quiet"]
     out = subprocess.run(argv, cwd=str(ROOT), text=True,
                          capture_output=capture)
     if out.returncode:
@@ -82,7 +82,7 @@ def main() -> int:
     deploy.push_rules(deploy.token())
 
     print(f"\nlive: {url}")
-    print("Firebase Hosting is untouched and still serving https://your-site.web.app")
+    print(f"Firebase Hosting is untouched and still serving https://{deploy.SITE}.web.app")
     return 0
 
 

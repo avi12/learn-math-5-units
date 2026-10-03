@@ -8,7 +8,7 @@ import android.net.Uri
 import android.webkit.WebView
 import org.json.JSONObject
 
-const val HOST = "your-site.web.app"
+const val HOST = BuildConfig.PAD_HOST
 private const val HOME = "https://$HOST/?role=pad"
 
 /** Reported to the page, so one `?pendebug` screenshot says which APK is on the tablet.

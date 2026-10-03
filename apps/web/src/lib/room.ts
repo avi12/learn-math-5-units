@@ -30,13 +30,16 @@ import {
 import type { Stroke } from './ink';
 import { readPreference, writePreference } from './preferences';
 
+/** The Firebase project comes from `.env` (see `.env.example`), not from the source: the
+ *  code is public and the deployed board is not, so every fork brings its own project. */
+const env = import.meta.env;
 const app = initializeApp({
-  apiKey: 'YOUR_FIREBASE_API_KEY',
-  authDomain: 'avi-math-study.firebaseapp.com',
-  projectId: 'avi-math-study',
-  storageBucket: 'avi-math-study.firebasestorage.app',
-  messagingSenderId: 'YOUR_SENDER_ID',
-  appId: '1:YOUR_SENDER_ID:web:47494a4e349e1da6945449'
+  apiKey: env.VITE_FIREBASE_API_KEY,
+  authDomain: `${env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
+  projectId: env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: `${env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: env.VITE_FIREBASE_APP_ID
 });
 
 /** The pad lives in the project's DEFAULT database, and a detour on 19.09.2026 is worth

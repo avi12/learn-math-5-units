@@ -15,3 +15,11 @@ android/local.properties
 
 # python bytecode from scripts/
 scripts/__pycache__/
+
+# local caches and scratch
+.fallow/
+texout.json
+
+# your own Firebase project and tablet build config - see the .example files
+.env
+.firebaserc
