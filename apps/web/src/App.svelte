@@ -59,8 +59,6 @@
   /** the pen is on the glass right now — a reload waits it out. See lib/release.ts. */
   let penDown = $state(false);
   let qr = $state('');
-  /** the QR blown up, for scanning from across the desk */
-  let bigQr = $state(false);
 
   const history = new History(id);
   const choice = new Choice(id);
@@ -150,7 +148,7 @@
            Android wrapper neither appears; the wrapper is known for certain to be the
            tablet, and it is already in the room. -->
       {#if qr && isPad}
-        <button class="qrchip" onclick={() => (bigQr = true)} title="הגדל כדי לסרוק מהטאבלט">
+        <button class="qrchip" popovertarget="qrbig" title="הגדל כדי לסרוק מהטאבלט">
           <img src={qr} alt="קוד QR לחדר הזה" />
           <span>סרוק<code class="rid">{id.slice(0, 6)}</code></span>
         </button>
@@ -228,12 +226,17 @@
   <!-- One instance for the whole page: a modal is modal, so there is never a second. -->
   <Ask bind:this={ask} />
 
-  {#if bigQr}
-    <button class="qrbig" onclick={() => (bigQr = false)} aria-label="סגור את הקוד">
-      <img src={qr} alt="קוד QR לחדר הזה" />
-      <span class="qrsay">סרוק מהאפליקציה בטאבלט — כפתור <b>סרוק QR</b></span>
-      <code class="qrid">{id}</code>
-    </button>
+  <!-- The QR blown up, for scanning from across the desk. A popover, so showing it, Esc,
+       the top layer and the backdrop are the browser's; the one button inside covers the
+       whole screen, because there is no "outside" left to light-dismiss on. -->
+  {#if qr}
+    <div id="qrbig" class="qrbig" popover>
+      <button popovertarget="qrbig" popovertargetaction="hide" aria-label="סגור את הקוד">
+        <img src={qr} alt="קוד QR לחדר הזה" />
+        <span class="qrsay">סרוק מהאפליקציה בטאבלט — כפתור <b>סרוק QR</b></span>
+        <code class="qrid">{id}</code>
+      </button>
+    </div>
   {/if}
 
   {#if toast.text}<div class="toast chamfer-s">{toast.text}</div>{/if}
@@ -393,16 +396,30 @@
     color: var(--fg-muted);
   }
   .qrbig {
-    position: fixed;
+    /* the UA popover box, undone: this one is the whole viewport */
     inset: 0;
-    z-index: 30;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .qrbig::backdrop {
+    background: var(--scrim);
+  }
+  .qrbig button {
+    width: 100%;
+    height: 100%;
     display: grid;
     place-content: center;
     justify-items: center;
     gap: 18px;
     padding: 24px;
     border: 0;
-    background: var(--scrim);
+    background: none;
     cursor: zoom-out;
     font: inherit;
   }
