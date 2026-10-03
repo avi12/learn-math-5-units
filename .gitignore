@@ -1,37 +1,47 @@
-# --- third-party sources: the Ministry's papers and formula sheet. `python build/fetch_sources.py`
-exams/
-data/nushaon.txt
+# --- local config: YOUR Firebase project (see .env.example) and machine paths
+.env
+.firebaserc
+apps/android/local.properties
 
 # --- private: the working log, session handoffs, the unscrubbed plan, the admission page builder
 CLAUDE.md
 continue-*.md
-pages/plan.private.html
-build/goalsec.py
+workbook/pages/plan.private.html
+workbook/build/goalsec.py
 
-# --- build outputs (rebuilt by the scripts in build/)
+# --- third-party sources: the Ministry's papers and formula sheet. `python workbook/build/fetch_sources.py`
+workbook/exams/
+workbook/data/nushaon.txt
+
+# --- coverage dossiers that carry the deleted exam-ladder exercises (rule 3 in RESEARCH.md)
+workbook/build/cover/sitting-*.md
+
+# --- build outputs
 dist/
-pages/workbook.html
-pages/hub571.html
-pages/_m3-legacy/
-build/*_html*.json
-build/*_tex*.json
-build/ground/
-build/derive/
-build/__pycache__/
+.output/
+.wxt/
+.firebase/
+workbook/pages/workbook.html
+workbook/pages/hub571.html
+workbook/pages/_m3-legacy/
+workbook/build/*_html*.json
+workbook/build/*_tex*.json
+workbook/build/ground/
+workbook/build/derive/
+apps/android/.gradle/
+apps/android/build/
+apps/android/app/build/
 __pycache__/
 
 # --- generated media: Manim renders and voiceover audio
-media/
+video/media/
 *.mp3
 *.mp4
 
-# --- dependencies and tool state
+# --- dependencies, tool state, scratch
 node_modules/
-extension/node_modules/
-extension/.output/
-extension/.wxt/
-extension/.env
 .fallow/
-
-# --- coverage dossiers that carry the deleted exam-ladder exercises (rule 3 in RESEARCH.md)
-build/cover/sitting-*.md
+apps/web/texout.json
+apps/web/cropped.png
+apps/web/worker/
+probe*.mjs
