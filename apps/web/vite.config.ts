@@ -17,6 +17,19 @@ const GRADERS = '/src/lib/graders.json'
 type Exercise = { text: string; sections: string[]; html?: string }
 type Graders = { blocks: { exercises: Exercise[] }[] }
 
+/** The fonts' stylesheet link, from shared/skin/fonts.json — the same URL the workbook's
+ *  skin.py writes into its pages, so the two cannot ask for different faces. */
+function fontsLinkPlugin(): Plugin {
+  const { url } = JSON.parse(
+    readFileSync(resolve(import.meta.dirname, '../../shared/skin/fonts.json'), 'utf-8')
+  ) as { url: string }
+  return {
+    name: 'fonts-link',
+    transformIndexHtml: (html) =>
+      html.replace(/<!-- FONTS:.*?-->/, `<link rel="stylesheet" href="${url}" />`)
+  }
+}
+
 function exerciseHtmlPlugin(): Plugin {
   return {
     name: 'exercise-html',
@@ -54,6 +67,7 @@ export default defineConfig({
     ]
   },
   plugins: [
+    fontsLinkPlugin(),
     exerciseHtmlPlugin(),
     svelte(),
     {

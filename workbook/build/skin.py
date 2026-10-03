@@ -1,6 +1,7 @@
-"""Apply data/cyberskin.css to the four published pages.
+"""Apply the skin to the published pages.
 
-The skin has exactly one home (data/cyberskin.css). This script swaps it into
+The tokens come from shared/skin/ (via shared.py), the aliases and HUD pass from
+data/cyberskin.css. This script swaps it into
 each page in place of the old Material 3 token block, and appends the HUD
 component pass at the end of the page's own <style>. Idempotent: re-running
 replaces what it wrote last time, so it can follow any page rebuild.
@@ -12,7 +13,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from shared import FONTS_LINK as FONTS  # noqa: E402
+from shared import FONTS_LINK as FONTS, layer1  # noqa: E402
 
 ROOT = HERE.parent
 SKIN = (ROOT / "data" / "cyberskin.css").read_text(encoding="utf-8")
@@ -26,8 +27,19 @@ CHARSET = '<meta charset="utf-8">'
 
 MARK = "/* =================== LAYER 3 — HUD COMPONENT PASS ======================== */"
 assert MARK in SKIN, "layer 3 marker missing from cyberskin.css"
-head, layer3 = SKIN.split(MARK, 1)
+layer2, layer3 = SKIN.split(MARK, 1)
 layer3 = MARK + layer3
+# The global sheet's own components that layer 3 below restyles for these pages. Taking
+# both would put two answers to `.btn` or `h2` on every page, and the headings move.
+OWN = (".card", ".card-head",
+       "h1", "h2", "h3",
+       ".big", ".btn", ".btn:hover", '.btn[data-variant="primary"]', '.btn[data-variant="danger"]',
+       ".chip, .badge", '.chip[data-active="true"]',
+       ".callout", '.callout[data-kind="ok"]', '.callout[data-kind="warn"]', '.callout[data-kind="danger"]',
+       "pre, code", "pre", "code", "pre code", ".scroll-x")
+
+# Tokens first: the shared skin and Hebrew pairing, then this file's aliases.
+head = layer1(drop=OWN) + "\n" + layer2
 
 H_BEG, H_END = "/* CYBERSKIN:TOKENS:BEGIN */", "/* CYBERSKIN:TOKENS:END */"
 L_BEG, L_END = "/* CYBERSKIN:PASS:BEGIN */", "/* CYBERSKIN:PASS:END */"

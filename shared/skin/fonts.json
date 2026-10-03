@@ -1,0 +1,4 @@
+{
+  "_": "The Google Fonts stylesheet for the cyberpunk skin plus its Hebrew pairing (hebrew.css). One URL, read by the web app's index.html (a Vite plugin) and by the workbook's skin.py.",
+  "url": "https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Share+Tech+Mono&family=Heebo:wght@400;500;700;800&family=Miriam+Libre:wght@400;700&display=swap"
+}

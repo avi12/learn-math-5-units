@@ -1,0 +1,17 @@
+/* The Hebrew pairing, on top of cyberpunk.css — the one thing neither the global skin nor
+   either part can own alone. Chakra Petch and Share Tech Mono have no Hebrew glyphs, so a
+   Hebrew face follows each of them; the rest of the stack still falls back the way the
+   global sheet intends. Before this file the pairing had drifted into three different
+   stacks across the pages, the pad and hand-written artifacts.
+
+   The stylesheet URL that loads these faces is in fonts.json, beside this file. */
+:root {
+  --font-sans: "Chakra Petch", "Heebo", "Assistant", "Roboto Flex", system-ui, sans-serif;
+  --font-mono: "Share Tech Mono", "Miriam Libre", "Cousine", ui-monospace, "SF Mono", monospace;
+}
+
+/* The global sheet left-aligns table headers, which is backwards in an RTL page. The
+   workbook's pages always dropped that line; it is undone here so both parts agree. */
+th {
+  text-align: revert;
+}

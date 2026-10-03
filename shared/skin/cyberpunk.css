@@ -1,6 +1,7 @@
-/* Vendored from ~/.claude/artifact-cyberpunk.css - the single source of truth for
-   Avi's cyberpunk skin. A web app cannot read that file at build time, so this is a
-   copy. If the skin changes there, re-copy it here; nothing below is app-specific. */
+/* Vendored from ~/.claude/artifact-cyberpunk.css, the source of truth for Avi's cyberpunk
+   skin, and kept verbatim: the one copy in this repo. The web app imports it, and the
+   workbook's skin.py inlines it into every page. The Hebrew font pairing that both add on
+   top is in hebrew.css, next to this file. */
 
 /* ============================================================================
    CYBERPUNK ARTIFACT SKIN - single source of truth for every Artifact page.

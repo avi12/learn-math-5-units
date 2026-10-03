@@ -1,5 +1,6 @@
 import { mount } from 'svelte';
-import './lib/cyberpunk.css';
+import '@learn-math/shared/skin/cyberpunk.css';
+import '@learn-math/shared/skin/hebrew.css';
 import './lib/app.css';
 import './lib/controls.css';
 import 'temml/dist/Temml-Latin-Modern.css';

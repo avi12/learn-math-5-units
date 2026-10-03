@@ -3,26 +3,26 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Share+Tech+Mono&family=Heebo:wght@400;500;700;800&family=Miriam+Libre:wght@400;700&display=swap">
 <style>
 /* CYBERSKIN:TOKENS:BEGIN */
+/* Vendored from ~/.claude/artifact-cyberpunk.css, the source of truth for Avi's cyberpunk
+   skin, and kept verbatim: the one copy in this repo. The web app imports it, and the
+   workbook's skin.py inlines it into every page. The Hebrew font pairing that both add on
+   top is in hebrew.css, next to this file. */
+
 /* ============================================================================
-   CYBERPUNK SKIN — the four bagrut pages.
-   Single source of truth for the look of pages/*.html. Applied by build/skin.py.
+   CYBERPUNK ARTIFACT SKIN - single source of truth for every Artifact page.
+   Adapted from youtube-time-manager/admin (src/app.css + src/skin-cyber.css).
 
-   LAYER 1  tokens, pasted from ~/.claude/artifact-cyberpunk.css.
-            Only the two font stacks differ: Chakra Petch / Share Tech Mono have
-            no Hebrew, so a Hebrew face follows each of them in the stack.
-   LAYER 2  compat aliases — the M3 names the pages already use, re-pointed at
-            layer-1 tokens. No colour is redefined here, only renamed.
-   LAYER 3  the HUD component pass for these RTL Hebrew pages.
+   Copy this whole block into the artifact <style>. Light is the base; the two
+   dark blocks re-point ONLY what changes. Glow/atmosphere differences ride on
+   --cyber-* tokens so component rules are written exactly once.
 
-   <head> needs:
-   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Share+Tech+Mono&family=Heebo:wght@400;500;700;800&family=Miriam+Libre:wght@400;700&display=swap">
+   Fonts: Google Fonts is allow-listed by the Artifact CSP. Put this in <head>:
+   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
    ========================================================================= */
 
-/* ======================= LAYER 1 — TOKENS ================================ */
-
 :root {
-  --font-sans: "Chakra Petch", "Heebo", "Assistant", "Roboto Flex", system-ui, sans-serif;
-  --font-mono: "Share Tech Mono", "Miriam Libre", "Cousine", ui-monospace, "SF Mono", monospace;
+  --font-sans: "Chakra Petch", "Roboto Flex", system-ui, -apple-system, sans-serif;
+  --font-mono: "Share Tech Mono", "Roboto Mono", ui-monospace, "SF Mono", monospace;
 
   /* Type scale - terminal-tight, heavy weights */
   --t-display-s: 700 36px/43px var(--font-sans);
@@ -263,6 +263,10 @@ body {
     0 100%, 0 var(--chamfer-s));
 }
 
+/* Cards: 2px outline + chamfer + top sheen (dark only) */
+
+/* Card header with the signature 44px accent stub under it */
+
 /* Headings: uppercase, tracked out, glow only in dark */
 h1, h2, h3 {
   font-family: var(--font-sans);
@@ -277,6 +281,12 @@ h1, h2, h3 {
 }
 .sub, .meta, .caption, figcaption { color: var(--fg-muted); }
 
+/* Big numbers are mono + lit */
+
+
+
+/* Callouts: colour-coded left rail, no rounded corners */
+
 table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); }
 th {
   padding: var(--s-2) var(--s-3);
@@ -284,13 +294,17 @@ th {
   color: var(--fg-muted);
   font: var(--t-label-m);
   letter-spacing: 0.08em;
+  text-align: left;
   text-transform: uppercase;
 }
 td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--border); }
 tbody tr:nth-child(even) { background: var(--table-zebra); }
 
+
 /* Images / thumbnails read as surveillance feed */
 .thumb { border-radius: 0; filter: grayscale(1) contrast(1.08); }
+
+/* Wide content scrolls in its own box; the page body never does */
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -299,6 +313,37 @@ tbody tr:nth-child(even) { background: var(--table-zebra); }
     animation-iteration-count: 1 !important;
   }
 }
+
+/* The Hebrew pairing, on top of cyberpunk.css — the one thing neither the global skin nor
+   either part can own alone. Chakra Petch and Share Tech Mono have no Hebrew glyphs, so a
+   Hebrew face follows each of them; the rest of the stack still falls back the way the
+   global sheet intends. Before this file the pairing had drifted into three different
+   stacks across the pages, the pad and hand-written artifacts.
+
+   The stylesheet URL that loads these faces is in fonts.json, beside this file. */
+:root {
+  --font-sans: "Chakra Petch", "Heebo", "Assistant", "Roboto Flex", system-ui, sans-serif;
+  --font-mono: "Share Tech Mono", "Miriam Libre", "Cousine", ui-monospace, "SF Mono", monospace;
+}
+
+/* The global sheet left-aligns table headers, which is backwards in an RTL page. The
+   workbook's pages always dropped that line; it is undone here so both parts agree. */
+th {
+  text-align: revert;
+}
+
+/* ============================================================================
+   CYBERPUNK SKIN — the workbook's pages. Applied by build/skin.py.
+
+   LAYER 1  tokens and base: NOT here. skin.py inlines shared/skin/cyberpunk.css (the
+            global skin, vendored once for the whole repo) and shared/skin/hebrew.css
+            (the Hebrew font pairing) — the same two files the web app imports.
+   LAYER 2  compat aliases — the M3 names the pages already use, re-pointed at
+            layer-1 tokens. No colour is redefined here, only renamed.
+   LAYER 3  the HUD component pass for these RTL Hebrew pages.
+
+   The fonts' <link> comes from shared/skin/fonts.json.
+   ========================================================================= */
 
 /* =================== LAYER 2 — COMPAT ALIASES ============================
    The pages were authored against Material 3 token names. Each one is re-

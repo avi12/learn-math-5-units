@@ -5,6 +5,7 @@
   "description": "What more than one part of the project reads: the pad-extension contract, the config loader, and the look.",
   "exports": {
     "./protocol": "./protocol.ts",
-    "./env": "./env.mjs"
+    "./env": "./env.mjs",
+    "./skin/*": "./skin/*"
   }
 }

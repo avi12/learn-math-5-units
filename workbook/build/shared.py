@@ -1,63 +1,48 @@
 # -*- coding: utf-8 -*-
-"""What the study pages and the pad have to agree on — written once, here.
+"""The look the workbook pages share with the pad, read from shared/skin/ — never copied.
 
-    python build/shared.py            report drift, change nothing (exit 1 if any)
-    python build/shared.py --write    push the values into every consumer
+    python workbook/build/shared.py     is the vendored skin still the global sheet? (exit 1 if not)
 
-Two repos ship one look. `learn-math-5-units` builds the Artifact pages, where the CSS
-has to be inlined because the Artifact CSP blocks every stylesheet host; `avi-math-study`
-is a Vite app that bundles its own. Neither can import from the other at run time, so
-whatever they share is shared by being COPIED — and a copy nobody regenerates is a copy
-that drifts. This is the regenerator, in the same direction as build/graders.py: the
-workbook is where the value is written, the pad receives it.
+Before the monorepo this module PUSHED the Hebrew font stacks into four files across two
+repos and checked two vendored copies of the global skin for drift, because neither repo
+could import from the other. Now there is one copy of each thing, and both sides read it:
 
-**The palette is deliberately not here.** It already has a home — the global sheet at
-~/.claude/artifact-cyberpunk.css — and both repos vendor it verbatim. Restating it here
-would make a fourth copy of the very thing this file exists to prevent, so instead
-`verify()` checks that the two vendored copies still match the global token for token.
+    shared/skin/cyberpunk.css   the global skin, vendored once      -> web app import, skin.py
+    shared/skin/hebrew.css      the Hebrew font pairing             -> web app import, skin.py
+    shared/skin/fonts.json      the Google Fonts URL for all of it  -> web index.html, skin.py
 
-What IS here is the one piece neither the global sheet nor either repo can own alone:
-**the Hebrew pairing.** Chakra Petch and Share Tech Mono have no Hebrew glyphs, so a
-Hebrew face has to follow each of them in the stack. That is not the global sheet's
-business — it is language-neutral and serves every project — and it is not one repo's
-business either, because both repos are Hebrew and RTL and must look the same.
-
-It had drifted into three different answers before this file existed:
-
-    workbook   "Chakra Petch", "Heebo", "Assistant", "Roboto Flex", system-ui, sans-serif
-    pad        'Chakra Petch', 'Heebo', 'Assistant', system-ui, sans-serif
-    artifacts  "Chakra Petch", "Heebo", "Roboto Flex", system-ui, sans-serif
-
-— three stacks, each missing something another had, and nothing anywhere to say which
-was meant. The workbook's is canonical: it is the global's own stack with the Hebrew
-faces inserted, so it still falls back the way the global sheet intends.
-
-A NEW ARTIFACT PAGE should import FONT_SANS / FONT_MONO / FONTS_LINK from here rather
-than typing the stacks again. That is how the third row above happened.
+A NEW PAGE takes FONTS_LINK and layer1() from here rather than typing the stacks again —
+that is how the pairing once drifted into three different answers.
 """
-import os
+import json
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-# The pad repo, cloned next to this one (or wherever AVI_MATH_STUDY points).
-PAD = Path(os.environ.get("AVI_MATH_STUDY", ROOT.parent / "avi-math-study"))
+SKIN = ROOT.parent / "shared" / "skin"
 GLOBAL_SHEET = Path.home() / ".claude" / "artifact-cyberpunk.css"
 
-# ---------------------------------------------------------------- the values
+_SHEET = (SKIN / "cyberpunk.css").read_text(encoding="utf-8")
+_HEBREW = (SKIN / "hebrew.css").read_text(encoding="utf-8")
 
-#: The global sheet's stack, with the Hebrew faces inserted ahead of the Latin fallbacks.
-FONT_SANS = '"Chakra Petch", "Heebo", "Assistant", "Roboto Flex", system-ui, sans-serif'
-FONT_MONO = '"Share Tech Mono", "Miriam Libre", "Cousine", ui-monospace, "SF Mono", monospace'
 
-#: Every face named above that Google Fonts serves. Heebo and Miriam Libre are the two
-#: the global sheet does not ask for, and they are exactly the two that carry Hebrew.
-FONTS_URL = (
-    "https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700"
-    "&family=Share+Tech+Mono&family=Heebo:wght@400;500;700;800"
-    "&family=Miriam+Libre:wght@400;700&display=swap"
-)
+def layer1(drop: tuple[str, ...] = ()) -> str:
+    """The tokens and base rules a page opens with: the global skin, then the Hebrew pairing.
+
+    `drop` names top-level rules (by their exact selector) to leave out — for a page whose
+    own component layer styles those things itself. The sheet stays one copy; what a
+    consumer does not take is said where it is not taken.
+    """
+    sheet = _SHEET
+    for sel in drop:
+        sheet, n = re.subn(r"(?m)^" + re.escape(sel) + r"\s*\{[^{}]*\}\n?", "", sheet)
+        if not n:
+            raise SystemExit(f"shared/skin/cyberpunk.css has no rule `{sel} {{` to drop")
+    return sheet.rstrip() + "\n\n" + _HEBREW.rstrip() + "\n"
+
+
+FONTS_URL = json.loads((SKIN / "fonts.json").read_text(encoding="utf-8"))["url"]
 FONTS_LINK = f'<link rel="stylesheet" href="{FONTS_URL}">'
 
 #: Left-to-right mark, written before a label made of numbers joined by `·` — `2·1.`,
@@ -67,140 +52,41 @@ FONTS_LINK = f'<link rel="stylesheet" href="{FONTS_URL}">'
 #: Measured in a screenshot; it also works inside <title>, where <bdi> cannot go.
 LRM = "‎"
 
-# ------------------------------------------------------------- the consumers
-
-SANS = re.compile(r"(?m)^([ \t]*--font-sans:[ \t]*)([^;\n]+)(;)")
-MONO = re.compile(r"(?m)^([ \t]*--font-mono:[ \t]*)([^;\n]+)(;)")
-URL = re.compile(r"https://fonts\.googleapis\.com/css2\?family=Chakra[^\"'\s]*")
-
-#: (path, [(what, regex, wanted value)]) — every file that restates a shared value.
-#: pages/*.html are NOT here: skin.py generates them, and it reads FONTS_LINK from this
-#: module, so they follow automatically on the next build.
-CONSUMERS = [
-    (
-        ROOT / "data" / "cyberskin.css",
-        [("--font-sans", SANS, FONT_SANS), ("--font-mono", MONO, FONT_MONO),
-         ("fonts url", URL, FONTS_URL)],
-    ),
-    (
-        ROOT / "build" / "videopass_body.html",
-        [("fonts url", URL, FONTS_URL)],
-    ),
-    (
-        PAD / "src" / "lib" / "app.css",
-        [("--font-sans", SANS, FONT_SANS), ("--font-mono", MONO, FONT_MONO)],
-    ),
-    (
-        PAD / "index.html",
-        [("fonts url", URL, FONTS_URL)],
-    ),
-]
-
-
-def _apply(text: str, rule, want: str) -> tuple[str, list[str]]:
-    """Replace every occurrence, returning the new text and what was actually wrong."""
-    found = []
-
-    def sub(m):
-        # SANS/MONO capture (prefix, value, ';'); URL captures the whole match
-        if m.re.groups == 3:
-            if m.group(2).strip() != want:
-                found.append(m.group(2).strip())
-            return m.group(1) + want + m.group(3)
-        if m.group(0) != want:
-            found.append(m.group(0))
-        return want
-
-    return rule.sub(sub, text), found
-
-
-def sync(write: bool) -> int:
-    drift = 0
-    for path, rules in CONSUMERS:
-        if not path.exists():
-            print(f"MISSING  {path}")
-            drift += 1
-            continue
-        before = path.read_text(encoding="utf-8")
-        text = before
-        for what, rule, want in rules:
-            text, wrong = _apply(text, rule, want)
-            for was in wrong:
-                drift += 1
-                print(f"DRIFT    {path.name}  {what}")
-                print(f"           was  {was}")
-                print(f"           want {want}")
-            if not rule.search(before):
-                drift += 1
-                print(f"MISSING  {path.name} has no {what} to keep in step")
-        if write and text != before:
-            path.write_text(text, encoding="utf-8", newline="")
-            print(f"written  {path}")
-    return drift
-
 
 def _tokens(path: Path) -> dict:
-    """{selector: {token: value}} for the blocks that define the palette."""
+    """{selector: {--token: value}} for every block that declares custom properties."""
+    out = {}
     text = re.sub(r"/\*.*?\*/", "", path.read_text(encoding="utf-8"), flags=re.S)
-    out, stack, buf = {}, [], ""
-    for c in text:
-        if c == "{":
-            stack.append(buf.strip())
-            buf = ""
-        elif c == "}":
-            name = " ".join(s for s in stack if s)
-            for tok, val in re.findall(r"(--[A-Za-z0-9-]+)\s*:\s*([^;}]+)", buf):
-                out.setdefault(name, {})[tok] = " ".join(val.split())
-            buf = ""
-            if stack:
-                stack.pop()
-        else:
-            buf += c
+    for sel, body in re.findall(r"([^{}]+)\{([^{}]*--[^{}]*)\}", text):
+        decl = dict(re.findall(r"(--[\w-]+)\s*:\s*([^;]+);", body))
+        if decl:
+            out.setdefault(" ".join(sel.split()), {}).update({k: " ".join(v.split()) for k, v in decl.items()})
     return out
 
 
 def verify() -> int:
-    """Are the two vendored copies of the palette still the global sheet's?
+    """Does the vendored copy still match the global sheet, token for token?
 
-    Compared token by token rather than line by line: each repo wraps the sheet in its
-    own header and its own component layer, so the files are meant to differ. What is
-    not meant to differ is a single colour. The two font stacks are the documented
-    exception — they are what this module owns.
+    Only meaningful on the author's machine, where the global sheet lives; anywhere else
+    this says so and passes. A difference is reported, not fixed: re-vendoring the skin
+    changes how both the pages and the pad look, so it is a decision, not a sync.
     """
     if not GLOBAL_SHEET.exists():
         print(f"SKIP     no global sheet at {GLOBAL_SHEET}")
         return 0
-    g = _tokens(GLOBAL_SHEET)
-    theme = [k for k in g if k.startswith(":root") or "prefers-color-scheme" in k]
-    owned = {"--font-sans", "--font-mono"}
+    g, here = _tokens(GLOBAL_SHEET), _tokens(SKIN / "cyberpunk.css")
     bad = 0
-    for label, path in (("pad", PAD / "src" / "lib" / "cyberpunk.css"),
-                        ("workbook", ROOT / "data" / "cyberskin.css")):
-        t = _tokens(path)
-        for name in theme:
-            here = t.get(name)
-            if here is None:
-                print(f"PALETTE  {label} has no `{name}` block")
+    for sel, toks in g.items():
+        for tok, want in toks.items():
+            have = here.get(sel, {}).get(tok)
+            if have != want:
+                print(f"PALETTE  {sel} {tok}\n           global {want}\n           here   {have}")
                 bad += 1
-                continue
-            for tok, want in g[name].items():
-                if tok in owned:
-                    continue
-                if tok not in here:
-                    print(f"PALETTE  {label} is missing {tok} in {name}")
-                    bad += 1
-                elif here[tok] != want:
-                    print(f"PALETTE  {label} {tok}\n           global {want}\n           here   {here[tok]}")
-                    bad += 1
     return bad
 
 
 if __name__ == "__main__":
-    write = "--write" in sys.argv
-    n = sync(write) + verify()
-    if n == 0:
-        print("in step: the pages and the pad agree, and both still match the global sheet.")
-    elif write:
-        print(f"\n{n} fixed — rebuild the pages (build/skin.py) and the pad (npm run build).")
-    print()
-    sys.exit(0 if n == 0 or write else 1)
+    n = verify()
+    print("in step with the global sheet" if n == 0 else
+          f"\n{n} differences - re-vendor shared/skin/cyberpunk.css if they are wanted")
+    sys.exit(0 if n == 0 else 1)
