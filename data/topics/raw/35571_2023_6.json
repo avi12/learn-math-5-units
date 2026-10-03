@@ -1,0 +1,473 @@
+{
+  "paper": "35571_2023_6",
+  "sealed": false,
+  "cover": {
+    "duration": "שלוש שעות וחצי",
+    "answer_rule": "יש לענות על חמש שאלות, לפחות על שאלה אחת מכל פרק (שלושה פרקים, שמונה שאלות; בשאלה 1 עונים על שלושה מארבעת הסעיפים א–ד)",
+    "points": "20×5 = 100 נקודות (לכל שאלה – 20 נקודות)"
+  },
+  "questions": [
+    {
+      "q": "1",
+      "chapter": "פרק ראשון – \"שאלות קצרות\", סדרות והסתברות",
+      "summary": "שאלות קצרות, שלושה מתוך ארבעה: צעד אינדוקציה על סכום מכפלות, קטע אמצעים בטרפז, התאמת גרפי f/f'/f'', וגרף f מול 1/f",
+      "parts": [
+        {
+          "part": "א(1)",
+          "asks": "להוכיח שאם נוסחת הסכום של מכפלות איברי שתי הסדרות נכונה ל־k, אז הנוסחה המתאימה נכונה ל־k+1",
+          "skills": [
+            { "skill": "צעד האינדוקציה", "area": "induction", "role": "asked" },
+            { "skill": "הצבת n+1 באיבר הכללי", "area": "sequences", "role": "required" },
+            { "skill": "חוקי חזקות", "area": "algebra", "role": "required" },
+            { "skill": "הוצאת גורם משותף", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "א(2)",
+          "asks": "להסביר מדוע הנוסחה הכללית לסכום אינה נכונה לכל n, אף שצעד המעבר מתקיים",
+          "skills": [
+            { "skill": "בדיקת בסיס האינדוקציה", "area": "induction", "role": "asked" },
+            { "skill": "הפרכת טענה בדוגמה נגדית", "area": "other", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב(1)",
+          "asks": "בטרפז שקטע האמצעים שלו חותך את האלכסונים ונוצרת מקבילית — להוכיח שקטע אחד על קטע האמצעים כפול מקטע אחר",
+          "skills": [
+            { "skill": "קטע אמצעים במשולש", "area": "plane_geometry", "role": "asked" },
+            { "skill": "קטע אמצעים בטרפז", "area": "plane_geometry", "role": "required" },
+            { "skill": "המשפט ההפוך לקטע אמצעים במשולש", "area": "plane_geometry", "role": "required" },
+            { "skill": "תכונות מקבילית", "area": "plane_geometry", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב(2)",
+          "asks": "להוכיח שהמשך צלע המקבילית חוצה קטע שמחבר קודקוד של הטרפז עם נקודה על קטע האמצעים",
+          "skills": [
+            { "skill": "המשפט ההפוך לקטע אמצעים במשולש", "area": "plane_geometry", "role": "asked" },
+            { "skill": "קטע אמצעים בטרפז חוצה את האלכסונים", "area": "plane_geometry", "role": "required" },
+            { "skill": "תכונות מקבילית", "area": "plane_geometry", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג(1)",
+          "asks": "להתאים שלושה גרפים נתונים לפונקציה, לנגזרת הראשונה ולנגזרת השנייה, ולנמק",
+          "skills": [
+            { "skill": "קשר בין גרף פונקציה לגרף נגזרתה", "area": "calc_derivative", "role": "asked" },
+            { "skill": "נקודת קיצון כאפס של הנגזרת", "area": "calc_derivative", "role": "required" },
+            { "skill": "נקודת פיתול כקיצון של הנגזרת", "area": "calc_derivative", "role": "required" },
+            { "skill": "עלייה וירידה לפי סימן הנגזרת", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג(2)",
+          "asks": "למצוא את משוואת המשיק לגרף הפונקציה בנקודת הפיתול שלה, מתוך הנתונים שבגרפים",
+          "skills": [
+            { "skill": "משוואת משיק", "area": "calc_derivative", "role": "asked" },
+            { "skill": "נקודת פיתול", "area": "calc_derivative", "role": "asked" },
+            { "skill": "שיפוע משיק כערך הנגזרת", "area": "calc_derivative", "role": "required" },
+            { "skill": "משוואת ישר לפי נקודה ושיפוע", "area": "analytic_geometry", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג(3)",
+          "asks": "לחשב אינטגרל מסוים של הנגזרת השנייה מתוך ערכים שנקראים מהגרפים",
+          "skills": [
+            { "skill": "אינטגרל מסוים", "area": "calc_integral", "role": "asked" },
+            { "skill": "המשפט היסודי: אינטגרל של נגזרת", "area": "calc_integral", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד(1)",
+          "asks": "מגרף נתון עם אסימפטוטות ונקודת חיתוך עם ציר y התלויה בפרמטר — לקבוע לאילו ערכי הפרמטר לגרפים של f ושל 1/f יש שתי נקודות חיתוך",
+          "skills": [
+            { "skill": "גרף הפונקציה 1/f(x)", "area": "calc_derivative", "role": "asked" },
+            { "skill": "פתרון משוואה ריבועית חסרה", "area": "algebra", "role": "required" },
+            { "skill": "מספר פתרונות של f(x)=c לפי הגרף", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד(2)",
+          "asks": "בהינתן המרחק בין האסימפטוטות האופקיות של f ושל 1/f — למצוא את k",
+          "skills": [
+            { "skill": "אסימפטוטה אופקית", "area": "calc_derivative", "role": "asked" },
+            { "skill": "אסימפטוטה אופקית של 1/f(x)", "area": "calc_derivative", "role": "required" },
+            { "skill": "משוואה שברית", "area": "algebra", "role": "required" },
+            { "skill": "נוסחת השורשים", "area": "algebra", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "2",
+      "chapter": "פרק ראשון – \"שאלות קצרות\", סדרות והסתברות",
+      "summary": "שתי סדרות הנדסיות אין־סופיות מתכנסות וסדרת המנות שלהן; מונוטוניות וסימן; סדרה חשבונית שנותנת את המנה; שוויון בין סכום המנות למנת הסכומים",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "להביע את מנת הסדרה החדשה (מנות איברי הסדרות) באמצעות שתי המנות",
+          "skills": [
+            { "skill": "מנה של סדרה הנדסית", "area": "sequences", "role": "asked" },
+            { "skill": "נוסחת האיבר הכללי בסדרה הנדסית", "area": "sequences", "role": "required" },
+            { "skill": "חוקי חזקות", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב(1)",
+          "asks": "כשסדרה A אינה עולה ואינה יורדת ו־B עולה — לקבוע אם מנת הסדרה החדשה חיובית",
+          "skills": [
+            { "skill": "סימן המנה בסדרה הנדסית", "area": "sequences", "role": "asked" },
+            { "skill": "מונוטוניות של סדרה הנדסית", "area": "sequences", "role": "required" },
+            { "skill": "תנאי התכנסות של סדרה הנדסית אין־סופית", "area": "sequences", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב(2)",
+          "asks": "לקבוע אם כל איברי הסדרה העולה B שליליים",
+          "skills": [
+            { "skill": "מונוטוניות של סדרה הנדסית", "area": "sequences", "role": "asked" },
+            { "skill": "תנאי התכנסות של סדרה הנדסית אין־סופית", "area": "sequences", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "שלושה איברים עוקבים בסדרה חשבונית, השני נגדי לראשון ונתון יחס מכפלה — למצוא את האיבר הראשון",
+          "skills": [
+            { "skill": "נוסחת האיבר הכללי בסדרה חשבונית", "area": "sequences", "role": "asked" },
+            { "skill": "צמצום שבר אלגברי", "area": "algebra", "role": "required" },
+            { "skill": "משוואה שברית", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "כשמנת A ידועה, וסכום סדרת המנות שווה למנת סכומי A ו־B — למצוא את מנת B",
+          "skills": [
+            { "skill": "סכום סדרה הנדסית אין־סופית", "area": "sequences", "role": "asked" },
+            { "skill": "משוואה שברית", "area": "algebra", "role": "required" },
+            { "skill": "נוסחת השורשים", "area": "algebra", "role": "required" },
+            { "skill": "מונוטוניות של סדרה הנדסית", "area": "sequences", "role": "required" },
+            { "skill": "תנאי התכנסות של סדרה הנדסית אין־סופית", "area": "sequences", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "3",
+      "chapter": "פרק ראשון – \"שאלות קצרות\", סדרות והסתברות",
+      "summary": "משאל של תלמידי שנה א' ושנה ב' בעד ונגד הצעה: טבלה דו־ממדית, הסתברות מותנית, איחוד מאורעות ונוסחת ברנולי",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "מבין תלמידי שנה ב' — ההסתברות שתלמיד נגד ההצעה",
+          "skills": [
+            { "skill": "הסתברות מותנית", "area": "probability", "role": "asked" },
+            { "skill": "טבלה דו־ממדית של הסתברויות", "area": "probability", "role": "required" },
+            { "skill": "כלל הכפל בהסתברות", "area": "probability", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "בהינתן הפרש בין ההסתברויות המותנות להיות בעד בשתי השנים — לחשב את ההסתברות להיות בעד",
+          "skills": [
+            { "skill": "הסתברות מותנית", "area": "probability", "role": "asked" },
+            { "skill": "טבלה דו־ממדית של הסתברויות", "area": "probability", "role": "required" },
+            { "skill": "משוואה שברית", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "ההסתברות שמשתתף אקראי מקיים לפחות אחד משני תנאים (שנה ב', בעד ההצעה)",
+          "skills": [
+            { "skill": "הסתברות של איחוד מאורעות", "area": "probability", "role": "asked" },
+            { "skill": "טבלה דו־ממדית של הסתברויות", "area": "probability", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "חמישה משתתפים שכולם משנה ב' — ההסתברות שלפחות שניים בעד וגם לפחות שניים נגד",
+          "skills": [
+            { "skill": "נוסחת ברנולי (התפלגות בינומית)", "area": "probability", "role": "asked" },
+            { "skill": "הסתברות מותנית", "area": "probability", "role": "required" },
+            { "skill": "פירוק \"לפחות\" למקרים זרים", "area": "probability", "role": "required" },
+            { "skill": "מקדם בינומי (צירופים)", "area": "probability", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "4",
+      "chapter": "פרק שני – גאומטרייה וטריגונומטרייה במישור",
+      "summary": "מעגל עם אמצע קשת ומשיק בה: דמיון משולשים, אורך מיתר, הוכחת מקבילות, יחסי שטחים ויחס חוצה זווית",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "להוכיח דמיון בין שני משולשים שאחד מהם נבנה עם המשיק",
+          "skills": [
+            { "skill": "דמיון משולשים (ז.ז.)", "area": "plane_geometry", "role": "asked" },
+            { "skill": "זווית בין משיק למיתר", "area": "plane_geometry", "role": "required" },
+            { "skill": "זוויות היקפיות הנשענות על קשתות שוות", "area": "plane_geometry", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "בהינתן שני אורכים — לחשב אורך מיתר",
+          "skills": [
+            { "skill": "יחס צלעות במשולשים דומים", "area": "plane_geometry", "role": "asked" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "להוכיח שהמיתר מקביל למשיק",
+          "skills": [
+            { "skill": "הוכחת מקבילות בזוויות מתחלפות", "area": "plane_geometry", "role": "asked" },
+            { "skill": "זווית בין משיק למיתר", "area": "plane_geometry", "role": "required" },
+            { "skill": "זוויות היקפיות הנשענות על קשתות שוות", "area": "plane_geometry", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "בהינתן יחס בין שטחי שני משולשים סמוכים — לחשב אורך מיתר",
+          "skills": [
+            { "skill": "יחס שטחי משולשים בעלי גובה משותף", "area": "plane_geometry", "role": "asked" },
+            { "skill": "משפט תאלס המורחב", "area": "plane_geometry", "role": "required" }
+          ]
+        },
+        {
+          "part": "ה",
+          "asks": "למצוא את היחס בין שטחי שני משולשים שבסיסיהם על אותו מיתר",
+          "skills": [
+            { "skill": "יחס שטחי משולשים בעלי גובה משותף", "area": "plane_geometry", "role": "asked" },
+            { "skill": "משפט חוצה הזווית במשולש", "area": "plane_geometry", "role": "required" },
+            { "skill": "זוויות היקפיות הנשענות על קשתות שוות", "area": "plane_geometry", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "5",
+      "chapter": "פרק שני – גאומטרייה וטריגונומטרייה במישור",
+      "summary": "דלתון חסום במעגל ומרכז המעגל החסום במשולש שחצי ממנו: זוויות, משפט הסינוסים, זווית, רדיוס מתוך שטח, ומרחק בין שני המרכזים",
+      "parts": [
+        {
+          "part": "א(1)",
+          "asks": "למצוא את זוויות המשולש שקודקודיו שני קצות האלכסון הראשי ומרכז המעגל החסום, באמצעות α",
+          "skills": [
+            { "skill": "סכום זוויות במשולש", "area": "plane_geometry", "role": "asked" },
+            { "skill": "תכונות דלתון", "area": "plane_geometry", "role": "required" },
+            { "skill": "מרובע חסום במעגל: זוויות נגדיות", "area": "plane_geometry", "role": "required" },
+            { "skill": "מרכז מעגל חסום כמפגש חוצי זוויות", "area": "plane_geometry", "role": "required" }
+          ]
+        },
+        {
+          "part": "א(2)",
+          "asks": "להביע את המרחק מקודקוד למרכז המעגל החסום באמצעות α ו־R",
+          "skills": [
+            { "skill": "משפט הסינוסים", "area": "plane_trig", "role": "asked" },
+            { "skill": "זווית היקפית הנשענת על קוטר", "area": "plane_geometry", "role": "required" },
+            { "skill": "ערכים מדויקים של פונקציות טריגונומטריות", "area": "plane_trig", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "בהינתן אורך הקטע כביטוי ב־R — למצוא את α",
+          "skills": [
+            { "skill": "משוואה טריגונומטרית בסיסית", "area": "plane_trig", "role": "asked" },
+            { "skill": "ערכים מדויקים של פונקציות טריגונומטריות", "area": "plane_trig", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "בהינתן שטח הדלתון — למצוא את R",
+          "skills": [
+            { "skill": "שטח דלתון", "area": "plane_geometry", "role": "asked" },
+            { "skill": "יחסים טריגונומטריים במשולש ישר־זווית", "area": "plane_trig", "role": "required" },
+            { "skill": "ערכים מדויקים של פונקציות טריגונומטריות", "area": "plane_trig", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "לחשב את המרחק בין מרכז המעגל החוסם את הדלתון למרכז המעגל החסום במשולש",
+          "skills": [
+            { "skill": "משפט הקוסינוסים", "area": "plane_trig", "role": "asked" },
+            { "skill": "מרכז המעגל החוסם משולש ישר־זווית: אמצע היתר", "area": "plane_geometry", "role": "required" },
+            { "skill": "מרכז מעגל חסום כמפגש חוצי זוויות", "area": "plane_geometry", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "6",
+      "chapter": "פרק שלישי – חשבון דיפרנציאלי ואינטגרלי של פולינומים, של פונקציות שורש, של פונקציות רציונליות ושל פונקציות טריגונומטריות",
+      "summary": "חקירת פונקציה רציונלית אי־זוגית עם פרמטר, גרף |f(x)| פחות קבוע, מציאת פרמטרים מנקודת קיצון, וסוג קיצון של פונקציית צבירה",
+      "parts": [
+        {
+          "part": "א(1)",
+          "asks": "למצוא אסימפטוטות המאונכות לצירים",
+          "skills": [
+            { "skill": "אסימפטוטה אנכית", "area": "calc_derivative", "role": "asked" },
+            { "skill": "אסימפטוטה אופקית", "area": "calc_derivative", "role": "asked" }
+          ]
+        },
+        {
+          "part": "א(2)",
+          "asks": "להראות שהפונקציה אי־זוגית",
+          "skills": [
+            { "skill": "פונקציה זוגית ואי־זוגית", "area": "calc_derivative", "role": "asked" }
+          ]
+        },
+        {
+          "part": "א(3)",
+          "asks": "למצוא נקודות חיתוך עם הצירים",
+          "skills": [
+            { "skill": "נקודות חיתוך עם הצירים", "area": "calc_derivative", "role": "asked" },
+            { "skill": "פתרון משוואה ריבועית חסרה", "area": "algebra", "role": "required" },
+            { "skill": "תחום הגדרה של פונקציה רציונלית", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "א(4)",
+          "asks": "למצוא תחומי עלייה וירידה",
+          "skills": [
+            { "skill": "תחומי עלייה וירידה", "area": "calc_derivative", "role": "asked" },
+            { "skill": "נגזרת של מנה", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "א(5)",
+          "asks": "למצוא תחומי קעירות כלפי מעלה וכלפי מטה",
+          "skills": [
+            { "skill": "תחומי קעירות", "area": "calc_derivative", "role": "asked" },
+            { "skill": "נגזרת שנייה", "area": "calc_derivative", "role": "required" },
+            { "skill": "נגזרת של מנה", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "לסרטט סקיצה של גרף הפונקציה",
+          "skills": [
+            { "skill": "סרטוט סקיצה של גרף פונקציה", "area": "calc_derivative", "role": "asked" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "לסרטט סקיצה של גרף הערך המוחלט של הפונקציה, מוזז כלפי מטה בפרמטר",
+          "skills": [
+            { "skill": "גרף של |f(x)|", "area": "calc_derivative", "role": "asked" },
+            { "skill": "הזזה אנכית של גרף", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "בהינתן נקודת קיצון של הפונקציה המוזזת — למצוא את שני הפרמטרים",
+          "skills": [
+            { "skill": "מציאת פרמטרים מנקודת קיצון", "area": "calc_derivative", "role": "asked" },
+            { "skill": "קיצון של |f(x)| באפסי f", "area": "calc_derivative", "role": "required" },
+            { "skill": "הזזה אנכית של גרף", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ה",
+          "asks": "לקבוע את סוג נקודת הקיצון של פונקציית צבירה (אינטגרל מ־1 עד x של הפונקציה המוזזת)",
+          "skills": [
+            { "skill": "סוג נקודת קיצון לפי סימן הנגזרת", "area": "calc_derivative", "role": "asked" },
+            { "skill": "נגזרת של פונקציית צבירה", "area": "calc_integral", "role": "required" },
+            { "skill": "משוואה עם ערך מוחלט", "area": "algebra", "role": "required" },
+            { "skill": "פירוק טרינום לגורמים", "area": "algebra", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "7",
+      "chapter": "פרק שלישי – חשבון דיפרנציאלי ואינטגרלי של פולינומים, של פונקציות שורש, של פונקציות רציונליות ושל פונקציות טריגונומטריות",
+      "summary": "משחזרים פונקציית שורש חלקי חזקה של x מגרף הנגזרת: עלייה וירידה, פיתול, סקיצה, זיהוי הביטוי, פרמטר משיפוע משיק ושטח מתחת לריבוע הפונקציה",
+      "parts": [
+        {
+          "part": "א(1)",
+          "asks": "מתוך גרף הנגזרת — למצוא תחומי עלייה וירידה של הפונקציה",
+          "skills": [
+            { "skill": "תחומי עלייה וירידה", "area": "calc_derivative", "role": "asked" },
+            { "skill": "קשר בין גרף פונקציה לגרף נגזרתה", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "א(2)",
+          "asks": "מתוך גרף הנגזרת — כמה נקודות פיתול יש לפונקציה",
+          "skills": [
+            { "skill": "נקודת פיתול", "area": "calc_derivative", "role": "asked" },
+            { "skill": "נקודת פיתול כקיצון של הנגזרת", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "לסרטט סקיצה אפשרית של הפונקציה בהתאם לגרף הנגזרת ולאסימפטוטות הנתונות",
+          "skills": [
+            { "skill": "סרטוט סקיצה של גרף פונקציה", "area": "calc_derivative", "role": "asked" },
+            { "skill": "קשר בין גרף פונקציה לגרף נגזרתה", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "לבחור מבין ארבעה ביטויי שורש־חלקי־חזקה את הביטוי שמייצג את הפונקציה, ולנמק",
+          "skills": [
+            { "skill": "התאמת ביטוי אלגברי לגרף פונקציה", "area": "calc_derivative", "role": "asked" },
+            { "skill": "תחום הגדרה של שורש", "area": "algebra", "role": "required" },
+            { "skill": "בדיקת סימן הפונקציה בתחום", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "בהינתן שיפוע המשיק בנקודה — למצוא את הפרמטר",
+          "skills": [
+            { "skill": "שיפוע משיק כערך הנגזרת", "area": "calc_derivative", "role": "asked" },
+            { "skill": "נגזרת של מנה", "area": "calc_derivative", "role": "required" },
+            { "skill": "נגזרת של פונקציית שורש", "area": "calc_derivative", "role": "required" },
+            { "skill": "כלל השרשרת", "area": "calc_derivative", "role": "required" },
+            { "skill": "הצבת משתנה עזר במשוואה", "area": "algebra", "role": "required" },
+            { "skill": "נוסחת השורשים", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ה",
+          "asks": "להציב ערך לפרמטר ולחשב שטח המוגבל על ידי ריבוע הפונקציה, ציר x וישר אנכי",
+          "skills": [
+            { "skill": "שטח בין גרף לציר x", "area": "calc_integral", "role": "asked" },
+            { "skill": "אינטגרל של חזקה עם מעריך שלילי", "area": "calc_integral", "role": "required" },
+            { "skill": "נקודות חיתוך עם הצירים", "area": "calc_derivative", "role": "required" },
+            { "skill": "פיצול שבר לסכום שברים", "area": "algebra", "role": "required" },
+            { "skill": "חוקי חזקות", "area": "algebra", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "8",
+      "chapter": "פרק שלישי – חשבון דיפרנציאלי ואינטגרלי של פולינומים, של פונקציות שורש, של פונקציות רציונליות ושל פונקציות טריגונומטריות",
+      "summary": "מעוין עם אמצע צלע ושטח משולש נתון: הבעת הצלע באמצעות זווית, ומזעור אורך קטע כבעיית קיצון טריגונומטרית",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "להביע את צלע המעוין באמצעות הזווית, מתוך שטח משולש נתון",
+          "skills": [
+            { "skill": "שטח משולש בעזרת סינוס", "area": "plane_trig", "role": "asked" },
+            { "skill": "תכונות מעוין", "area": "plane_geometry", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "לחשב את האורך המינימלי של קטע מקודקוד לאמצע צלע",
+          "skills": [
+            { "skill": "בעיית קיצון (מינימום)", "area": "calc_optimization", "role": "asked" },
+            { "skill": "משפט הקוסינוסים", "area": "plane_trig", "role": "required" },
+            { "skill": "מזעור ריבוע הביטוי במקום השורש", "area": "calc_optimization", "role": "required" },
+            { "skill": "נגזרת של מנה", "area": "calc_derivative", "role": "required" },
+            { "skill": "נגזרת של sin ו־cos", "area": "calc_trig", "role": "required" },
+            { "skill": "זהות פיתגורית sin²+cos²=1", "area": "plane_trig", "role": "required" },
+            { "skill": "משוואה טריגונומטרית בסיסית", "area": "plane_trig", "role": "required" },
+            { "skill": "סוג נקודת קיצון לפי סימן הנגזרת", "area": "calc_derivative", "role": "required" }
+          ]
+        }
+      ]
+    }
+  ]
+}

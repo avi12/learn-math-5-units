@@ -1,0 +1,313 @@
+{
+  "paper": "35572_2024_8",
+  "sealed": false,
+  "cover": {
+    "duration": "שלוש שעות",
+    "answer_rule": "יש לענות על שלוש שאלות לבחירתכם (ענו על שלוש מן השאלות 1–5). שימו לב: אם תענו על יותר משלוש שאלות, ייבדקו רק שלוש התשובות הראשונות שבמחברתכם.",
+    "points": "33⅓×3 = 100 נקודות (לכל שאלה – 33⅓ נקודות)"
+  },
+  "questions": [
+    {
+      "q": "1",
+      "chapter": "פרק ראשון – גאומטרייה אנליטית, וקטורים, טריגונומטרייה במרחב, מספרים מרוכבים",
+      "summary": "מעוין שאלכסוניו על הצירים ומעגל החסום בו; מקום גאומטרי שהוא פרבולה, ושני מעגלים המשיקים למעגל החסום",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "משוואת צלע של המעוין, מתוך אורך אלכסון אחד והמרחק השווה של הצלעות מהראשית",
+          "skills": [
+            { "skill": "משוואת ישר", "area": "analytic_geometry", "role": "asked" },
+            { "skill": "אלכסוני מעוין חוצים זה את זה ומאונכים", "area": "plane_geometry", "role": "required" },
+            { "skill": "משוואת ישר דרך שתי נקודות", "area": "analytic_geometry", "role": "required" },
+            { "skill": "מרחק נקודה מישר", "area": "analytic_geometry", "role": "required" },
+            { "skill": "משוואה עם שורש (העלאה בריבוע)", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "משוואת המעגל החסום במעוין",
+          "skills": [
+            { "skill": "משוואת מעגל", "area": "analytic_geometry", "role": "asked" },
+            { "skill": "מרכז מעגל חסום — מפגש חוצי הזוויות", "area": "plane_geometry", "role": "required" },
+            { "skill": "אלכסוני מעוין חוצים את זוויותיו", "area": "plane_geometry", "role": "required" },
+            { "skill": "רדיוס כמרחק המרכז מישר משיק", "area": "analytic_geometry", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "שיעורי נקודת ההשקה של המעגל עם צלע המעוין ברביע הראשון",
+          "skills": [
+            { "skill": "משיק מאונך לרדיוס בנקודת ההשקה", "area": "plane_geometry", "role": "required" },
+            { "skill": "שיפועים של ישרים מאונכים", "area": "analytic_geometry", "role": "required" },
+            { "skill": "נקודת חיתוך של שני ישרים", "area": "analytic_geometry", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "להראות שהמקום הגאומטרי של נקודות החיתוך בין ישר אופקי לאנך האמצעי של קטע משתנה הוא פרבולה, ולמצוא את משוואתה",
+          "skills": [
+            { "skill": "מציאת מקום גאומטרי", "area": "analytic_geometry", "role": "asked" },
+            { "skill": "משוואת פרבולה y²=2px", "area": "analytic_geometry", "role": "asked" },
+            { "skill": "פרבולה כמקום גאומטרי: מוקד ומדריך", "area": "analytic_geometry", "role": "required" },
+            { "skill": "אנך אמצעי — שוויון מרחקים מקצות הקטע", "area": "plane_geometry", "role": "required" },
+            { "skill": "מרחק בין שתי נקודות", "area": "analytic_geometry", "role": "required" }
+          ]
+        },
+        {
+          "part": "ה",
+          "asks": "משוואות שני המעגלים שמרכזם בנקודה נתונה על הפרבולה והמשיקים למעגל החסום",
+          "skills": [
+            { "skill": "משוואת מעגל", "area": "analytic_geometry", "role": "asked" },
+            { "skill": "השקת שני מעגלים — מרחק מרכזים כסכום או הפרש רדיוסים", "area": "analytic_geometry", "role": "required" },
+            { "skill": "נקודה על עקום — הצבה במשוואתו", "area": "analytic_geometry", "role": "required" },
+            { "skill": "מרחק בין שתי נקודות", "area": "analytic_geometry", "role": "required" },
+            { "skill": "פישוט ביטויים עם שורשים", "area": "algebra", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "2",
+      "chapter": "פרק ראשון – גאומטרייה אנליטית, וקטורים, טריגונומטרייה במרחב, מספרים מרוכבים",
+      "summary": "פירמידה שבסיסה ריבוע: הצגת וקטורים כצירוף, מכפלה סקלרית, זווית בין מקצוע צדדי לבסיס, משוואת מישור הבסיס ושיעורי קודקוד",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "להביע שני וקטורים של צלעות הבסיס באמצעות שלושה וקטורים היוצאים מקודקוד הפירמידה",
+          "skills": [
+            { "skill": "הצגת וקטור כצירוף של וקטורים נתונים", "area": "vectors", "role": "asked" },
+            { "skill": "חיבור וחיסור וקטורים (כלל המצולע)", "area": "vectors", "role": "required" },
+            { "skill": "וקטור לאמצע קטע", "area": "vectors", "role": "required" },
+            { "skill": "משפט קטע אמצעים במשולש", "area": "plane_geometry", "role": "required" },
+            { "skill": "וקטורים שווים — צלעות נגדיות במקבילית", "area": "vectors", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "ערך המכפלה הסקלרית בין וקטור הגובה לווקטור מקצוע צדדי, כשאורך הגובה נתון",
+          "skills": [
+            { "skill": "מכפלה סקלרית", "area": "vectors", "role": "asked" },
+            { "skill": "מכפלה סקלרית של וקטורים מאונכים שווה אפס", "area": "vectors", "role": "required" },
+            { "skill": "פילוג מכפלה סקלרית ו־u·u=|u|²", "area": "vectors", "role": "required" },
+            { "skill": "גובה פירמידה מאונך לכל ישר בבסיס", "area": "space_trig", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "גודל הזווית בין מקצוע צדדי לבסיס, כשווקטור של צלע הבסיס נתון בשיעורים",
+          "skills": [
+            { "skill": "זווית בין ישר למישור", "area": "space_trig", "role": "asked" },
+            { "skill": "אורך וקטור לפי שיעוריו", "area": "vectors", "role": "required" },
+            { "skill": "משפט פיתגורס", "area": "plane_geometry", "role": "required" },
+            { "skill": "יחסים טריגונומטריים במשולש ישר־זווית", "area": "plane_trig", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "משוואת מישור הבסיס, בהינתן נקודה בו ושהוא מקביל לציר z",
+          "skills": [
+            { "skill": "משוואת מישור", "area": "vectors", "role": "asked" },
+            { "skill": "מישור מקביל לציר — משתנה חסר במשוואה", "area": "vectors", "role": "required" },
+            { "skill": "וקטור נורמל מאונך לווקטורים שבמישור", "area": "vectors", "role": "required" },
+            { "skill": "הצבת נקודה במשוואת מישור", "area": "vectors", "role": "required" }
+          ]
+        },
+        {
+          "part": "ה",
+          "asks": "שיעורי קודקוד בסיס כששיעור ה־x שלו נתון",
+          "skills": [
+            { "skill": "מציאת שיעורי נקודה במרחב מתנאים", "area": "vectors", "role": "asked" },
+            { "skill": "הצבת נקודה במשוואת מישור", "area": "vectors", "role": "required" },
+            { "skill": "מרחק בין שתי נקודות במרחב", "area": "vectors", "role": "required" },
+            { "skill": "אלכסוני ריבוע שווים וחוצים זה את זה", "area": "plane_geometry", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "3",
+      "chapter": "פרק ראשון – גאומטרייה אנליטית, וקטורים, טריגונומטרייה במרחב, מספרים מרוכבים",
+      "summary": "שורשי משוואה ממעלה שישית במרוכבים ומרובע שקודקודיו ארבעה מהם: שטח, סיבוב סביב הראשית ומכפלת הקודקודים",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "(1) כל פתרונות משוואה ממעלה שישית במרוכבים; (2) ארבעת הפתרונות של משוואה שברית שמונהּ הוא אותו ביטוי",
+          "skills": [
+            { "skill": "הוצאת שורש ממספר מרוכב (דה־מואבר)", "area": "complex", "role": "asked" },
+            { "skill": "הצגה קוטבית של מרוכב", "area": "complex", "role": "required" },
+            { "skill": "משוואה שברית: מונה אפס ומכנה שונה מאפס", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "שטח המרובע שקודקודיו ארבעת הפתרונות במישור גאוס",
+          "skills": [
+            { "skill": "שטח מרובע לפי אלכסונים וסינוס הזווית ביניהם", "area": "plane_trig", "role": "asked" },
+            { "skill": "הצגה גאומטרית של מרוכב במישור גאוס", "area": "complex", "role": "required" },
+            { "skill": "שורשי מרוכב על מעגל במרווחי זווית שווים", "area": "complex", "role": "required" },
+            { "skill": "זיהוי מלבן ותכונות אלכסוניו", "area": "plane_geometry", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "ערך מכפלת המספרים המייצגים את הקודקודים אחרי סיבוב ב־45°, עם נימוק",
+          "skills": [
+            { "skill": "מכפלת מרוכבים בהצגה קוטבית", "area": "complex", "role": "asked" },
+            { "skill": "סיבוב במישור גאוס — כפל ב־cis α", "area": "complex", "role": "required" },
+            { "skill": "מחזוריות הארגומנט (הפחתת 360°)", "area": "complex", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "(1) שתי זוויות סיבוב בתחום נתון שבעבורן המכפלה היא מדומה טהור; (2) ערך המכפלה בכל אחת מהן",
+          "skills": [
+            { "skill": "מספר מדומה טהור — ארגומנט 90° או 270°", "area": "complex", "role": "asked" },
+            { "skill": "מכפלת מרוכבים בהצגה קוטבית", "area": "complex", "role": "required" },
+            { "skill": "סיבוב במישור גאוס — כפל ב־cis α", "area": "complex", "role": "required" },
+            { "skill": "משוואה בארגומנט עם מחזוריות בתחום נתון", "area": "complex", "role": "required" },
+            { "skill": "מעבר מהצגה קוטבית להצגה אלגברית", "area": "complex", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "4",
+      "chapter": "פרק שני – גדילה ודעיכה, פונקציות מעריכיות ולוגריתמיות",
+      "summary": "חקירת שתי פונקציות מעריכיות ונקודות החיתוך שלהן, ושימוש בהן לחקירת מנה של ביטוי מעריכי בביטוי ליניארי",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "(1) אסימפטוטה אופקית לכל אחת משתי הפונקציות; (2) תחומי העלייה והירידה של כל אחת; (3) חיתוך כל גרף עם ציר y",
+          "skills": [
+            { "skill": "אסימפטוטה אופקית", "area": "calc_derivative", "role": "asked" },
+            { "skill": "גבול e^x כש־x שואף למינוס אין־סוף", "area": "exp_log", "role": "required" },
+            { "skill": "קצב גידול: מעריכית גוברת על פולינום", "area": "exp_log", "role": "required" },
+            { "skill": "תחומי עלייה וירידה לפי סימן הנגזרת", "area": "calc_derivative", "role": "asked" },
+            { "skill": "גזירת e^x", "area": "exp_log", "role": "required" },
+            { "skill": "נגזרת של מכפלה", "area": "calc_derivative", "role": "required" },
+            { "skill": "e^x חיובית לכל x", "area": "exp_log", "role": "required" },
+            { "skill": "חיתוך גרף עם ציר y", "area": "calc_derivative", "role": "asked" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "סקיצה של שני הגרפים באותה מערכת צירים, עם שתי נקודות החיתוך",
+          "skills": [
+            { "skill": "סרטוט סקיצה של גרף פונקציה", "area": "calc_derivative", "role": "asked" },
+            { "skill": "נקודות קיצון וסוגן", "area": "calc_derivative", "role": "required" },
+            { "skill": "מיקום יחסי של שני גרפים ונקודות חיתוכם", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "(1) האסימפטוטות המאונכות לצירים של פונקציית המנה; (2) חיתוך הגרף שלה עם ציר x",
+          "skills": [
+            { "skill": "אסימפטוטה אנכית", "area": "calc_derivative", "role": "asked" },
+            { "skill": "אסימפטוטה אופקית", "area": "calc_derivative", "role": "asked" },
+            { "skill": "גבול e^x כש־x שואף למינוס אין־סוף", "area": "exp_log", "role": "required" },
+            { "skill": "קצב גידול: מעריכית גוברת על פולינום", "area": "exp_log", "role": "required" },
+            { "skill": "חיתוך גרף עם ציר x", "area": "calc_derivative", "role": "asked" },
+            { "skill": "משוואה מעריכית פשוטה", "area": "exp_log", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "להסביר מדוע למשוואה שבה הנגזרת שווה לאפס יש בדיוק שני פתרונות",
+          "skills": [
+            { "skill": "מספר פתרונות משוואה כמספר נקודות חיתוך של גרפים", "area": "calc_derivative", "role": "asked" },
+            { "skill": "נגזרת של מנה", "area": "calc_derivative", "role": "required" },
+            { "skill": "גזירת e^x", "area": "exp_log", "role": "required" },
+            { "skill": "פסילת פתרונות שמחוץ לתחום ההגדרה", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ה",
+          "asks": "(1) להסביר מדוע נקודת החיתוך השנייה גדולה מ־1; (2) להביע באמצעות שתי נקודות החיתוך את תחומי העלייה והירידה של פונקציית המנה",
+          "skills": [
+            { "skill": "מיקום נקודת חיתוך לפי סימן הפרש הפונקציות", "area": "calc_derivative", "role": "asked" },
+            { "skill": "תחומי עלייה וירידה לפי סימן הנגזרת", "area": "calc_derivative", "role": "asked" },
+            { "skill": "סימן הנגזרת מהמיקום היחסי של שני גרפים", "area": "calc_derivative", "role": "required" },
+            { "skill": "טבלת סימנים עם נקודת אי־הגדרה", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ו",
+          "asks": "סקיצה של גרף פונקציית המנה",
+          "skills": [
+            { "skill": "סרטוט סקיצה של גרף פונקציה", "area": "calc_derivative", "role": "asked" },
+            { "skill": "התנהגות פונקציה ליד אסימפטוטה אנכית", "area": "calc_derivative", "role": "required" },
+            { "skill": "נקודות קיצון וסוגן", "area": "calc_derivative", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "5",
+      "chapter": "פרק שני – גדילה ודעיכה, פונקציות מעריכיות ולוגריתמיות",
+      "summary": "מנה עם ln שגרפה נתון: פונקציה קדומה לפי ערך הקיצון שלה, וחקירת פונקציה שהקדומה במכנה שלה, עם פרמטר והתאמת גרף",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "חיתוך גרף הפונקציה הנתונה עם ציר x",
+          "skills": [
+            { "skill": "חיתוך גרף עם ציר x", "area": "calc_derivative", "role": "asked" },
+            { "skill": "משוואה לוגריתמית פשוטה", "area": "exp_log", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "(1) למצוא פונקציה שנגזרתה היא הפונקציה הנתונה וערך הקיצון שלה נתון; (2) חיתוכיה עם ציר x; (3) סקיצה שלה",
+          "skills": [
+            { "skill": "פונקציה קדומה (אינטגרל לא מסוים)", "area": "calc_integral", "role": "asked" },
+            { "skill": "פונקציה קדומה של (f(x))ⁿ·f'(x)", "area": "calc_integral", "role": "required" },
+            { "skill": "פונקציה קדומה של 1/x", "area": "exp_log", "role": "required" },
+            { "skill": "נקודת קיצון — התאפסות הנגזרת", "area": "calc_derivative", "role": "required" },
+            { "skill": "מציאת קבוע האינטגרציה מנקודה נתונה", "area": "calc_integral", "role": "required" },
+            { "skill": "חוקי לוגריתמים", "area": "exp_log", "role": "required" },
+            { "skill": "חיתוך גרף עם ציר x", "area": "calc_derivative", "role": "asked" },
+            { "skill": "הוצאת גורם משותף", "area": "algebra", "role": "required" },
+            { "skill": "משוואה לוגריתמית פשוטה", "area": "exp_log", "role": "required" },
+            { "skill": "סרטוט סקיצה של גרף פונקציה", "area": "calc_derivative", "role": "asked" },
+            { "skill": "קריאת סימן הנגזרת מגרף הנגזרת", "area": "calc_derivative", "role": "required" },
+            { "skill": "גבול ln x כש־x שואף לאפס מימין", "area": "exp_log", "role": "required" },
+            { "skill": "אסימפטוטה אנכית", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "(1) תחום ההגדרה של פונקציה שהקדומה נמצאת במכנה שלה; (2) האם הגרף שלה חותך את ציר x, עם נימוק",
+          "skills": [
+            { "skill": "תחום הגדרה של שבר (מכנה שונה מאפס)", "area": "algebra", "role": "asked" },
+            { "skill": "תחום הגדרה של ln", "area": "exp_log", "role": "required" },
+            { "skill": "חיתוך גרף עם ציר x", "area": "calc_derivative", "role": "asked" },
+            { "skill": "משוואה שברית", "area": "algebra", "role": "required" },
+            { "skill": "טווח ערכים של פונקציה מנקודות הקיצון", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "שיעורי נקודת הקיצון של הפונקציה עם הפרמטר וסוגה, באמצעות הפרמטר",
+          "skills": [
+            { "skill": "נקודות קיצון וסוגן", "area": "calc_derivative", "role": "asked" },
+            { "skill": "חקירת פונקציה עם פרמטר", "area": "calc_derivative", "role": "asked" },
+            { "skill": "נגזרת של מנה", "area": "calc_derivative", "role": "required" },
+            { "skill": "קביעת סוג קיצון מסימן הנגזרת", "area": "calc_derivative", "role": "required" },
+            { "skill": "טבלת סימנים עם נקודת אי־הגדרה", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ה",
+          "asks": "לבחור מבין ארבעה גרפים את זה המתאר את הפונקציה עם הפרמטר",
+          "skills": [
+            { "skill": "התאמת גרף לפונקציה לפי תכונותיה", "area": "calc_derivative", "role": "asked" },
+            { "skill": "אסימפטוטה אנכית", "area": "calc_derivative", "role": "required" },
+            { "skill": "אסימפטוטה אופקית", "area": "calc_derivative", "role": "required" },
+            { "skill": "גבול ln x כש־x שואף לאפס מימין", "area": "exp_log", "role": "required" },
+            { "skill": "תחומי חיוביות ושליליות", "area": "calc_derivative", "role": "required" },
+            { "skill": "תחומי עלייה וירידה לפי סימן הנגזרת", "area": "calc_derivative", "role": "required" }
+          ]
+        }
+      ]
+    }
+  ]
+}

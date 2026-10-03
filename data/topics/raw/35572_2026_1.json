@@ -1,0 +1,321 @@
+{
+  "paper": "35572_2026_1",
+  "sealed": false,
+  "cover": {
+    "duration": "שעתיים וחצי",
+    "answer_rule": "בשאלון זה שני פרקים, ובהם חמש שאלות. יש לענות על שלוש שאלות, על שאלה אחת לפחות מכל פרק (ענו על שלוש מן השאלות 1–5; אם תענו על יותר משלוש שאלות, ייבדקו רק שלוש התשובות הראשונות שבמחברתכם).",
+    "points": "33⅓×3 = 100 נקודות (לכל שאלה – 33⅓ נקודות)"
+  },
+  "questions": [
+    {
+      "q": "1",
+      "chapter": "פרק ראשון – גאומטרייה אנליטית, וקטורים, טריגונומטרייה במרחב, מספרים מרוכבים",
+      "summary": "אליפסה קנונית מנקודה ומוקד, מקום גאומטרי של אמצעי קטעים (ישר מקביל), ומעגל המשיק לשני ישרים מקבילים",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "משוואת האליפסה הקנונית מתוך נקודה עליה ושיעורי המוקד",
+          "skills": [
+            { "skill": "משוואה קנונית של אליפסה", "area": "analytic_geometry", "role": "asked" },
+            { "skill": "הקשר בין הצירים למוקד באליפסה", "area": "analytic_geometry", "role": "required" },
+            { "skill": "הצבת נקודה במשוואת עקום", "area": "analytic_geometry", "role": "required" },
+            { "skill": "מערכת משוואות בשני נעלמים", "area": "algebra", "role": "required" },
+            { "skill": "נוסחת השורשים", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "המקום הגאומטרי של אמצעי הקטעים בין קודקוד האליפסה על ציר x ונקודה משתנה על ישר דרך הראשית",
+          "skills": [
+            { "skill": "מקום גאומטרי — מציאת משוואה", "area": "analytic_geometry", "role": "asked" },
+            { "skill": "נקודות חיתוך אליפסה עם הצירים", "area": "analytic_geometry", "role": "required" },
+            { "skill": "משוואת ישר דרך שתי נקודות", "area": "analytic_geometry", "role": "required" },
+            { "skill": "נוסחת אמצע קטע", "area": "analytic_geometry", "role": "required" },
+            { "skill": "סילוק פרמטר ממשוואות", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "משוואת מעגל המשיק לישר AO בראשית ומשיק גם למקום הגאומטרי (ישר מקביל)",
+          "skills": [
+            { "skill": "משוואת מעגל ממרכז ורדיוס", "area": "analytic_geometry", "role": "asked" },
+            { "skill": "משיק למעגל מאונך לרדיוס", "area": "analytic_geometry", "role": "required" },
+            { "skill": "שיפועים של ישרים מאונכים", "area": "analytic_geometry", "role": "required" },
+            { "skill": "ישרים מקבילים — שיפוע שווה", "area": "analytic_geometry", "role": "required" },
+            { "skill": "מרחק נקודה מישר", "area": "analytic_geometry", "role": "required" },
+            { "skill": "ישר משיק למעגל — מרחק המרכז שווה לרדיוס", "area": "analytic_geometry", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "2",
+      "chapter": "פרק ראשון – גאומטרייה אנליטית, וקטורים, טריגונומטרייה במרחב, מספרים מרוכבים",
+      "summary": "תיבה במרחב: מקצוע כמרחק מנקודה למישור, קודקוד על ישר פרמטרי, משוואת פאה, פרמטר מזווית בין ישרים ונפח התיבה",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "אורך המקצוע האנכי של התיבה, מתוך משוואת הפאה העליונה וקודקוד תחתון",
+          "skills": [
+            { "skill": "מרחק נקודה ממישור", "area": "vectors", "role": "asked" },
+            { "skill": "מקצוע צדדי בתיבה מאונך לבסיס", "area": "space_trig", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "שיעורי קודקוד על ישר נתון בהצגה פרמטרית, לפי אורך המקצוע ותנאי סימן",
+          "skills": [
+            { "skill": "הצגה פרמטרית של ישר במרחב", "area": "vectors", "role": "asked" },
+            { "skill": "גודל (אורך) של וקטור", "area": "vectors", "role": "required" },
+            { "skill": "נקודה על ישר במרחק נתון", "area": "vectors", "role": "required" },
+            { "skill": "משוואה עם ערך מוחלט", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "משוואת מישור של פאה צדדית המכילה את AB ואת המקצוע האנכי",
+          "skills": [
+            { "skill": "משוואת מישור מנקודה ונורמל", "area": "vectors", "role": "asked" },
+            { "skill": "נורמל למישור ככיוון ישר מאונך", "area": "vectors", "role": "required" },
+            { "skill": "מכפלה וקטורית", "area": "vectors", "role": "required" },
+            { "skill": "מכפלה סקלרית — תנאי ניצבות", "area": "vectors", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "ערך פרמטר חיובי בשיעורי נקודה, כך שהזווית בין שני ישרים היא 60 מעלות",
+          "skills": [
+            { "skill": "זווית בין שני ישרים במרחב", "area": "vectors", "role": "asked" },
+            { "skill": "מכפלה סקלרית", "area": "vectors", "role": "required" },
+            { "skill": "גודל (אורך) של וקטור", "area": "vectors", "role": "required" },
+            { "skill": "ערך מדויק של cos 60°", "area": "plane_trig", "role": "required" },
+            { "skill": "משוואה עם שורש — העלאה בריבוע", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ה",
+          "asks": "נפח התיבה, כשנתון שהנקודה M נמצאת על הפאה הנגדית",
+          "skills": [
+            { "skill": "נפח תיבה", "area": "space_trig", "role": "asked" },
+            { "skill": "פאות נגדיות בתיבה — מישורים מקבילים", "area": "space_trig", "role": "required" },
+            { "skill": "מרחק נקודה ממישור", "area": "vectors", "role": "required" },
+            { "skill": "פישוט ביטויים עם שורשים", "area": "algebra", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "3",
+      "chapter": "פרק ראשון – גאומטרייה אנליטית, וקטורים, טריגונומטרייה במרחב, מספרים מרוכבים",
+      "summary": "מקום גאומטרי מרוכב שהוא פרבולה, שורשי משוואה מרוכבת כקודקודי מצולע, מעוין מ־w ו־1/w, ויחס שטחים",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "להראות שמקום גאומטרי של מרוכבים המוגדר בערך מוחלט ובצמוד הוא פרבולה ולמצוא את משוואתה",
+          "skills": [
+            { "skill": "מקום גאומטרי במישור גאוס", "area": "complex", "role": "asked" },
+            { "skill": "משוואת פרבולה קנונית", "area": "analytic_geometry", "role": "asked" },
+            { "skill": "הצגה אלגברית של מספר מרוכב", "area": "complex", "role": "required" },
+            { "skill": "מספר מרוכב צמוד", "area": "complex", "role": "required" },
+            { "skill": "ערך מוחלט של מספר מרוכב", "area": "complex", "role": "required" },
+            { "skill": "משוואה עם שורש — העלאה בריבוע", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "הצגה קוטבית של כל פתרונות משוואה מסוג z בחזקת 4 שווה למרוכב נתון, באמצעות r ו־θ",
+          "skills": [
+            { "skill": "הוצאת שורש ממספר מרוכב", "area": "complex", "role": "asked" },
+            { "skill": "הצגה קוטבית של מרוכב", "area": "complex", "role": "asked" },
+            { "skill": "משפט דה־מואבר", "area": "complex", "role": "required" },
+            { "skill": "מחזוריות הארגומנט (360°)", "area": "complex", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "הצגה קוטבית של w, של הנגדי לו, של ההופכי לו ושל נגדי ההופכי",
+          "skills": [
+            { "skill": "הצגה קוטבית של מרוכב", "area": "complex", "role": "asked" },
+            { "skill": "הופכי של מרוכב בהצגה קוטבית", "area": "complex", "role": "required" },
+            { "skill": "כפל ב־(−1) כסיבוב ב־180°", "area": "complex", "role": "required" },
+            { "skill": "זהויות מעבר לזווית נגדית ומשלימה", "area": "plane_trig", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "ערך θ כשהמצולע שקודקודיו ±w ו־±1/w הוא מעוין",
+          "skills": [
+            { "skill": "תכונות אלכסוני מעוין", "area": "plane_geometry", "role": "asked" },
+            { "skill": "ארגומנט כזווית עם ציר x", "area": "complex", "role": "required" },
+            { "skill": "אלכסונים חוצים זה את זה — מקבילית", "area": "plane_geometry", "role": "required" }
+          ]
+        },
+        {
+          "part": "ה",
+          "asks": "היחס בין שטחי שני המצולעים, כשנתון ש־w נמצא על הפרבולה מסעיף א",
+          "skills": [
+            { "skill": "שטח מעוין לפי אלכסונים", "area": "plane_geometry", "role": "asked" },
+            { "skill": "מעבר מהצגה קוטבית לאלגברית", "area": "complex", "role": "required" },
+            { "skill": "ערכים מדויקים של sin ו־cos 45°", "area": "plane_trig", "role": "required" },
+            { "skill": "הצבת נקודה במשוואת עקום", "area": "analytic_geometry", "role": "required" },
+            { "skill": "שורשי מרוכב כקודקודי מצולע משוכלל", "area": "complex", "role": "required" },
+            { "skill": "שטח ריבוע לפי אלכסון", "area": "plane_geometry", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "4",
+      "chapter": "פרק שני – גדילה ודעיכה, פונקציות מעריכיות ולוגריתמיות",
+      "summary": "הפונקצייה g=e^f·f' — סימן מתוך ירידת f, ואז עם f=1/x: אסימפטוטות, קיצון, סקיצה ושטח שמוביל לפרמטר",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "תחומי חיוביות ושליליות של g מתוך נתונים כלליים על ירידת f, עם נימוק",
+          "skills": [
+            { "skill": "תחומי חיוביות ושליליות", "area": "calc_derivative", "role": "asked" },
+            { "skill": "פונקציה מעריכית תמיד חיובית", "area": "exp_log", "role": "required" },
+            { "skill": "סימן הנגזרת ומונוטוניות", "area": "calc_derivative", "role": "required" },
+            { "skill": "סימן של מכפלה", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב(1)",
+          "asks": "משוואות האסימפטוטות המאונכות לצירים של g כש־f=1/x",
+          "skills": [
+            { "skill": "אסימפטוטה אנכית", "area": "calc_derivative", "role": "asked" },
+            { "skill": "אסימפטוטה אופקית", "area": "calc_derivative", "role": "asked" },
+            { "skill": "גבולות חד־צדדיים", "area": "calc_derivative", "role": "required" },
+            { "skill": "גבולות של e^x באין־סוף", "area": "exp_log", "role": "required" },
+            { "skill": "מעריכית גוברת על חזקה בגבול", "area": "exp_log", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב(2)",
+          "asks": "שיעורי נקודת הקיצון של g וסוגה",
+          "skills": [
+            { "skill": "נקודות קיצון וסוגן", "area": "calc_derivative", "role": "asked" },
+            { "skill": "גזירת e^{u(x)} (כלל השרשרת)", "area": "exp_log", "role": "required" },
+            { "skill": "נגזרת של מכפלה", "area": "calc_derivative", "role": "required" },
+            { "skill": "נגזרת של חזקה שלילית", "area": "calc_derivative", "role": "required" },
+            { "skill": "טבלת סימני נגזרת", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "סקיצה של גרף g",
+          "skills": [
+            { "skill": "סרטוט סקיצה מחקירה", "area": "calc_derivative", "role": "asked" },
+            { "skill": "תחומי עלייה וירידה", "area": "calc_derivative", "role": "required" },
+            { "skill": "גבולות חד־צדדיים", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד",
+          "asks": "ערך הפרמטר a, מתוך שטח נתון בין g, ציר x ושני ישרים אנכיים התלויים ב־ln a",
+          "skills": [
+            { "skill": "שטח בין גרף לציר x", "area": "calc_integral", "role": "asked" },
+            { "skill": "אינטגרל של e^{f(x)}·f'(x)", "area": "exp_log", "role": "required" },
+            { "skill": "שטח מתחת לציר x — ערך מוחלט של האינטגרל", "area": "calc_integral", "role": "required" },
+            { "skill": "e^{ln a}=a — פונקציות הפוכות", "area": "exp_log", "role": "required" },
+            { "skill": "מונוטוניות ln להשוואת גבולות", "area": "exp_log", "role": "required" },
+            { "skill": "משפט היסודי — הצבת גבולות", "area": "calc_integral", "role": "required" }
+          ]
+        }
+      ]
+    },
+    {
+      "q": "5",
+      "chapter": "פרק שני – גדילה ודעיכה, פונקציות מעריכיות ולוגריתמיות",
+      "summary": "פונקצייה עם ln במכנה: תחום, פרמטר מקיצון, מציאת קדומה מנקודת פיתול, חקירתה, ובחירת גרף ל־ln|g|",
+      "parts": [
+        {
+          "part": "א",
+          "asks": "תחום ההגדרה של פונקצייה עם 1/x ועם ln x בריבוע במכנה",
+          "skills": [
+            { "skill": "תחום הגדרה של ln", "area": "exp_log", "role": "asked" },
+            { "skill": "תחום הגדרה — מכנה שונה מאפס", "area": "algebra", "role": "required" },
+            { "skill": "ln x = 0 כאשר x=1", "area": "exp_log", "role": "required" }
+          ]
+        },
+        {
+          "part": "ב",
+          "asks": "ערך הפרמטר a, כשנתון קיצון יחיד ב־x=1/e",
+          "skills": [
+            { "skill": "תנאי הכרחי לקיצון — נגזרת מתאפסת", "area": "calc_derivative", "role": "asked" },
+            { "skill": "גזירת ln x", "area": "exp_log", "role": "required" },
+            { "skill": "גזירת חזקה של פונקציה (כלל השרשרת)", "area": "calc_derivative", "role": "required" },
+            { "skill": "נגזרת של מכפלה", "area": "calc_derivative", "role": "required" },
+            { "skill": "ln של חזקה של e", "area": "exp_log", "role": "required" }
+          ]
+        },
+        {
+          "part": "ג",
+          "asks": "פונקציה קדומה g ל־f שיש לה נקודת פיתול על ציר x",
+          "skills": [
+            { "skill": "פונקציה קדומה ואינטגרל לא מסוים", "area": "calc_integral", "role": "asked" },
+            { "skill": "אינטגרל של 1/x", "area": "exp_log", "role": "required" },
+            { "skill": "אינטגרל של [f(x)]^n·f'(x)", "area": "calc_integral", "role": "required" },
+            { "skill": "נקודת פיתול — נגזרת שנייה מתאפסת ומחליפה סימן", "area": "calc_derivative", "role": "required" },
+            { "skill": "מציאת קבוע האינטגרציה מנקודה", "area": "calc_integral", "role": "required" },
+            { "skill": "פירוק פולינום ממעלה שלישית", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד(1)",
+          "asks": "אסימפטוטות מאונכות לצירים של g (אם יש)",
+          "skills": [
+            { "skill": "אסימפטוטה אנכית", "area": "calc_derivative", "role": "asked" },
+            { "skill": "אסימפטוטה אופקית", "area": "calc_derivative", "role": "asked" },
+            { "skill": "גבולות של ln x ב־0 ובאין־סוף", "area": "exp_log", "role": "required" },
+            { "skill": "גבולות חד־צדדיים", "area": "calc_derivative", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד(2)",
+          "asks": "נקודות החיתוך של g עם ציר x",
+          "skills": [
+            { "skill": "נקודות חיתוך עם הצירים", "area": "calc_derivative", "role": "asked" },
+            { "skill": "משוואה לוגריתמית בהצבת משתנה עזר", "area": "exp_log", "role": "required" },
+            { "skill": "משוואה ריבועית פשוטה", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ד(3)",
+          "asks": "תחומי עלייה וירידה של g (אם יש)",
+          "skills": [
+            { "skill": "תחומי עלייה וירידה", "area": "calc_derivative", "role": "asked" },
+            { "skill": "סימן הנגזרת ומונוטוניות", "area": "calc_derivative", "role": "required" },
+            { "skill": "ביטוי חיובי לכל x בתחום", "area": "algebra", "role": "required" }
+          ]
+        },
+        {
+          "part": "ה",
+          "asks": "סקיצה של גרף g",
+          "skills": [
+            { "skill": "סרטוט סקיצה מחקירה", "area": "calc_derivative", "role": "asked" }
+          ]
+        },
+        {
+          "part": "ו(1)",
+          "asks": "תחום ההגדרה של ln של הערך המוחלט של g",
+          "skills": [
+            { "skill": "תחום הגדרה של ln", "area": "exp_log", "role": "asked" },
+            { "skill": "ln של ערך מוחלט — ארגומנט שונה מאפס", "area": "exp_log", "role": "required" }
+          ]
+        },
+        {
+          "part": "ו(2)",
+          "asks": "לבחור מבין ארבעה גרפים את זה של ln|g| ולנמק",
+          "skills": [
+            { "skill": "זיהוי גרף מתכונות הפונקציה", "area": "calc_derivative", "role": "asked" },
+            { "skill": "גבולות של ln x ב־0 ובאין־סוף", "area": "exp_log", "role": "required" },
+            { "skill": "ln מונוטונית עולה — שימור עלייה וירידה", "area": "exp_log", "role": "required" },
+            { "skill": "גרף של ערך מוחלט של פונקציה", "area": "algebra", "role": "required" },
+            { "skill": "אסימפטוטה אנכית", "area": "calc_derivative", "role": "required" }
+          ]
+        }
+      ]
+    }
+  ]
+}
