@@ -79,8 +79,13 @@ def prompt_text(title: str, grader: str, paper: str = "35571") -> str:
     expression its own LTR box, so it says what it means. Hence "every expression, even
     the shortest": the ones that flip are precisely the short ones.
 
-    The video paragraph is Avi's too: a gap the check finds gets a video, YouTube first,
-    and a Manim animation the model builds itself when no video explains that exact
+    The visual paragraph is Avi's too: a gap the check finds gets a video, YouTube first.
+    Without one, the default is an SVG artifact narrated in Hebrew by Avi's Edge Read Aloud
+    extension (reverse-engineer-edge-tts): a chat cannot run its narrate CLI, so the
+    extension reads the page's data-narrate scripts itself and drives the data-cue parts
+    live - the prompt only has to teach that contract. A chat-made Manim video stays for
+    continuous motion SVG cannot draw, and keeps its own voiceover below.
+    That video is a Manim animation the model builds itself when no video explains that exact
     thing, on a white background (Avi's ask) — so every mobject must be set dark, since
     Manim's default colour is white and would vanish. Hebrew captions go through Manim's Text, not Tex — LaTeX has no Hebrew, the
     same trap as KaTeX's \\text{} in this repo's own pages.
@@ -159,11 +164,36 @@ def prompt_text(title: str, grader: str, paper: str = "35571") -> str:
 אם לא מצאת מקור רשמי — אמור זאת במפורש ואל תמציא מחוון. עדיף "לא מצאתי" על
 פני ניחוש שנשמע סמכותי.
 
-סרטון לכל פער. בכל מקום שבו הפתרון שלי מראה שלא הבנתי משהו — שלב שנשבר,
-כלל שלא הכרתי — צרף הסבר מצולם לנושא הזה בדיוק:
+הסבר חזותי לכל פער. בכל מקום שבו הפתרון שלי מראה שלא הבנתי משהו — שלב
+שנשבר, כלל שלא הכרתי — צרף הסבר שרואים ושומעים, לנושא הזה בדיוק:
  - קודם חפש ביוטיוב, עדיף בעברית. תן קישור לסרטון שבאמת מצאת ופתחת, ואמור
    מה בו עונה על הפער. אל תמציא קישור, ואל תקשר לסרטון שפותר שאלון בגרות אמיתי.
- - לא מצאת סרטון שמסביר בדיוק את זה? צור אנימציה מתמטית בעצמך ב‑‎Manim‎
+ - לא מצאת סרטון שמסביר בדיוק את זה? בנה הסבר בעצמך, באחת משתי הדרכים:
+
+   א. אנימציית ‎SVG‎ עם קריינות בעברית — ברירת המחדל, לכל מה שקורה בשלבים:
+   מעבר אלגברי, בניית סרטוט, עץ הסתברות, שרשרת הסקה. ארטיפקט ‎HTML‎ אחד
+   ‏(‎dir="rtl"‎), ובו כרטיס ‎<section>‎ לכל שלב. אצלי מותקן תוסף כרום
+   ‏(‎Edge Read Aloud‎) שמקריא בקול עברי כל כרטיס שנושא את התכונות שלהלן, ומוסיף
+   בעצמו כפתור הפעלה, סיור בין הכרטיסים וכתוביות — אז בלי אודיו, בלי כפתור משלך
+   ובלי ‎JavaScript‎ לקריינות:
+    - על הכרטיס ‎data-narrate="…"‎: תסריט דיבור בעברית, 2–4 משפטים שעוברים על
+      הסרטוט בסדר שהעין צריכה לזוז ("קודם", "אחר כך" — לא "משמאל", כי הדף
+      מתקפל בטלפון). בלי סימנים ובלי נוסחאות: מספרים ומשתנים במילים ("איקס
+      בריבוע פחות ארבע"). התסריט משלים את הכיתוב הגלוי ולא מקריא אותו.
+    - ‎[[name]]‎ בתוך התסריט, ממש לפני המילים שמציגות חלק בסרטוט, ו‑‎data-cue="name"‎
+      על אותו חלק (כמה חלקים יכולים לחלוק שם; שמות באותיות לטיניות, ספרות,
+      ‎_‎ ו‑‎-‎). לכל סימן — חלק, ולכל חלק — סימן. הסימנים לא נקראים בקול.
+    - בזמן ההקראה התוסף שם ‎data-narrating‎ על הכרטיס, וברגע שהקול מגיע לסימן —
+      ‎data-cue-reached‎ על החלקים שלו. שני כללי ‎CSS‎ מסנכרנים כך את כל הדף:
+      ‎[data-narrating] [data-cue]:not([data-cue-reached]) {{ opacity: .2 }}‎
+      ‎[data-cue-reached] {{ animation: cue-in .6s both }}‎
+      את התנועה עצמה כותבים ב‑‎@keyframes cue-in‎ עם ‎translate‎/‎scale‎.
+    - הדף שלם במנוחה: לא מסתירים כלום מחוץ להקראה, ו‑‎prefers-reduced-motion‎
+      מקבל דף סטטי. תוויות לטיניות ב‑‎SVG‎ עם ‎text-anchor="middle"‎ ו‑‎direction="ltr"‎
+      — הסרטוט עצמו לא מתהפך ב‑‎RTL‎.
+
+   ב. סרטון ‎Manim‎ — רק לתנועה רציפה ש‑‎SVG‎ לא מבטא: גרף שמשורטט, עקומה
+   שמשתנה, טרנספורמציה גאומטרית. צור אנימציה מתמטית בעצמך ב‑‎Manim‎
    ‏(‎Community Edition‎): סצנה קצרה שבונה את הרעיון צעד־צעד, ולכל צעד כיתוב
    הסבר על המסך. הכיתובים העבריים ב‑‎Text‎ ולא ב‑‎Tex‎ (‏‎LaTeX‎ לא מרנדר
    עברית), והנוסחאות ב‑‎MathTex‎. רקע לבן ‏(‎config.background_color = WHITE‎),
