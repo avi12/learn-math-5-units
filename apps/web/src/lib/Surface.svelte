@@ -761,7 +761,10 @@
       pts = [pts[0], place(pts[pts.length - 1])];
     }
 
-    live = strokeOf(pts);
+    // Where the platform expects the pen to be by the time this frame shows. Drawn only:
+    // `pts` never holds them, so the stroke that is stored is exactly what the hand did.
+    const ahead = acting === 'ink' ? predicted(e).map(at) : [];
+    live = strokeOf(ahead.length ? [...pts, ...ahead] : pts);
     paint();
     const now = performance.now();
     if (now - startedAt <= LIVE_AFTER_MS || now - lastPublish <= LIVE_EVERY_MS) {
@@ -776,6 +779,13 @@
   /** Every point the pointer passed since the last event — a fast stroke is many. */
   function coalesced(e: PointerEvent): PointerEvent[] {
     return e.getCoalescedEvents?.() ?? [e];
+  }
+
+  /** Where the pen is about to be. The WebView offers a point or so per move on the
+   *  tablet (measured, inputlag.mjs); drawing it closes part of the gap between the nib
+   *  and the ink, which is the lag the eye actually sees. */
+  function predicted(e: PointerEvent): PointerEvent[] {
+    return e.getPredictedEvents?.() ?? [];
   }
 
   function up(e: PointerEvent) {
