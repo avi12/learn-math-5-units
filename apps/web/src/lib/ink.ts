@@ -254,7 +254,13 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number):
   const X = (v: number) => v * w;
   const Y = (v: number) => v * w;
 
-  if (s.t === 'ink') {
+  if (s.t === 'ink' && pts.length === 1) {
+    // A stroke that has only landed: the nib's dot. Without it the ink first appears on
+    // the frame after the first move, and a tap — a decimal point — never appears at all.
+    ctx.beginPath();
+    ctx.arc(X(pts[0].x), Y(pts[0].y), width(s.w, pts[0].pr, w) / 2, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (s.t === 'ink') {
     // Variable width: draw each segment on its own so pressure can change along it.
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1];
