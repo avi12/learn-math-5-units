@@ -39,9 +39,17 @@ export class History {
     this.undoStack.push(a);
   }
 
-  /** Drawing again is what makes "forward" meaningless. */
+  /** Drawing again is what makes "forward" meaningless.
+   *
+   *  Only when there IS something to forget: this runs on every pen-down, and assigning
+   *  even an empty array to an empty stack wakes the App effect that reads `canRedo`.
+   *  That effect also re-sets `dir` on the page root (Svelte emits `div.dir = div.dir`
+   *  for a `dir` attribute in an effectful template), and the tablet then recalculates
+   *  the whole page's style — 8.8ms, traced, between the pen landing and the first ink. */
   forgetRedo(): void {
-    this.redoStack = [];
+    if (this.redoStack.length) {
+      this.redoStack = [];
+    }
   }
 
   /** The action taken back, or null when there was nothing to take. */
