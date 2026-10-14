@@ -59,7 +59,7 @@ if (rate !== 16000) {throw new Error('resample to 16 kHz first (ffmpeg -ar 16000
 let last = -1;
 const asr = await pipeline('automatic-speech-recognition', model, {
   dtype: { encoder_model: 'fp32', decoder_model_merged: 'q8' },
-  progress_callback: (e) => {
+  progress_callback(e) {
     if (e.status === 'progress' && typeof e.progress === 'number') {
       const p = Math.floor(e.progress / 20) * 20;
       if (p !== last) { last = p; process.stderr.write(`\rdownloading ${p}%   `); }

@@ -71,7 +71,7 @@ function decodePng(buf) {
       px[y * stride + x] = v & 255;
     }
   }
-  return { width, height, lum: (x, y) => {
+  return { width, height, lum(x, y) {
     const i = y * stride + x * channels;
     return 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
   } };
