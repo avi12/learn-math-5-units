@@ -12,8 +12,14 @@
    it speaks. The room hears about a change when the slider is released (`commit`). */
 import type { DocumentReference } from 'firebase/firestore';
 import { clampToRange, type Range } from './ink';
-import { readPreference, writePreference } from './preferences';
-import { onSnapshot, prefRef, save, type PrefSlot } from './room';
+import { readPreference, StorageKey, writePreference } from './preferences';
+import { onSnapshot, prefRef, PrefSlot, save } from './room';
+
+/** Where each slot is remembered on this device, before the room has spoken. */
+const STORE_KEY: Record<PrefSlot, StorageKey> = {
+  [PrefSlot.GRID]: StorageKey.GRID,
+  [PrefSlot.SIZE]: StorageKey.SIZE
+};
 
 export class RoomValue {
   /** Set by its slider, which cannot leave the range; what is read back is clamped. */
@@ -22,7 +28,7 @@ export class RoomValue {
 
   /** Must run inside a component, because it owns effects. */
   constructor(roomId: string, slot: PrefSlot, range: Range) {
-    const storeKey = `avi-math-${slot}`;
+    const storeKey = STORE_KEY[slot];
     this.ref = prefRef(roomId, slot);
     this.value = clampToRange(range, Number(readPreference(storeKey) ?? range.initial));
 

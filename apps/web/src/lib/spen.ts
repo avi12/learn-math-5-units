@@ -17,15 +17,49 @@
  * other way of erasing works exactly as before.
  */
 
-/** Android's MotionEvent button bits. Every one of them means "rub out"; which one a
- *  given pen sends is the pen's business. BUTTON_STYLUS_PRIMARY is the S Pen's. */
-const BUTTON_SECONDARY = 0x02;
-const BUTTON_STYLUS_PRIMARY = 0x20;
-const BUTTON_STYLUS_SECONDARY = 0x40;
-const ERASE_BUTTONS = BUTTON_SECONDARY | BUTTON_STYLUS_PRIMARY | BUTTON_STYLUS_SECONDARY;
+/** Android's MotionEvent button bits (`buttonState`). Every one of them means "rub out";
+ *  which one a given pen sends is the pen's business. STYLUS_PRIMARY is the S Pen's. */
+export const AndroidButton = {
+  SECONDARY: 0x02,
+  STYLUS_PRIMARY: 0x20,
+  STYLUS_SECONDARY: 0x40
+} as const;
+export type AndroidButton = (typeof AndroidButton)[keyof typeof AndroidButton];
 
-/** MotionEvent.TOOL_TYPE_ERASER — the far end of a pen that has one. */
-const TOOL_TYPE_ERASER = 4;
+const ERASE_BUTTONS = AndroidButton.SECONDARY | AndroidButton.STYLUS_PRIMARY | AndroidButton.STYLUS_SECONDARY;
+
+/** Android's MotionEvent.TOOL_TYPE_* codes, as `toolType` carries them. ERASER is the far
+ *  end of a pen that has one; the rest are listed so a ?pendebug reading can be looked up. */
+export const AndroidToolType = {
+  UNKNOWN: 0,
+  FINGER: 1,
+  STYLUS: 2,
+  MOUSE: 3,
+  ERASER: 4
+} as const;
+export type AndroidToolType = (typeof AndroidToolType)[keyof typeof AndroidToolType];
+
+/* The same facts as the browser reports them, for the pages that never see the wrapper.
+   Pointer Events names the device in `pointerType`, the buttons held in the `buttons`
+   bitmask, and the button that changed in `button` — and a pen's barrel and eraser have
+   their own entries in both. */
+
+/** `PointerEvent.pointerType`. */
+export const PointerKind = { PEN: 'pen', TOUCH: 'touch', MOUSE: 'mouse' } as const;
+export type PointerKind = (typeof PointerKind)[keyof typeof PointerKind];
+
+/** Bits of `PointerEvent.buttons`: what is held right now. TIP is a pen on the glass (or
+ *  the left mouse button); BARREL is the pen's side button (or the right mouse button). */
+export const PointerButtons = { TIP: 1, BARREL: 2, ERASER: 32 } as const;
+export type PointerButtons = (typeof PointerButtons)[keyof typeof PointerButtons];
+
+/** `PointerEvent.button`: which button this one event is about. */
+export const PointerButton = { BARREL: 2, ERASER: 5 } as const;
+export type PointerButton = (typeof PointerButton)[keyof typeof PointerButton];
+
+/** The values of `data-theme` on the root, which the skin's stylesheet switches on. */
+export const Theme = { DARK: 'dark', LIGHT: 'light' } as const;
+export type Theme = (typeof Theme)[keyof typeof Theme];
 
 export interface PenReport {
   /** true when the wrapper's own reading of the button bits says a button is down */
@@ -94,12 +128,12 @@ export function spenWrapper(): string {
  *  tab never reaches this line and keeps following the OS on its own. */
 function applyWrapperTheme(next: boolean) {
   dark = next;
-  document.documentElement.dataset.theme = next ? 'dark' : 'light';
+  document.documentElement.dataset.theme = next ? Theme.DARK : Theme.LIGHT;
 }
 
 function decide(r: PenReport): boolean {
   const bits = r.buttonState ?? 0;
-  return (bits & ERASE_BUTTONS) !== 0 || r.toolType === TOOL_TYPE_ERASER || r.button === true;
+  return (bits & ERASE_BUTTONS) !== 0 || r.toolType === AndroidToolType.ERASER || r.button === true;
 }
 
 /** Publish the hooks. Returns the teardown, so a component can own it. */

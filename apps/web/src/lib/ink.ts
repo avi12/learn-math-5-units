@@ -112,8 +112,26 @@ export function exportParts(bottom: number): number[] {
   return Array.from({ length: n }, (_, i) => Math.min(i * step, span - PART));
 }
 
-export type Tool = 'ink' | 'line' | 'rect' | 'ellipse' | 'erase';
-export type Pen = 'ink' | 'accent' | 'warn' | 'danger';
+/** What the hand is doing: writing, one of the three shapes, or rubbing out. The values
+ *  are stored — a stroke's `t` in Firestore — so they never change. */
+export const Tool = {
+  INK: 'ink',
+  LINE: 'line',
+  RECT: 'rect',
+  ELLIPSE: 'ellipse',
+  ERASE: 'erase'
+} as const;
+export type Tool = (typeof Tool)[keyof typeof Tool];
+
+/** Which colour a stroke is written in — a name, resolved through the skin's tokens
+ *  (`TOKEN` below) so the same stroke reads right in either theme. Stored as `c`. */
+export const Pen = {
+  INK: 'ink',
+  ACCENT: 'accent',
+  WARN: 'warn',
+  DANGER: 'danger'
+} as const;
+export type Pen = (typeof Pen)[keyof typeof Pen];
 
 export interface Stroke {
   t: Tool;
@@ -132,10 +150,10 @@ export interface Stroke {
 }
 
 const TOKEN: Record<Pen, string> = {
-  ink: '--fg',
-  accent: '--secondary',
-  warn: '--warn',
-  danger: '--danger'
+  [Pen.INK]: '--fg',
+  [Pen.ACCENT]: '--secondary',
+  [Pen.WARN]: '--warn',
+  [Pen.DANGER]: '--danger'
 };
 
 export function colour(pen: Pen): string {
@@ -254,13 +272,13 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number):
   const X = (v: number) => v * w;
   const Y = (v: number) => v * w;
 
-  if (s.t === 'ink' && pts.length === 1) {
+  if (s.t === Tool.INK && pts.length === 1) {
     // A stroke that has only landed: the nib's dot. Without it the ink first appears on
     // the frame after the first move, and a tap — a decimal point — never appears at all.
     ctx.beginPath();
     ctx.arc(X(pts[0].x), Y(pts[0].y), width(s.w, pts[0].pr, w) / 2, 0, Math.PI * 2);
     ctx.fill();
-  } else if (s.t === 'ink') {
+  } else if (s.t === Tool.INK) {
     // Variable width: draw each segment on its own so pressure can change along it.
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1];
@@ -280,12 +298,12 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number):
     const b = pts[pts.length - 1];
     ctx.lineWidth = width(s.w, 0.7, w);
     ctx.beginPath();
-    if (s.t === 'line') {
+    if (s.t === Tool.LINE) {
       ctx.moveTo(X(a.x), Y(a.y));
       ctx.lineTo(X(b.x), Y(b.y));
-    } else if (s.t === 'rect') {
+    } else if (s.t === Tool.RECT) {
       ctx.rect(X(a.x), Y(a.y), X(b.x - a.x), Y(b.y - a.y));
-    } else if (s.t === 'ellipse') {
+    } else if (s.t === Tool.ELLIPSE) {
       const { cx, cy, rx, ry } = ellipseOf(a, b);
       ctx.ellipse(X(cx), Y(cy), X(rx), Y(ry), 0, 0, 7);
     }
@@ -301,12 +319,12 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number):
  *  and not use the diagonal that connects them. */
 function outline(s: Stroke): Pt[] {
   const pts = pointsOf(s);
-  if (s.t === 'ink' || pts.length < 2) return pts;
+  if (s.t === Tool.INK || pts.length < 2) {return pts;}
   const a = pts[0];
   const b = pts[pts.length - 1];
-  if (s.t === 'line') return [a, b];
-  if (s.t === 'rect')
-    return [a, { ...a, x: b.x }, b, { ...a, y: b.y }, a];
+  if (s.t === Tool.LINE) {return [a, b];}
+  if (s.t === Tool.RECT)
+    {return [a, { ...a, x: b.x }, b, { ...a, y: b.y }, a];}
   const { cx, cy, rx, ry } = ellipseOf(a, b);
   return Array.from({ length: 33 }, (_, i) => {
     const t = (i / 32) * Math.PI * 2;

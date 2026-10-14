@@ -17,9 +17,13 @@
 import type { Stroke } from './ink';
 import { remove, save, strokeRef } from './room';
 
+/** The two things the hand can do that undo knows how to take back. */
+export const ActionKind = { DRAW: 'draw', ERASE: 'erase' } as const;
+export type ActionKind = (typeof ActionKind)[keyof typeof ActionKind];
+
 /** One completed thing the hand did. A draw carries the stroke it made; an erase carries
  *  every stroke that gesture removed. Surface.svelte emits these. */
-export type Action = { kind: 'draw' | 'erase'; items: { key: string; stroke: Stroke }[] };
+export type Action = { kind: ActionKind; items: { key: string; stroke: Stroke }[] };
 
 export class History {
   undoStack = $state<Action[]>([]);
@@ -79,7 +83,7 @@ export class History {
    *  present, an erase leaves its strokes gone — so the two kinds write on opposite
    *  directions, and that is the only thing that differs between undo and redo. */
   private apply(a: Action, forward: boolean): void {
-    const write = (a.kind === 'draw') === forward;
+    const write = (a.kind === ActionKind.DRAW) === forward;
     for (const it of a.items) {
       const ref = strokeRef(this.roomId, it.key);
       void (write ? save(ref, it.stroke) : remove(ref));

@@ -9,7 +9,7 @@
      fail — it landed somewhere else. Inside the Android wrapper the clipboard write is
      refused and the bytes go to the system share sheet, so the label promised a paste and
      delivered a share menu. Avi's call: the copy belongs where the pasting is. */
-  import { copyImage, type Delivered } from './deliver';
+  import { copyImage, Delivered } from './deliver';
   import { say } from './notify.svelte';
   import type { SurfaceApi } from './Surface.svelte';
   import iconCamera from './icons/IconCamera.svg?raw';
@@ -19,10 +19,10 @@
     $props();
 
   const PASTE = 'הדבק בקלוד';
-  const FAILED: Record<Exclude<Delivered, 'copied'>, string> = {
-    downloaded: 'הדפדפן חסם העתקה — הקובץ ירד במקום',
-    'share-failed': 'השיתוף נכשל',
-    'export-failed': 'הייצוא נכשל'
+  const FAILED: Record<Exclude<Delivered, typeof Delivered.COPIED>, string> = {
+    [Delivered.DOWNLOADED]: 'הדפדפן חסם העתקה — הקובץ ירד במקום',
+    [Delivered.SHARE_FAILED]: 'השיתוף נכשל',
+    [Delivered.EXPORT_FAILED]: 'הייצוא נכשל'
   };
 
   /** Canvas to clipboard, with the board's own acknowledgement. Returns whether the
@@ -39,8 +39,8 @@
     // capture is what it is acknowledging and the capture did happen.
     surface?.flash();
     const result = await copyImage(c);
-    say(result === 'copied' ? ok : FAILED[result]);
-    return result !== 'export-failed';
+    say(result === Delivered.COPIED ? ok : FAILED[result]);
+    return result !== Delivered.EXPORT_FAILED;
   }
 
   function copyAll() {

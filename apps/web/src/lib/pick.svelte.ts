@@ -10,11 +10,9 @@
    from the workbook" still has to say which block to mark against. */
 import { untrack } from 'svelte';
 import { RUNG_LIST, TOPICS, exKey, type Exercise, type Topic } from './check';
-import { readPreference, writePreference } from './preferences';
+import { readPreference, StorageKey, writePreference } from './preferences';
 import { onSnapshot, pickRef, save } from './room';
 
-const PICK_KEY = 'avi-math-pick';
-const SEC_KEY = 'avi-math-section';
 
 export function pickOf(blockId: string, ex: string): string {
   return `${blockId}:${ex}`;
@@ -39,9 +37,9 @@ function firstOf(t: Topic): string {
 
 export class Choice {
   // a device with nothing saved opens on an actual question, not on "not from the workbook"
-  pick = $state(readPreference(PICK_KEY) ?? firstOf(TOPICS[0]));
+  pick = $state(readPreference(StorageKey.PICK) ?? firstOf(TOPICS[0]));
   /** a section letter, or '' for the whole exercise. */
-  section = $state(readPreference(SEC_KEY) ?? '');
+  section = $state(readPreference(StorageKey.SECTION) ?? '');
 
   topic: Topic = $derived(TOPICS.find((t) => t.id === parts(this.pick)[0]) ?? TOPICS[0]);
   exercise: Exercise | null = $derived(
@@ -71,8 +69,8 @@ export class Choice {
   /** Remembered per device and kept honest, from the moment this is created. Must run
    *  inside a component, because it owns effects. */
   constructor(roomId: string) {
-    $effect(() => writePreference(PICK_KEY, this.pick));
-    $effect(() => writePreference(SEC_KEY, this.section));
+    $effect(() => writePreference(StorageKey.PICK, this.pick));
+    $effect(() => writePreference(StorageKey.SECTION, this.section));
 
     /* A section letter only means something inside the exercise that has it, so moving to
        another exercise drops it: silently keeping 'ד' would send Claude to mark a section

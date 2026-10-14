@@ -30,12 +30,10 @@
  *     So the attempt is counted per build id, and after two the tab gives up and says so
  *     instead of spinning.
  */
+import { StorageKey } from './preferences';
 import { onSnapshot, release } from './room';
 
 declare const __BUILD__: string;
-
-/** Attempts already made for a given build, kept per tab so a fresh tab starts clean. */
-const KEY = 'avi-math-release-tries';
 
 /** How long the board has to be quiet before the page is allowed to go. Long enough that
  *  a pause between two digits does not count as "finished writing". */
@@ -49,9 +47,10 @@ const POLL_MS = 30000;
 /** Where the deployed build id is published. Same origin, same hosting as the bundle. */
 const BUILD_URL = '/build-id.txt';
 
+/** Attempts already made for a given build, kept per tab so a fresh tab starts clean. */
 function tries(build: string): number {
   try {
-    const [b, n] = (sessionStorage.getItem(KEY) ?? '').split(':');
+    const [b, n] = (sessionStorage.getItem(StorageKey.RELEASE_TRIES) ?? '').split(':');
     return b === build ? Number(n) || 0 : 0;
   } catch {
     return 0; // private mode, storage disabled — treat every attempt as the first
@@ -60,7 +59,7 @@ function tries(build: string): number {
 
 function noteTry(build: string) {
   try {
-    sessionStorage.setItem(KEY, `${build}:${tries(build) + 1}`);
+    sessionStorage.setItem(StorageKey.RELEASE_TRIES, `${build}:${tries(build) + 1}`);
   } catch {
     /* nothing to do; the worst case is one extra reload */
   }

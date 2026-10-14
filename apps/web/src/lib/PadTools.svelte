@@ -1,7 +1,7 @@
 <script lang="ts">
   /** What the pen draws with — the tablet's toolbar. The values are the page's; this
    *  only shows and sets them. */
-  import { GRID_SCALE, PEN_SIZE, type Tool } from './ink';
+  import { GRID_SCALE, PEN_SIZE, Tool } from './ink';
   import type { RoomValue } from './roomvalue.svelte';
   import iconEllipse from './icons/IconEllipse.svg?raw';
   import iconErase from './icons/IconErase.svg?raw';
@@ -20,18 +20,18 @@
   /* The glyph travels WITH the tool, not beside it in a second list keyed by the same
      string — two lists in the same order is an order that eventually stops matching. */
   const TOOLS: [Tool, string, string][] = [
-    ['ink', 'עט', iconPen],
-    ['erase', 'מחק', iconErase],
-    ['line', 'ישר', iconLine],
-    ['rect', 'מלבן', iconRect],
-    ['ellipse', 'מעגל', iconEllipse]
+    [Tool.INK, 'עט', iconPen],
+    [Tool.ERASE, 'מחק', iconErase],
+    [Tool.LINE, 'ישר', iconLine],
+    [Tool.RECT, 'מלבן', iconRect],
+    [Tool.ELLIPSE, 'מעגל', iconEllipse]
   ];
 
   /** Always one decimal — ×1.0, ×2.5 — so the label does not change width or shape as
    *  the slider moves between whole and fractional sizes. */
   const scaleFormat = new Intl.NumberFormat('he-IL', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-  const sizeLabel = $derived(tool === 'erase' ? 'גודל המחק' : 'עובי');
+  const sizeLabel = $derived(tool === Tool.ERASE ? 'גודל המחק' : 'עובי');
 </script>
 
 <div class="tools">
@@ -75,17 +75,19 @@
 
 <style>
   .size {
+    color: var(--fg-muted);
     font-family: var(--font-mono);
     font-size: 12px;
-    color: var(--fg-muted);
   }
+
   /* Every digit the same width, so a value that changes under the thumb does not jiggle
      the controls beside it. */
   .num {
     font-variant-numeric: tabular-nums;
   }
-  input[type='range'] {
-    accent-color: var(--primary);
+
+  input[type="range"] {
     width: 130px;
+    accent-color: var(--primary);
   }
 </style>

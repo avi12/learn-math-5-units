@@ -28,7 +28,8 @@ import {
   type DocumentReference
 } from 'firebase/firestore';
 import type { Stroke } from './ink';
-import { readPreference, writePreference } from './preferences';
+import { QueryParam } from './device';
+import { readPreference, StorageKey, writePreference } from './preferences';
 
 /** The Firebase project comes from the root `.env` (see `.env.example` and shared/env.mjs),
  *  not from the source: the code is public and the deployed board is not. */
@@ -69,23 +70,23 @@ function fresh(): string {
 /** The address bar, pointed at room `id`. */
 function urlFor(id: string): URL {
   const url = new URL(location.href);
-  url.searchParams.set('room', id);
+  url.searchParams.set(QueryParam.ROOM, id);
   return url;
 }
 
 /** Make `id` this device's room and load it. */
 function goToRoom(id: string): void {
-  writePreference(KEY, id);
+  writePreference(StorageKey.ROOM, id);
   location.href = urlFor(id).toString();
 }
 
 /** URL wins, then localStorage, then a new one. The URL is always left carrying it, so
  *  any link copied from the address bar brings the other device into this room. */
 export function roomId(): string {
-  const asked = new URL(location.href).searchParams.get('room');
-  const found = asked || readPreference(KEY) || '';
+  const asked = new URL(location.href).searchParams.get(QueryParam.ROOM);
+  const found = asked || readPreference(StorageKey.ROOM) || '';
   const id = /^[0-9a-f]{32}$/.test(found) ? found : fresh();
-  writePreference(KEY, id);
+  writePreference(StorageKey.ROOM, id);
   if (asked !== id) {
     history.replaceState(null, '', urlFor(id));
   }
@@ -124,8 +125,8 @@ export interface Room {
 export function room(id: string): Room {
   return {
     id,
-    strokes: collection(db, 'rooms', id, 'strokes'),
-    live: doc(db, 'rooms', id, 'live', 'current')
+    strokes: collection(db, Collection.ROOMS, id, Collection.STROKES),
+    live: doc(db, Collection.ROOMS, id, Collection.LIVE, SINGLE_DOC)
   };
 }
 
@@ -295,12 +296,13 @@ export function publishLive(r: Room, s: Stroke | null): void {
  *  silently — a marking scheme for the wrong exercise is worse than none, which is the
  *  reason build/exercises.py exists in the workbook repo at all. */
 export function pickRef(id: string): DocumentReference {
-  return doc(db, 'rooms', id, 'pick', 'current');
+  return doc(db, Collection.ROOMS, id, Collection.PICK, SINGLE_DOC);
 }
 
 /** The room's slider settings — see lib/roomvalue.svelte.ts. A closed set, and
  *  firestore.rules allows exactly these slots. */
-export type PrefSlot = 'grid' | 'size';
+export const PrefSlot = { GRID: 'grid', SIZE: 'size' } as const;
+export type PrefSlot = (typeof PrefSlot)[keyof typeof PrefSlot];
 
 export function prefRef(id: string, slot: PrefSlot): DocumentReference {
   return doc(db, 'rooms', id, 'prefs', slot);
@@ -314,7 +316,7 @@ export function strokeRef(id: string, key: string): DocumentReference {
  *  read-only from the browser — the deploy writes it through the Firestore REST API as a
  *  project member, which goes through IAM rather than through firestore.rules. Keeping it
  *  here means every Firestore reference in the app still has exactly one home. */
-export const release: DocumentReference = doc(db, 'meta', 'release');
+export const release: DocumentReference = doc(db, Collection.META, 'release');
 
 /** Firestore has no recursive delete from the client, so a clear is a batch. */
 export async function clearAll(id: string): Promise<void> {

@@ -14,6 +14,9 @@
 
 type Reader = () => Promise<string | null>;
 
+/** The one barcode format a room is shown in — `BarcodeDetector`'s name for a QR code. */
+const QR_FORMAT = 'qr_code';
+
 interface DetectorCtor {
   new (opts: { formats: string[] }): { detect(src: CanvasImageSource): Promise<{ rawValue: string }[]> };
   getSupportedFormats?(): Promise<string[]>;
@@ -23,9 +26,9 @@ async function nativeReader(video: HTMLVideoElement): Promise<Reader | null> {
   const Detector = (window as unknown as { BarcodeDetector?: DetectorCtor }).BarcodeDetector;
   if (!Detector) {return null;}
   try {
-    const formats = (await Detector.getSupportedFormats?.()) ?? ['qr_code'];
-    if (!formats.includes('qr_code')) return null;
-    const det = new Detector({ formats: ['qr_code'] });
+    const formats = (await Detector.getSupportedFormats?.()) ?? [QR_FORMAT];
+    if (!formats.includes(QR_FORMAT)) {return null;}
+    const det = new Detector({ formats: [QR_FORMAT] });
     return async () => (await det.detect(video))[0]?.rawValue ?? null;
   } catch {
     return null; // the constructor throws on some builds that expose the name only

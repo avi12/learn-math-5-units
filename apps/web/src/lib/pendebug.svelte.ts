@@ -3,10 +3,10 @@
  *  There is no way to try an S Pen from a desktop, and "the button does nothing" is not a
  *  report anyone can act on; this turns it into a few lines that say exactly what the
  *  device sends. Off, it costs nothing: every method returns at once. */
-import { params } from './device';
+import { params, QueryParam } from './device';
 import { spenWrapper, type PenReport } from './spen';
 
-const ON = params.has('pendebug');
+const ON = params.has(QueryParam.PEN_DEBUG);
 const LINES = 4;
 
 export class PenDebug {
