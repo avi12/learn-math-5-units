@@ -44,7 +44,7 @@ h2 {
 }
 
 /* Tablet: the canvas should own the screen, and the controls need thumb-sized targets. */
-@media (max-width: 820px) {
+@media (width <= 820px) {
   .btn {
     min-height: 44px;
     padding: 0 var(--s-4);
@@ -58,10 +58,10 @@ h2 {
 :root {
   --icon-size: 16px;
 }
-.btn > svg,
-.vlink > svg {
-  flex: none;
+
+.btn > svg {
   display: block;
+  flex: none;
   width: var(--icon-size);
   height: var(--icon-size);
 }

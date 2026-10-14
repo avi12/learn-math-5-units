@@ -243,12 +243,6 @@
 </div>
 
 <style>
-  .page {
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 20px 18px 64px;
-  }
-
   /* The desktop mirror fits the viewport too, but for the opposite reason: everything
      around the board (the tools, the QR to pair the tablet) has to stay on screen, so the
      board gets only the height that is left. The slot is that leftover; the board keeps
@@ -261,28 +255,101 @@
   .slot {
     display: contents;
   }
-  .page.mirror {
-    height: 100svh;
-    padding-bottom: 20px;
-    display: flex;
-    flex-direction: column;
-  }
-  .page.mirror main {
-    flex: 1 1 0;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    container-type: inline-size;
-  }
-  .page.mirror .slot {
-    display: block;
-    flex: 0 1 calc(100cqw / var(--aspect));
-    min-height: 200px;
-    container-type: size;
-  }
-  .page.mirror .slot :global(.host) {
-    width: min(100cqw, 100cqh * var(--aspect));
-    max-width: none;
+
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding-block: 20px 64px;
+    padding-inline: 18px;
+
+    /* the role switch (below `main`) does not run under reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      main,
+      main::after {
+        animation: none;
+      }
+    }
+
+    &.mirror {
+      display: flex;
+      flex-direction: column;
+      height: 100svh;
+      padding-block-end: 20px;
+
+      main {
+        container-type: inline-size;
+        display: flex;
+        flex: 1 1 0;
+        flex-direction: column;
+        min-height: 0;
+        animation: role-to-mirror var(--dur-long) var(--ease-emph); /* the role switch, below */
+
+        &::after {
+          inset-block: 0;
+          width: 2px;
+          animation: role-scan-across var(--dur-long) linear;
+        }
+      }
+
+      .slot {
+        container-type: size;
+        display: block;
+        flex: 0 1 calc(100cqw / var(--aspect));
+        min-height: 200px;
+
+        :global(.host) {
+          width: min(100cqw, 100cqh * var(--aspect));
+          max-width: none;
+        }
+      }
+    }
+
+    /* The pad is pinned to the viewport: the board must be on screen at every moment, and
+       a long exercise is served by scrolling INSIDE it rather than by scrolling the page.
+       Those two are the same requirement — the moment the document scrolls, the board is
+       something you can lose, and on a tablet you lose it constantly, because the canvas
+       takes finger drags for ink and only the thin margins around it ever scrolled.
+       So: no document scroll here at all. The board takes the space that is left after the
+       header and the tools, and the strip runs underneath it. */
+    &.pinned {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      height: 100svh;
+      padding-block: 12px;
+
+      /* On a phone in landscape the brand block is most of the height. The board wins. */
+      @media (height <= 520px) {
+        .brand .sub,
+        .mark {
+          display: none;
+        }
+      }
+
+      main {
+        display: flex;
+        flex: 1 1 0;
+        flex-direction: column;
+        min-height: 0;
+        animation: role-to-pad var(--dur-long) var(--ease-emph); /* the role switch, below */
+
+        &::after {
+          inset-inline: 0;
+          height: 2px;
+          animation: role-scan-down var(--dur-long) linear;
+        }
+      }
+
+      header {
+        margin-block-end: 12px;
+        padding-block-end: 10px;
+      }
+
+      /* the toolbars are rows of the components below; their spacing is the page's */
+      :global(.tools) {
+        margin-block-start: 10px;
+      }
+    }
   }
 
   /* Switching role is a channel change, and it looks like one: the new layout powers on
@@ -299,138 +366,95 @@
      Under reduced motion none of it runs: the layout simply appears. */
   main {
     position: relative;
+
+    &::after {
+      content: "";
+      position: absolute;
+      background: var(--primary);
+      opacity: 0%;
+      box-shadow: 0 0 14px 2px var(--primary);
+      pointer-events: none;
+    }
   }
-  main::after {
-    content: '';
-    position: absolute;
-    pointer-events: none;
-    opacity: 0;
-    background: var(--primary);
-    box-shadow: 0 0 14px 2px var(--primary);
-  }
-  .page.pinned main {
-    animation: roleToPad var(--dur-long) var(--ease-emph);
-  }
-  .page.pinned main::after {
-    inset-inline: 0;
-    height: 2px;
-    animation: roleScanDown var(--dur-long) linear;
-  }
-  .page.mirror main {
-    animation: roleToMirror var(--dur-long) var(--ease-emph);
-  }
-  .page.mirror main::after {
-    inset-block: 0;
-    width: 2px;
-    animation: roleScanAcross var(--dur-long) linear;
-  }
-  @keyframes roleToPad {
+
+  @keyframes role-to-pad {
     0% {
       clip-path: inset(50% 0 50% 0);
       filter: brightness(2.2) contrast(1.3);
     }
+
     30% {
       clip-path: inset(48% 0 48% 0);
     }
+
     100% {
       clip-path: inset(0);
       filter: none;
     }
   }
-  @keyframes roleToMirror {
+
+  @keyframes role-to-mirror {
     0% {
       clip-path: inset(0 50% 0 50%);
       filter: brightness(2.2) contrast(1.3);
     }
+
     30% {
       clip-path: inset(0 48% 0 48%);
     }
+
     100% {
       clip-path: inset(0);
       filter: none;
     }
   }
-  @keyframes roleScanDown {
+
+  @keyframes role-scan-down {
     from {
       top: 0;
-      opacity: 1;
+      opacity: 100%;
     }
+
     to {
       top: 100%;
-      opacity: 0;
-    }
-  }
-  /* Physical `left`, in an RTL page: the sweep follows the reading direction, right to
-     left, the way the eye goes. */
-  @keyframes roleScanAcross {
-    from {
-      left: 100%;
-      opacity: 1;
-    }
-    to {
-      left: 0;
-      opacity: 0;
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .page main,
-    .page main::after {
-      animation: none;
+      opacity: 0%;
     }
   }
 
-  /* The pad is pinned to the viewport: the board must be on screen at every moment, and
-     a long exercise is served by scrolling INSIDE it rather than by scrolling the page.
-     Those two are the same requirement — the moment the document scrolls, the board is
-     something you can lose, and on a tablet you lose it constantly, because the canvas
-     takes finger drags for ink and only the thin margins around it ever scrolled.
-     So: no document scroll here at all. The board takes the space that is left after the
-     header and the tools, and the strip runs underneath it. */
-  .page.pinned {
-    height: 100svh;
-    padding-block: 12px 12px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .page.pinned main {
-    flex: 1 1 0;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  .page.pinned header {
-    padding-bottom: 10px;
-    margin-bottom: 12px;
-  }
-  /* On a phone in landscape the brand block is most of the height. The board wins. */
-  @media (max-height: 520px) {
-    .page.pinned .brand .sub,
-    .page.pinned .mark {
-      display: none;
+  /* Physical `left`, in an RTL page: the sweep follows the reading direction, right to
+     left, the way the eye goes. */
+  @keyframes role-scan-across {
+    from {
+      left: 100%;
+      opacity: 100%;
+    }
+
+    to {
+      left: 0;
+      opacity: 0%;
     }
   }
-  /* the toolbars are rows of the components below; their spacing is the page's */
-  .page.pinned :global(.tools) {
-    margin-top: 10px;
-  }
+
   header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
     flex-wrap: wrap;
-    padding-bottom: 14px;
-    margin-bottom: 18px;
-    border-bottom: 2px solid var(--border);
-    background: linear-gradient(var(--cyber-stripe), var(--cyber-stripe)) bottom right / 44px 4px
+    gap: 16px;
+    justify-content: space-between;
+    align-items: center;
+    margin-block-end: 18px;
+    padding-block-end: 14px;
+    border-block-end: 2px solid var(--border);
+    background:
+      linear-gradient(var(--cyber-stripe), var(--cyber-stripe)) bottom right / 44px 4px
       no-repeat;
   }
+
   .brand {
     display: flex;
-    align-items: center;
     gap: 14px;
+    align-items: center;
   }
+
   .mark {
     display: grid;
     place-items: center;
@@ -442,106 +466,123 @@
     font-size: 26px;
     text-shadow: var(--cyber-glow-primary);
   }
+
   h1 {
     margin: 0;
     font: var(--t-headline-s);
     letter-spacing: 0.07em;
   }
+
   .sub {
-    margin: 2px 0 0;
+    margin-block: 2px 0;
+    margin-inline: 0;
+    color: var(--fg-muted);
     font-family: var(--font-mono);
     font-size: 12px;
-    color: var(--fg-muted);
   }
+
   .roles {
     display: flex;
     gap: 8px;
   }
-  /* the chip: small, always on screen, and a plain white plate because a QR has to be
-     scannable and the dark palette would swallow it */
+
+  /* A QR has to be scannable, small or blown up: a plain white plate, because the dark
+     palette would swallow it. */
+  :is(.qrchip, .qrbig) img {
+    background: #ffffff;
+    image-rendering: pixelated;
+  }
+
+  /* the chip: small, always on screen */
   .qrchip {
     display: flex;
-    align-items: center;
     gap: 9px;
-    padding: 5px 10px 5px 5px;
+    align-items: center;
+    padding-block: 5px;
+    padding-inline: 10px 5px;
     border: 2px solid var(--border);
     background: var(--surface);
     color: var(--fg);
-    cursor: pointer;
     font: inherit;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--border-strong);
+      background: var(--surface-2);
+    }
+
+    img {
+      width: 44px;
+      height: 44px;
+      padding: 2px;
+    }
+
+    & span {
+      display: grid;
+      gap: 2px;
+      color: var(--fg-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
   }
-  .qrchip:hover {
-    border-color: var(--border-strong);
-    background: var(--surface-2);
-  }
-  .qrchip img {
-    width: 44px;
-    height: 44px;
-    background: #fff;
-    padding: 2px;
-    image-rendering: pixelated;
-  }
-  .qrchip span {
-    display: grid;
-    gap: 2px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    color: var(--fg-muted);
-  }
+
   .qrbig {
     /* the UA popover box, undone: this one is the whole viewport */
     inset: 0;
     width: 100%;
-    height: 100%;
     max-width: none;
+    height: 100%;
     max-height: none;
     margin: 0;
     padding: 0;
     border: 0;
     background: transparent;
+
+    &::backdrop {
+      background: var(--scrim);
+    }
+
+    button {
+      display: grid;
+      gap: 18px;
+      place-content: center;
+      justify-items: center;
+      width: 100%;
+      height: 100%;
+      padding: 24px;
+      border: 0;
+      background: none;
+      font: inherit;
+      cursor: zoom-out;
+    }
+
+    img {
+      width: min(74vmin, 560px);
+      height: auto;
+      padding: 18px;
+      box-shadow: var(--shadow-lg);
+    }
   }
-  .qrbig::backdrop {
-    background: var(--scrim);
-  }
-  .qrbig button {
-    width: 100%;
-    height: 100%;
-    display: grid;
-    place-content: center;
-    justify-items: center;
-    gap: 18px;
-    padding: 24px;
-    border: 0;
-    background: none;
-    cursor: zoom-out;
-    font: inherit;
-  }
-  .qrbig img {
-    width: min(74vmin, 560px);
-    height: auto;
-    background: #fff;
-    padding: 18px;
-    image-rendering: pixelated;
-    box-shadow: var(--shadow-lg);
-  }
+
   .qrsay {
+    color: var(--fg);
     font-family: var(--font-sans);
     font-size: 16px;
-    color: var(--fg);
     text-shadow: 0 1px 8px var(--scrim);
   }
+
   .qrid {
+    color: var(--fg-muted);
     font-family: var(--font-mono);
     font-size: 12px;
-    color: var(--fg-muted);
     direction: ltr;
   }
+
   .toast {
     position: fixed;
     inset-block-end: 22px;
     inset-inline-start: 50%;
-    transform: translateX(50%);
     padding: 10px 20px;
     border: 2px solid var(--border-strong);
     background: var(--surface-2);
@@ -549,5 +590,6 @@
     font-family: var(--font-mono);
     font-size: 13px;
     box-shadow: var(--shadow-md);
+    transform: translateX(50%);
   }
 </style>

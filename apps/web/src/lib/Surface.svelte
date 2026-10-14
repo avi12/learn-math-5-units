@@ -1057,28 +1057,38 @@
   .host {
     position: relative;
     width: 100%;
-    max-width: calc(66vh * var(--aspect));
     margin-inline: auto;
     aspect-ratio: var(--aspect);
+
+    &.fill {
+      flex: 1 1 0;
+      max-width: none;
+      min-height: 150px;
+      aspect-ratio: auto;
+    }
   }
-  @supports (height: 1svh) {
-    .host:not(.fill) {
+
+  /* The mirror's height cap, as a width: one home for the host and the stall banner above
+     it. A `.fill` host, and the banner over one, lift it. */
+  .host,
+  .stall {
+    max-width: calc(66vh * var(--aspect));
+
+    @supports (height: 1svh) {
       max-width: calc(66svh * var(--aspect));
     }
   }
-  .host.fill {
-    flex: 1 1 0;
-    min-height: 150px;
-    max-width: none;
-    aspect-ratio: auto;
-  }
+
   canvas {
+    /* Notebook squares, behind the ink. Pure background: they scroll with `top` through
+       --grid-y and are never drawn into the bitmap, so nothing erases or exports them. */
+    --grid-line: color-mix(in sRGB, var(--fg) 11%, transparent);
+
     display: block;
     width: 100%;
     height: 100%;
-    /* Notebook squares, behind the ink. Pure background: they scroll with `top` through
-       --grid-y and are never drawn into the bitmap, so nothing erases or exports them. */
-    --grid-line: color-mix(in srgb, var(--fg) 11%, transparent);
+    border: 2px solid var(--border);
+
     /* Each line is the first 1px of its square, i.e. it is centred half a pixel PAST the
        square's edge — and a snapped stroke is centred ON the edge. Pulling both back by
        half a pixel puts the grey line under the middle of the ink. gridcheck.mjs. */
@@ -1087,8 +1097,18 @@
       linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) -0.5px 0,
       var(--surface);
     background-size: var(--grid-cell) var(--grid-cell);
-    border: 2px solid var(--border);
+    clip-path:
+      polygon(
+        var(--chamfer) 0,
+        100% 0,
+        100% calc(100% - var(--chamfer)),
+        calc(100% - var(--chamfer)) 100%,
+        0 100%,
+        0 var(--chamfer)
+      );
+    cursor: crosshair;
     touch-action: none;
+
     /* Chrome on Android has claimed the stylus barrel button for TEXT SELECTION since
        Android M (crrev 2874183002, "Fix Text selection with Stylus button pressed"), and
        a selection drag is not delivered to the page as pointer events at all — which is
@@ -1096,38 +1116,36 @@
        nothing to select in the first place, so saying so is right regardless, and it is
        the one thing that might hand the gesture back. */
     user-select: none;
-    -webkit-user-select: none;
     -webkit-touch-callout: none;
-    cursor: crosshair;
-    clip-path: polygon(
-      var(--chamfer) 0,
-      100% 0,
-      100% calc(100% - var(--chamfer)),
-      calc(100% - var(--chamfer)) 100%,
-      0 100%,
-      0 var(--chamfer)
-    );
+
+    &.readonly {
+      cursor: default;
+    }
+
+    &.erasing {
+      cursor: cell;
+    }
   }
-  canvas.readonly {
-    cursor: default;
-  }
+
   /* Inside the board's border, not beside it: the writing area is the whole screen now,
      and a rail parked outside would cost width the strip cannot spare on a tablet. */
   .rail {
     position: absolute;
     inset-block: 2px;
     inset-inline-end: 2px;
-    width: 26px;
-    background: var(--surface-2);
-    border-inline-start: 2px solid var(--border);
-    touch-action: none;
-    cursor: pointer;
+
     /* The grip is clamped in JS and cannot reach this — but the rail is the board's
        inside edge, and anything that ever escapes it does not land somewhere harmless,
        it lands on the page below the board's border looking like a black bar. Clipping
        here costs nothing and makes that impossible rather than merely fixed. */
     overflow: hidden;
+    width: 26px;
+    border-inline-start: 2px solid var(--border);
+    background: var(--surface-2);
+    cursor: pointer;
+    touch-action: none;
   }
+
   .probe {
     position: absolute;
     inset-block-start: 6px;
@@ -1136,15 +1154,16 @@
     gap: 2px;
     margin: 0;
     padding: 4px 8px;
-    direction: ltr;
-    text-align: start;
-    background: var(--surface-2);
     border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--fg-muted);
     font-family: var(--font-mono);
     font-size: 11px;
-    color: var(--fg-muted);
+    text-align: start;
     pointer-events: none;
+    direction: ltr;
   }
+
   /* `.grip`, and NOT `.thumb`, which is what it was called: the skin styles `.thumb` as
      an image thumbnail — `filter: grayscale(1) contrast(1.08)`, "read as surveillance
      feed" — and this answered to the name. On the light palette the ink-navy came out
@@ -1154,6 +1173,7 @@
   .grip {
     position: absolute;
     inset-inline: 5px;
+
     /* No `min-height`: it was a second floor, in a second file, that the clamp above
        could not allow for — and on a short board it was the one that bound. One floor,
        one home. `GRIP_MIN` is 12% of the rail, which is over 26px on every board this
@@ -1161,9 +1181,7 @@
     background: var(--primary);
     box-shadow: var(--cyber-glow-primary);
   }
-  canvas.erasing {
-    cursor: cell;
-  }
+
   /* ---- the capture gesture --------------------------------------------------
      Three things at once, and each says a different half of "this was copied": a shutter
      tint over the whole board, a viewfinder that closes on the four corners, and one
@@ -1173,25 +1191,19 @@
      because the scanline travels past the bottom edge and without it the pane grows a
      scrollbar for an element nobody can see. That exact bug already cost a session once,
      on the dialog's sweep. */
+
   /* The overlay is never unmounted by a timer: every layer ends `forwards` at opacity 0
      (or clipped off the board), so after the gesture it is an invisible, unclickable
      element that the next press replaces through `{#key}`. Its length lives only here. */
   .shot {
     --shot-dur: 620ms;
+    --arm: 22px;
+    --thick: 4px;
+
     position: absolute;
     inset: 0;
     overflow: hidden;
-    pointer-events: none;
-    /* The viewfinder ring. `--primary` is the token that stays STRUCTURAL in both
-       palettes — ink-navy on the light ground, electric cyan on the dark one — which is
-       what an outline wants. The glow is a token of its own because in the light palette
-       it is `none`, and `none` inside a comma list is not a shadow, it is a parse error
-       that takes the whole declaration with it. */
-    outline: 2px solid var(--primary);
-    outline-offset: -2px;
-    box-shadow: var(--cyber-glow-primary);
-    --arm: 22px;
-    --thick: 4px;
+
     /* Four corner brackets, eight bars. They have to be gradients and not a flat colour:
        `background: var(--primary) 0 0/22px 4px` paints the ENTIRE box, which is the
        mistake the 44px card stub already made once. */
@@ -1204,118 +1216,136 @@
       linear-gradient(var(--primary), var(--primary)) 0 100% / var(--thick) var(--arm) no-repeat,
       linear-gradient(var(--primary), var(--primary)) 100% 100% / var(--arm) var(--thick) no-repeat,
       linear-gradient(var(--primary), var(--primary)) 100% 100% / var(--thick) var(--arm) no-repeat;
+
+    /* The viewfinder ring. `--primary` is the token that stays STRUCTURAL in both
+       palettes — ink-navy on the light ground, electric cyan on the dark one — which is
+       what an outline wants. The glow is a token of its own because in the light palette
+       it is `none`, and `none` inside a comma list is not a shadow, it is a parse error
+       that takes the whole declaration with it. */
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+    box-shadow: var(--cyber-glow-primary);
+    pointer-events: none;
+
     /* Fades over the last stretch, and `forwards` is not optional: the default fill mode
        drops the element back to full opacity for the frames between the animation ending
        and the unmount landing — a viewfinder that blinks back on as it leaves. */
     animation:
       shotOut var(--dur-medium) var(--ease-emph)
       calc(var(--shot-dur) - var(--dur-medium)) forwards;
-  }
-  .shot::before,
-  .shot::after {
-    content: '';
-    position: absolute;
-    inset-inline: 0;
-  }
-  /* The shutter: the whole board lifts for an instant. Over inside the first third, so
-     it is finished long before the scanline is halfway down. */
-  .shot::before {
-    inset-block: 0;
-    background: var(--accent-tint);
-    animation: shotFlash calc(var(--shot-dur) * 0.3) linear forwards;
-  }
-  /* The scanline. Same gesture as the dialog's sweep, one register louder, and running
-     exactly once — a loop would turn a confirmation into a thing that keeps moving.
 
-     `linear`, and this is the one place in the app that is not on `--ease-emph`. That
-     curve is front-loaded on purpose, which is right for a panel arriving and wrong for
-     a beam: measured at 150ms of a 420ms travel it was already at the bottom of the
-     board, so what the eye got was a blink and not a sweep. A scanner moves at one
-     speed; so does this. The shutter fades linearly for the same reason — eased, it was
-     over in about 60ms of its 186. */
-  .shot::after {
-    top: 0;
-    height: 34%;
-    background: linear-gradient(180deg, transparent, var(--accent-tint), transparent);
-    animation: shotScan calc(var(--shot-dur) * 0.68) linear
-      calc(var(--shot-dur) * 0.1) forwards;
-  }
-  @keyframes shotFlash {
-    to {
-      opacity: 0;
+    &::before,
+    &::after {
+      content: "";
+      position: absolute;
+      inset-inline: 0;
+
+      /* Under reduce the two moving parts do not run at all rather than run instantly — an
+         instant traverse is still a traverse. The viewfinder is not motion, so it stays:
+         it appears, holds, and goes, and the press still gets an answer on the board.
+         Nothing extra is needed to make it hold — the skin's global rule collapses
+         `animation-duration` but leaves `animation-delay` alone, so `shotOut` still waits
+         out its delay before it fires. */
+      @media (prefers-reduced-motion: reduce) {
+        display: none;
+      }
+    }
+
+    /* The shutter: the whole board lifts for an instant. Over inside the first third, so
+       it is finished long before the scanline is halfway down. */
+    &::before {
+      inset-block: 0;
+      background: var(--accent-tint);
+      animation: shotFlash calc(var(--shot-dur) * 0.3) linear forwards;
+    }
+
+    /* The scanline. Same gesture as the dialog's sweep, one register louder, and running
+       exactly once — a loop would turn a confirmation into a thing that keeps moving.
+
+       `linear`, and this is the one place in the app that is not on `--ease-emph`. That
+       curve is front-loaded on purpose, which is right for a panel arriving and wrong for
+       a beam: measured at 150ms of a 420ms travel it was already at the bottom of the
+       board, so what the eye got was a blink and not a sweep. A scanner moves at one
+       speed; so does this. The shutter fades linearly for the same reason — eased, it was
+       over in about 60ms of its 186. */
+    &::after {
+      inset-block-start: 0;
+      height: 34%;
+      background: linear-gradient(180deg, transparent, var(--accent-tint), transparent);
+      animation:
+        shotScan calc(var(--shot-dur) * 0.68) linear
+        calc(var(--shot-dur) * 0.1) forwards;
     }
   }
+
+  @keyframes shotFlash {
+    to {
+      opacity: 0%;
+    }
+  }
+
   @keyframes shotScan {
     from {
       transform: translateY(-110%);
     }
+
     to {
       transform: translateY(400%);
     }
   }
+
   @keyframes shotOut {
     to {
-      opacity: 0;
+      opacity: 0%;
     }
   }
-  /* Under reduce the two moving parts do not run at all rather than run instantly — an
-     instant traverse is still a traverse. The viewfinder is not motion, so it stays:
-     it appears, holds, and goes, and the press still gets an answer on the board.
-     Nothing extra is needed to make it hold — the skin's global rule collapses
-     `animation-duration` but leaves `animation-delay` alone, so `shotOut` still waits
-     out its delay before it fires. */
-  @media (prefers-reduced-motion: reduce) {
-    .shot::before,
-    .shot::after {
-      display: none;
-    }
-  }
-  .empty.fault {
-    color: var(--danger);
-  }
+
   .stall {
-    margin: 0 auto 8px;
     width: 100%;
-    max-width: calc(66vh * var(--aspect));
+    margin-block: 0 8px;
+    margin-inline: auto;
     padding: 6px 12px;
     border: 2px solid var(--danger);
     background: var(--danger-container);
     color: var(--fg);
+    clip-path:
+      polygon(
+        var(--chamfer-s) 0,
+        100% 0,
+        100% calc(100% - var(--chamfer-s)),
+        calc(100% - var(--chamfer-s)) 100%,
+        0 100%,
+        0 var(--chamfer-s)
+      );
     font-family: var(--font-mono);
     font-size: 13px;
     line-height: 1.45;
     text-align: center;
-    clip-path: polygon(
-      7px 0,
-      100% 0,
-      100% calc(100% - 7px),
-      calc(100% - 7px) 100%,
-      0 100%,
-      0 7px
-    );
-  }
-  @supports (height: 1svh) {
-    .stall {
-      max-width: calc(66svh * var(--aspect));
+
+    /* On the writing board the canvas fills what is left, so the banner spans it too. */
+    &:has(+ .host.fill) {
+      max-width: none;
+    }
+
+    & span {
+      display: block;
+      color: var(--fg-muted);
+      font-size: 11px;
     }
   }
-  /* On the writing board the canvas fills what is left, so the banner spans it too. */
-  .stall:has(+ .host.fill) {
-    max-width: none;
-  }
-  .stall span {
-    display: block;
-    color: var(--fg-muted);
-    font-size: 11px;
-  }
+
   .empty {
     position: absolute;
-    inset-block-start: 50%;
     inset-inline: 0;
+    inset-block-start: 50%;
     margin: 0;
-    text-align: center;
     color: var(--fg-subtle);
     font-family: var(--font-mono);
     font-size: 14px;
+    text-align: center;
+
+    &.fault {
+      color: var(--danger);
+    }
   }
 </style>

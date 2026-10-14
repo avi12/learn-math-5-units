@@ -96,8 +96,8 @@ await role('לוח כתיבה');
 await wait(30);
 const toPad = JSON.parse(await anims());
 const midClip = await clipNow();
-check('to the writing board: the power-on runs', toPad.includes('roleToPad') &&
-  toPad.includes('roleScanDown'), toPad.join(' '));
+check('to the writing board: the power-on runs', toPad.includes('role-to-pad') &&
+  toPad.includes('role-scan-down'), toPad.join(' '));
 check('and mid-way the board is still opening', midClip.startsWith('inset('), midClip);
 await wait(400);
 check('and it ends with nothing held', (await clipNow()) === 'none' &&
@@ -105,8 +105,8 @@ check('and it ends with nothing held', (await clipNow()) === 'none' &&
 await role('תצוגה');
 await wait(30);
 const toMirror = JSON.parse(await anims());
-check('to the mirror: the other direction runs', toMirror.includes('roleToMirror') &&
-  toMirror.includes('roleScanAcross'), toMirror.join(' '));
+check('to the mirror: the other direction runs', toMirror.includes('role-to-mirror') &&
+  toMirror.includes('role-scan-across'), toMirror.join(' '));
 await wait(400);
 await send('Emulation.setEmulatedMedia', {
   features: [{ name: 'prefers-reduced-motion', value: 'reduce' }]

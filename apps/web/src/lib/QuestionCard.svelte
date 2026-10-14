@@ -250,59 +250,74 @@
      pushing the board down; on the desktop it takes the room it needs. */
   .question {
     flex: none;
-    margin-bottom: 14px;
+    margin-block-end: 14px;
     padding: 14px 16px;
     border-color: var(--border-strong);
   }
+
   .qbar {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
     gap: 10px 14px;
+    align-items: center;
   }
-  .topic.chapter {
-    flex: 1 1 300px;
+
+  .topic {
+    &.chapter {
+      flex: 1 1 300px;
+    }
+
+    &.exercise {
+      flex: 1 1 220px;
+    }
   }
-  .topic.exercise {
-    flex: 1 1 220px;
-  }
+
   .steps .btn {
     padding-inline: 12px;
   }
+
   .qmeta {
-    margin: 14px 0 6px;
-    padding-bottom: 6px;
-    border-bottom: 2px solid var(--border);
-    background: linear-gradient(var(--cyber-stripe), var(--cyber-stripe)) bottom right / 44px 4px
+    margin-block: 14px 6px;
+    margin-inline: 0;
+    padding-block-end: 6px;
+    border-block-end: 2px solid var(--border);
+    background:
+      linear-gradient(var(--cyber-stripe), var(--cyber-stripe)) bottom right / 44px 4px
       no-repeat;
+    color: var(--fg-muted);
     font-family: var(--font-mono);
     font-size: 12px;
     letter-spacing: 0.06em;
-    color: var(--fg-muted);
   }
+
   .qtext {
     margin: 0;
+    color: var(--fg);
     font-size: 17px;
     line-height: 1.85;
-    color: var(--fg);
+
     /* an exercise with lettered parts breaks them onto lines (lib/tex.ts) */
     white-space: pre-line;
-  }
-  .qtext.dim {
-    font-size: 14px;
-    color: var(--fg-muted);
-  }
-  /* Every formula is its own LTR run — see lib/tex.ts for why that is not styling. NOT a
-     scroll box: as one, a root sign's one-pixel overhang drew a scrollbar under formulas as
-     short as √(x+4). A long formula wraps at its top-level = and + instead — Temml marks
-     those breaks, and its stylesheet lets <math> wrap there.
-     Avi: "לא טוב שיש גלילה אופקית". */
-  .qtext :global(.tex) {
-    unicode-bidi: isolate;
-    white-space: normal;
-  }
-  .qtext :global(math) {
-    font-size: 1.05em;
+
+    &.dim {
+      color: var(--fg-muted);
+      font-size: 14px;
+    }
+
+    /* Every formula is its own LTR run — see lib/tex.ts for why that is not styling. NOT a
+       scroll box: as one, a root sign's one-pixel overhang drew a scrollbar under formulas as
+       short as √(x+4). A long formula wraps at its top-level = and + instead — Temml marks
+       those breaks, and its stylesheet lets <math> wrap there.
+       Avi: "לא טוב שיש גלילה אופקית". `:global` because the formulas arrive through
+       {@html}, outside this component's scoping. */
+    & :global(.tex) {
+      white-space: normal;
+      unicode-bidi: isolate;
+    }
+
+    & :global(math) {
+      font-size: 1.05em;
+    }
   }
 
   /* ---- a new question comes in -----------------------------------------------
@@ -320,160 +335,193 @@
      tint at opacity 0. */
   .qbox {
     --swap-dur: var(--dur-long);
+
     /* the heading's margin stays inside, so the height measured is the height animated */
     display: flow-root;
+
+    /* The skin's global rule already cuts every CSS duration to nothing; the line and the
+       tint are not shown at all (below), so what is left is the new question, at once. */
+    @media (prefers-reduced-motion: reduce) {
+      --swap-dur: 0.001ms; /* the height is played from script, out of the global rule's reach */
+    }
   }
+
   .qswap {
     position: relative;
+
+    > * {
+      animation: qResolveFwd var(--swap-dur) linear;
+    }
+
+    > .qmeta {
+      animation:
+        qResolveFwd var(--swap-dur) linear,
+        qGlitch var(--dur-medium) steps(4, end);
+    }
+
+    &::before,
+    &::after {
+      content: "";
+      position: absolute;
+      inset-block: 0;
+      inset-inline-start: 0;
+      opacity: 0%;
+      pointer-events: none;
+      animation: qScan var(--swap-dur) linear;
+
+      @media (prefers-reduced-motion: reduce) {
+        display: none;
+      }
+    }
+
+    /* the tint: from the edge the line left, up to the line */
+    &::before {
+      background: linear-gradient(to left, transparent, var(--accent-tint));
+    }
+
+    /* the line */
+    &::after {
+      border-inline-end: 2px solid var(--cyber-stripe);
+      box-shadow: var(--cyber-glow-mark);
+    }
+
+    &[data-dir="back"] {
+      > * {
+        animation-name: qResolveBack;
+      }
+
+      > .qmeta {
+        animation-name: qResolveBack, qGlitch;
+      }
+
+      &::before,
+      &::after {
+        inset-inline: auto 0;
+      }
+
+      &::before {
+        background: linear-gradient(to right, transparent, var(--accent-tint));
+      }
+
+      &::after {
+        border-inline-end: none;
+        border-inline-start: 2px solid var(--cyber-stripe);
+      }
+    }
   }
-  .qswap > :global(*) {
-    animation: qResolveFwd var(--swap-dur) linear;
+
+  .question.compact {
+    margin-block-end: 10px;
+    padding: 10px 12px;
+
+    /* the selects already say which chapter and which question; the meta line is the
+       desktop's, where there is room for it */
+    .qmeta {
+      display: none;
+    }
+
+    .qtext {
+      /* scrolling on one axis makes the other one `auto` too, and the same one-pixel
+         overhang would then scroll sideways; questioncheck.mjs proves nothing real is cut */
+      overflow-x: hidden;
+      overflow-y: auto;
+      max-height: 17svh;
+      margin-block-start: 8px;
+      font-size: 15.5px;
+      line-height: 1.7;
+    }
   }
-  .qswap[data-dir='back'] > :global(*) {
-    animation-name: qResolveBack;
-  }
-  .qswap > .qmeta {
-    animation:
-      qResolveFwd var(--swap-dur) linear,
-      qGlitch var(--dur-medium) steps(4, end);
-  }
-  .qswap[data-dir='back'] > .qmeta {
-    animation-name: qResolveBack, qGlitch;
-  }
-  .qswap::before,
-  .qswap::after {
-    content: '';
-    position: absolute;
-    inset-block: 0;
-    pointer-events: none;
-    opacity: 0;
-    animation: qScan var(--swap-dur) linear;
-  }
-  /* the tint: from the edge the line left, up to the line */
-  .qswap::before {
-    inset-inline-start: 0;
-    background: linear-gradient(to left, transparent, var(--accent-tint));
-  }
-  /* the line */
-  .qswap::after {
-    inset-inline-start: 0;
-    border-inline-end: 2px solid var(--cyber-stripe);
-    box-shadow: var(--cyber-glow-mark);
-  }
-  .qswap[data-dir='back']::before,
-  .qswap[data-dir='back']::after {
-    inset-inline: auto 0;
-  }
-  .qswap[data-dir='back']::before {
-    background: linear-gradient(to right, transparent, var(--accent-tint));
-  }
-  .qswap[data-dir='back']::after {
-    border-inline-end: none;
-    border-inline-start: 2px solid var(--cyber-stripe);
-  }
+
   /* The page is RTL, so "along the reading direction" is right to left: the uncovered
      part grows from the right edge. clip-path is physical, hence the two keyframes. */
   @keyframes qResolveFwd {
     0% {
       clip-path: inset(0 0 0 100%);
-      opacity: 0.4;
+      opacity: 40%;
     }
+
     20% {
-      opacity: 1;
+      opacity: 100%;
     }
+
     30% {
-      opacity: 0.55;
+      opacity: 55%;
     }
+
     45% {
-      opacity: 1;
+      opacity: 100%;
     }
+
     100% {
       clip-path: inset(0 0 0 0);
     }
   }
+
   @keyframes qResolveBack {
     0% {
       clip-path: inset(0 100% 0 0);
-      opacity: 0.4;
+      opacity: 40%;
     }
+
     20% {
-      opacity: 1;
+      opacity: 100%;
     }
+
     30% {
-      opacity: 0.55;
+      opacity: 55%;
     }
+
     45% {
-      opacity: 1;
+      opacity: 100%;
     }
+
     100% {
       clip-path: inset(0 0 0 0);
     }
   }
+
   @keyframes qScan {
     0% {
       width: 0;
-      opacity: 1;
+      opacity: 100%;
     }
+
     85% {
-      opacity: 1;
+      opacity: 100%;
     }
+
     100% {
       width: 100%;
-      opacity: 0;
+      opacity: 0%;
     }
   }
+
   /* four hard frames: a split into the two accents, a kick each way, and gone */
   @keyframes qGlitch {
     0% {
-      transform: translateX(3px);
       text-shadow:
         -2px 0 var(--accent-2),
         2px 0 var(--cyber-stripe);
+      transform: translateX(3px);
     }
+
     25% {
       transform: translateX(-2px);
     }
+
     50% {
-      transform: translateX(1px);
       text-shadow:
         1px 0 var(--accent-2),
         -1px 0 var(--cyber-stripe);
+      transform: translateX(1px);
     }
+
     100% {
-      transform: none;
       text-shadow: none;
+      transform: none;
     }
   }
-  /* The skin's global rule already cuts every CSS duration to nothing; the line and the tint
-     are not shown at all, so what is left is the new question, at once. */
-  @media (prefers-reduced-motion: reduce) {
-    .qbox {
-      --swap-dur: 0.001ms; /* the height is played from script, out of the global rule's reach */
-    }
-    .qswap::before,
-    .qswap::after {
-      display: none;
-    }
-  }
-  .question.compact {
-    padding: 10px 12px;
-    margin-bottom: 10px;
-  }
-  /* the selects already say which chapter and which question; the meta line is the
-     desktop's, where there is room for it */
-  .question.compact .qmeta {
-    display: none;
-  }
-  .question.compact .qtext {
-    margin-top: 8px;
-    max-height: 17svh;
-    overflow-y: auto;
-    /* scrolling on one axis makes the other one `auto` too, and the same one-pixel
-       overhang would then scroll sideways; questioncheck.mjs proves nothing real is cut */
-    overflow-x: hidden;
-    font-size: 15.5px;
-    line-height: 1.7;
-  }
+
   /* ---- how this question is solved ------------------------------------------
      Two links under the question, in the chassis language of everything else: chamfered,
      2px outline, mono for the channel and the length. Not thumbnails — the card sits on
@@ -491,22 +539,24 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 14px;
+    margin-block-start: 14px;
   }
+
   .vlabel {
     flex: none;
     align-self: center;
+    color: var(--fg-muted);
     font-family: var(--font-mono);
     font-size: 11px;
     letter-spacing: 0.07em;
-    color: var(--fg-muted);
   }
+
   .vlink {
-    flex: 1 1 300px;
-    min-width: 0;
     display: flex;
-    align-items: center;
+    flex: 1 1 300px;
     gap: 10px;
+    align-items: center;
+    min-width: 0;
     padding: 7px 10px;
     border: 2px solid var(--border);
     background: var(--surface-2);
@@ -515,34 +565,210 @@
     transition:
       background var(--dur-short) var(--ease-emph),
       border-color var(--dur-short) var(--ease-emph);
+
+    &:is(:hover, :focus-visible) {
+      border-color: var(--primary);
+      background: var(--hover);
+    }
   }
-  .vlink:hover,
-  .vlink:focus-visible {
-    background: var(--hover);
-    border-color: var(--primary);
-  }
+
   .vtext {
-    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-width: 0;
   }
+
   .vtitle {
-    unicode-bidi: isolate;
-    overflow-wrap: anywhere;
     font-size: 13.5px;
     line-height: 1.35;
+    overflow-wrap: anywhere;
+    unicode-bidi: isolate;
   }
+
   .vwho {
+    color: var(--fg-muted);
     font-family: var(--font-mono);
     font-size: 11px;
     letter-spacing: 0.04em;
-    color: var(--fg-muted);
     unicode-bidi: isolate;
   }
+
   .qfoot {
     display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
     justify-content: flex-end;
-    margin-top: 12px;
+    align-items: center;
+    margin-block-start: 12px;
+  }
+
+  .lstate {
+    margin-inline-end: auto;
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+  }
+  /* The exercise picker's skill tree. The picker itself (the popup, the rows, the
+     checked fill) is shared and lives in controls.css; the tree is this card's alone. */
+  @supports (appearance: base-select) {
+    .topic {
+      /* The picker is a hundred rows long, so it has to be READ, not scanned: a block
+         header that carries the card treatment — uppercase, tracked out, a 2px rule and
+         the signature 44px stub under it — and a hairline between exercises. Sticky, so
+         the block you are inside never scrolls out of sight while you look for a rung. */
+      optgroup {
+        padding: 0;
+        border: none;
+
+        legend {
+          position: sticky;
+          inset-block-start: 0;
+          z-index: 1;
+          display: block;
+          padding: 0;
+          background: var(--surface-2);
+          color: var(--fg);
+          font-family: var(--font-mono);
+
+          /* The rung: quieter, and it carries the workbook's own pips so the two read as
+             the same thing in two places. */
+          .grung {
+            display: flex;
+            align-items: stretch;
+            color: var(--fg-muted);
+            font: var(--t-label-m);
+            font-family: var(--font-mono);
+            letter-spacing: 0.08em;
+
+            .tx {
+              display: flex;
+              gap: 8px;
+              align-items: center;
+              padding-block: 8px 7px;
+              padding-inline: 14px 6px;
+              border-block-end: 1px solid var(--border);
+            }
+          }
+        }
+      }
+      .pips {
+        display: inline-flex;
+        gap: 3px;
+
+        i {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: currentColor;
+          opacity: 30%;
+
+          &.on {
+            background: var(--primary);
+            opacity: 100%;
+          }
+        }
+      }
+      /* ---- the skill tree ---------------------------------------------------
+         A trunk down the inline-start edge with a node on it for every row: hollow
+         diamonds for the exercises, a filled square for the rung they hang off, and the
+         chosen one lit. The trunk is drawn on `.tw`, one segment per row, top to bottom —
+         so consecutive rows join into a continuous line without anyone computing heights.
+         Every node punches a hole in the trunk with its own background, which is what
+         makes it read as ON the line rather than beside it. */
+      .tw {
+        position: relative;
+        flex: 0 0 46px;
+
+        /* the trunk segment */
+        &::before {
+          content: "";
+          position: absolute;
+          inset-block: 0;
+          inset-inline-start: 25px;
+          width: 2px;
+          background: var(--fg-subtle);
+          opacity: 55%;
+        }
+
+        /* the node */
+        &::after {
+          content: "";
+          position: absolute;
+          inset-block-start: 50%;
+          inset-inline-start: 19px;
+          width: 14px;
+          height: 14px;
+          margin-block-start: -7px;
+          border: 2px solid var(--fg-subtle);
+          background: var(--surface);
+          transition: border-color var(--dur-short) var(--ease-emph);
+          transform: rotate(45deg);
+        }
+      }
+      .tx {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding-block: 9px;
+        padding-inline: 14px 6px;
+        border-block-end: 1px solid var(--border);
+      }
+      option:hover .tw::after {
+        border-color: var(--primary);
+      }
+      /* the rung: a square rather than a diamond, and it is the branch the three hang off */
+      legend .grung .tw::after {
+        inset-inline-start: 20px;
+        width: 12px;
+        height: 12px;
+        margin-block-start: -6px;
+        border-color: var(--primary);
+        background: var(--primary);
+        transform: none;
+      }
+      /* the chapter's first rung starts the trunk, so nothing is drawn above its node */
+      optgroup:first-of-type legend .grung .tw::before {
+        inset-block-start: 50%;
+      }
+      /* the chapter list is a plain list: no trunk, just the row */
+      &:is(.chapter, .narrow) option .tx {
+        padding-inline: 14px;
+      }
+      /* the last row of a block ends it */
+      option.leaf .tw::before {
+        inset-block-end: 50%;
+      }
+
+      option.leaf .tx {
+        border-block-end: none;
+        color: var(--fg-muted);
+      }
+      option:checked {
+        .tw::after {
+          border-color: var(--primary);
+          background: var(--primary);
+          box-shadow: var(--cyber-glow-primary);
+        }
+
+        .tx {
+          border-block-end-color: var(--primary);
+        }
+
+      }
+    }
+  }
+
+  .btn.big {
+    padding-block: 12px;
+    font-size: 15px;
+  }
+
+  /* the icon is {@html} markup, so it is not this component's to scope */
+  .vlink > :global(svg) {
+    display: block;
+    flex: none;
+    width: var(--icon-size);
+    height: var(--icon-size);
   }
 </style>
