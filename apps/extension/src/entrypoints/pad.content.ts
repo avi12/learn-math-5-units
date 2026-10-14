@@ -1,6 +1,14 @@
-import { CHECK_MESSAGE, PRESENCE_FLAG, PRESENCE_READY, type CheckPayload } from '@learn-math/shared/protocol';
+import {
+  PadMessage,
+  padMessenger,
+  PRESENCE_FLAG,
+  PRESENCE_READY,
+  type NoteRequest
+} from '@learn-math/shared/protocol';
+import { ExtensionMessage, extensionMessenger, within } from '../utils/protocol';
 
-/** On the pad: hear the button, hand the payload to the background worker.
+/** On the pad: hear the buttons, hand the payloads to the background worker — and, for
+ *  Gemini Live, carry the worker's picture requests and news back into the page.
  *
  * Two jobs, and the first one is the quiet one. The page has to know whether an
  * extension is here BEFORE the button is pressed, because the fallback (copy to the
@@ -13,6 +21,18 @@ import { CHECK_MESSAGE, PRESENCE_FLAG, PRESENCE_READY, type CheckPayload } from 
  * render, not after. It is declared here rather than in a manifest file, so the timing
  * and the code that depends on it cannot drift apart.
  */
+
+/** A note request from the page, or nothing: every field a string, or it is not one. */
+function noteRequestOf(v: unknown): NoteRequest | undefined {
+  const n = v as Partial<Record<keyof NoteRequest, unknown>> | null;
+  const keys: (keyof NoteRequest)[] = ['cue', 'template', 'heard', 'said', 'none'];
+  return n && keys.every((k) => typeof n[k] === 'string') ? (n as NoteRequest) : undefined;
+}
+
+/** How long the page has to draw a picture. Gemini gives up on one after three seconds
+ *  (glic.content.ts), and the hops either side of this one need some of that. */
+const FRAME_MS = 2500;
+
 export default defineContentScript({
   matches: [`${import.meta.env.WXT_PAD_ORIGIN}/*`],
   runAt: 'document_start',
@@ -20,20 +40,53 @@ export default defineContentScript({
   main() {
     document.documentElement.dataset[PRESENCE_FLAG] = PRESENCE_READY;
 
-    window.addEventListener('message', (event: MessageEvent) => {
-      // Only this page, only this message. A content script shares the page's window with
-      // everything else on it, so an unchecked listener is an open door.
-      if (event.source !== window || event.origin !== location.origin) return;
-      const data = event.data as Partial<CheckPayload> | null;
-      if (!data || data.type !== CHECK_MESSAGE) return;
-      if (typeof data.image !== 'string' || typeof data.prompt !== 'string') return;
-
-      chrome.runtime.sendMessage({
-        type: CHECK_MESSAGE,
-        image: data.image,
-        prompt: data.prompt,
-        topic: String(data.topic ?? '')
-      });
+    // Page → worker. What the page sends is checked here: a content script shares the
+    // page's window with everything else on it.
+    padMessenger.onMessage(PadMessage.CHECK, ({ data }) => {
+      if (typeof data?.image !== 'string' || typeof data.prompt !== 'string') {return;}
+      void extensionMessenger
+        .sendMessage(ExtensionMessage.CHECK, { image: data.image, prompt: data.prompt, topic: String(data.topic ?? '') })
+        .catch(() => {});
     });
+    padMessenger.onMessage(PadMessage.LIVE, ({ data }) => {
+      if (typeof data?.action !== 'string') {return;}
+      void extensionMessenger
+        .sendMessage(ExtensionMessage.LIVE, {
+          action: data.action,
+          prompt: typeof data.prompt === 'string' ? data.prompt : undefined,
+          title: typeof data.title === 'string' ? data.title : undefined,
+          notes: noteRequestOf(data.notes)
+        })
+        .catch(() => {});
+    });
+
+    // Worker → page.
+    extensionMessenger.onMessage(ExtensionMessage.FRAME, () =>
+      within(FRAME_MS, padMessenger.sendMessage(PadMessage.FRAME, undefined, location.origin), null)
+    );
+    extensionMessenger.onMessage(ExtensionMessage.LIVE_STATUS, ({ data }) => {
+      void padMessenger.sendMessage(PadMessage.LIVE_STATUS, data, location.origin).catch(() => {});
+    });
+    extensionMessenger.onMessage(ExtensionMessage.LIVE_NOTE, ({ data }) => {
+      void padMessenger.sendMessage(PadMessage.LIVE_NOTE, data, location.origin).catch(() => {});
+    });
+
+    // A pad reloaded in the middle of a session still has one: ask, and tell the page —
+    // after the app has mounted and is listening, since this script runs before it exists.
+    void extensionMessenger
+      .sendMessage(ExtensionMessage.PAD_HELLO)
+      .then((status) => {
+        if (!status) {
+          return;
+        }
+
+        const tell = () => void padMessenger.sendMessage(PadMessage.LIVE_STATUS, status, location.origin).catch(() => {});
+        if (document.readyState === 'complete') {
+          tell();
+        } else {
+          addEventListener('load', tell, { once: true });
+        }
+      })
+      .catch(() => {});
   }
 });

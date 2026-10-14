@@ -1,0 +1,154 @@
+<!doctype html>
+<!-- A stand-in for gemini.google.com/glic, for livechain.mjs: just the parts of the real
+     client the bridge (src/entrypoints/glic.content.ts) leans on, each the way the
+     real one behaves as gemini-live-windows measured it.
+
+       - the bootstrap: a `message` listener that takes only a `glic-bootstrap` from
+         origin chrome://glic, then hands `internalAutoGlicBoot()`'s registry a client;
+       - the host calls: in Live, one `getContextFromTab(…, {viewportScreenshot})` a
+         second, as the real client does while sharing;
+       - the buttons, by the aria-labels the bridge looks for;
+       - a text box whose Submit stays disabled until a TRUSTED key is pressed in it —
+         the gate that makes the worker type through the debugger;
+       - the four Live timeout flags, under their numeric keys;
+       - the Live downlink: `__say()` opens the GET the bridge taps, and the test
+         answers it with a transcript in the real framing;
+       - the bootstrap tokens a text request beside Live is made with — the request
+         itself (StreamGenerate) is answered by the test, in the real framing too.
+
+     It is not Gemini. What it cannot tell you is whether Google's page still matches. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>glic stand-in</title>
+  </head>
+  <body>
+    <main id="ui"></main>
+    <script>
+      window.__log = [];
+      window.__frames = [];
+      // the page's bootstrap object, with the three tokens a text request beside Live needs
+      window.WIZ_global_data = { cfb2h: 'boq_stand-in', FdrFJe: '-1234', SNlM0e: 'AT_STAND_IN' };
+      window.default_BardChatUi = {
+        a: { key: '45681081', defaultValue: 30 },
+        b: { key: '45681082', defaultValue: 30 },
+        c: { key: '45687231', defaultValue: 7000 },
+        d: { key: '45677155', defaultValue: 3600000 },
+        e: { key: '1', defaultValue: 1 }
+      };
+
+      let host = null;
+      let mode = 'text';
+      let trusted = 0;
+      let frameTimer = null;
+      const ui = document.getElementById('ui');
+
+      const button = (label, onclick, disabled = false) => {
+        const b = document.createElement('button');
+        b.setAttribute('aria-label', label);
+        b.textContent = label;
+        b.disabled = disabled;
+        b.onclick = onclick;
+        return b;
+      };
+
+      function reply(text, code) {
+        const box = document.createElement('div');
+        box.className = 'presented-response-container';
+        box.append(document.createTextNode(text));
+        if (code) {
+          const pre = document.createElement('pre');
+          const c = document.createElement('code');
+          c.textContent = code;
+          pre.append(c);
+          box.append(pre);
+        }
+        box.append(button('Copy', () => {}));
+        document.body.append(box);
+      }
+
+      function render() {
+        ui.replaceChildren();
+        clearInterval(frameTimer);
+        // what the real client showed on 14.10.2026, Live gone mid-session; its own
+        // "Try again" did not bring it back, and here it does nothing at all
+        if (mode === 'broken') {
+          const p = document.createElement('p');
+          p.textContent = 'Something went wrong';
+          const retry = document.createElement('button');
+          retry.textContent = 'Try again';
+          retry.addEventListener('click', () => window.__log.push('try-again'));
+          ui.append(p, retry);
+          return;
+        }
+
+        if (mode === 'live') {
+          ui.append(button('Pause live mode', () => {}), button('Switch to text mode', () => go('text')));
+          frameTimer = setInterval(async () => {
+            const c = await host.getContextFromTab('pad', { viewportScreenshot: true });
+            const s = c.viewportScreenshot;
+            window.__frames.push(s ? [s.widthPixels, s.heightPixels, s.data.byteLength, s.mimeType] : null);
+            window.__tab = c.tabData;
+          }, 1000);
+          return;
+        }
+
+        const ed = document.createElement('div');
+        ed.contentEditable = 'true';
+        ed.id = 'ed';
+        const submit = button('Submit', () => {
+          const prompt = ed.textContent;
+          window.__log.push('submitted:' + prompt.length);
+          window.__prompts = [...(window.__prompts || []), prompt];
+          if (prompt.includes('בכתב')) {
+            reply('', 'נוסחת השורשים\n$x_{1,2}=\\frac{-b\\pm\\sqrt{b^{2}-4ac}}{2a}$');
+          } else {
+            reply('מוכן');
+          }
+          ed.textContent = '';
+          trusted = 0;
+          submit.disabled = true;
+        }, true);
+        ed.addEventListener('keydown', (e) => {
+          if (e.isTrusted) {
+            trusted++;
+            submit.disabled = false;
+          }
+        });
+        ui.append(ed, submit, button('Go Live', () => go('live')));
+      }
+
+      function go(next) {
+        mode = next;
+        window.__log.push('mode:' + next);
+        render();
+      }
+
+      window.__break = () => go('broken');
+
+      window.__say = (kind) => {
+        const x = new XMLHttpRequest();
+        x.open('GET', `/v1/processSession?VER=8&TYPE=xmlhttp&say=${kind}`);
+        x.send();
+      };
+
+      const client = {
+        initialize(h) {
+          host = h;
+          window.__log.push('init');
+          render();
+        },
+        notifyPanelWillOpen() {
+          window.__log.push('willOpen');
+        }
+      };
+
+      window.addEventListener('message', (e) => {
+        if (e.origin !== 'chrome://glic' || e.source === null || e.data?.type !== 'glic-bootstrap') {
+          return;
+        }
+        window.internalAutoGlicBoot(e.source).registerWebClient(client);
+      });
+    </script>
+  </body>
+</html>

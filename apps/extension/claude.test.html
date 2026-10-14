@@ -35,10 +35,12 @@
   let handed = false;
   window.chrome = {
     runtime: {
-      sendMessage: async (msg) => {
-        if (msg?.type !== 'avi-math-take' || handed) return null;
-        handed = true;
-        return { image: PNG, prompt: PROMPT, topic: 'נגזרת וחקירת פונקציות', at: Date.now() };
+      // as @webext-core/messaging calls it: the message's envelope and a callback, which
+      // the worker answers with `{ res }` (ExtensionMessage.TAKE in src/utils/protocol.ts)
+      sendMessage: (msg, reply) => {
+        const take = msg?.type === 'take' && !handed;
+        handed ||= take;
+        reply({ res: take ? { image: PNG, prompt: PROMPT, topic: 'נגזרת וחקירת פונקציות', at: Date.now() } : null });
       }
     }
   };

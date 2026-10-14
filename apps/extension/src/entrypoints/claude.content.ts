@@ -1,4 +1,4 @@
-import { TAKE, type PendingCheck } from '../utils/protocol';
+import { ExtensionMessage, extensionMessenger } from '../utils/protocol';
 
 /** On claude.ai: put the board and the prompt into the composer, and stop there.
  *
@@ -69,7 +69,11 @@ function composer(timeoutMs = 15000): Promise<HTMLElement | null> {
   });
 }
 
-function banner(text: string, tone: 'ok' | 'bad') {
+/** How a banner reads: done, or something for Avi to fix by hand. */
+const Tone = { OK: 'ok', BAD: 'bad' } as const;
+type Tone = (typeof Tone)[keyof typeof Tone];
+
+function banner(text: string, tone: Tone) {
   const el = document.createElement('div');
   el.textContent = text;
   Object.assign(el.style, {
@@ -82,7 +86,7 @@ function banner(text: string, tone: 'ok' | 'bad') {
     borderRadius: '8px',
     font: '500 14px/1.4 system-ui, sans-serif',
     color: '#fff',
-    background: tone === 'bad' ? '#8a1c3a' : '#1f6f4a',
+    background: tone === Tone.BAD ? '#8a1c3a' : '#1f6f4a',
     boxShadow: '0 6px 24px rgba(0,0,0,.35)',
     direction: 'rtl'
   });
@@ -91,8 +95,8 @@ function banner(text: string, tone: 'ok' | 'bad') {
 }
 
 async function run() {
-  const job = (await chrome.runtime.sendMessage({ type: TAKE })) as PendingCheck | null;
-  if (!job) return; // an ordinary visit to Claude, not one this extension asked for
+  const job = await extensionMessenger.sendMessage(ExtensionMessage.TAKE).catch(() => null);
+  if (!job) {return;} // an ordinary visit to Claude, not one this extension asked for
 
   const box = await composer();
   if (!box) {
@@ -108,7 +112,7 @@ async function run() {
       copied
         ? 'לא מצאתי את תיבת ההודעה. הפרומפט הועתק — הדבק ידנית.'
         : 'לא מצאתי את תיבת ההודעה, וההעתקה נדחתה. חזור ללוח ולחץ שוב.',
-      'bad'
+      Tone.BAD
     );
     return;
   }
@@ -119,10 +123,10 @@ async function run() {
   const text = pasteInto(box, { text: job.prompt });
 
   if (!image || !text) {
-    banner('משהו מהשניים לא נדבק. בדוק לפני ששולח.', 'bad');
+    banner('משהו מהשניים לא נדבק. בדוק לפני ששולח.', Tone.BAD);
     return;
   }
-  banner(`מוכן לבדיקה — ${job.topic || 'הלוח'}. עבור עליו ושלח.`, 'ok');
+  banner(`מוכן לבדיקה — ${job.topic || 'הלוח'}. עבור עליו ושלח.`, Tone.OK);
 }
 
 export default defineContentScript({
@@ -133,6 +137,6 @@ export default defineContentScript({
     // Nothing above is allowed to fail in silence: a throw between finding the composer
     // and the banner would otherwise leave the page looking untouched, which is the one
     // outcome this file is written to avoid.
-    void run().catch(() => banner('הבדיקה נכשלה בדרך. חזור ללוח ולחץ שוב.', 'bad'));
+    void run().catch(() => banner('הבדיקה נכשלה בדרך. חזור ללוח ולחץ שוב.', Tone.BAD));
   }
 });

@@ -10,5 +10,8 @@
     "./protocol": "./protocol.ts",
     "./env": "./env.mjs",
     "./skin/*": "./skin/*"
+  },
+  "dependencies": {
+    "@webext-core/messaging": "^4.0.0"
   }
 }

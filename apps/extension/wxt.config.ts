@@ -17,18 +17,23 @@ process.env.WXT_PAD_ORIGIN = PAD;
  *
  *  `host_permissions` stays hand-written, because it is a different claim from `matches`:
  *  matches says where the code runs, host_permissions says what it may reach. They happen
- *  to be the same two origins today and that is a coincidence worth keeping visible. */
+ *  to be the same three origins today and that is a coincidence worth keeping visible. */
 export default defineConfig({
   /** Source under `src/`, config at the root. `entrypointsDir` and the `utils/` alias
    *  both hang off this, so nothing else has to know. */
   srcDir: 'src',
   manifest: {
     name: 'לוח מתמטיקה → קלוד',
-    description: 'לוקח את הלוח ואת קריטריוני הבדיקה של הנושא, ופותח איתם שיחה בקלוד.',
+    description:
+      'לוקח את הלוח ואת קריטריוני הבדיקה של הנושא, ופותח איתם שיחה בקלוד — או בוחן חי בג׳מיני לייב, שרואה את הלוח בזמן הכתיבה.',
     default_locale: undefined,
     /** The repo, read from package.json so the store link and npm agree. */
     homepage_url: pkg.homepage,
-    permissions: ['storage'],
-    host_permissions: [`${PAD}/*`, 'https://claude.ai/*']
+    /* `debugger` is for one thing: typing the examiner's brief into Gemini's text box.
+       That box keeps its send button disabled for anything but trusted key presses, and
+       the debugger's Input domain is the one way an extension has to make them. Attached
+       for the seconds the typing takes, then detached (src/utils/live.ts). */
+    permissions: ['storage', 'debugger'],
+    host_permissions: [`${PAD}/*`, 'https://claude.ai/*', 'https://gemini.google.com/*']
   }
 });

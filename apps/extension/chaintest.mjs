@@ -36,6 +36,8 @@ if (!port) {
   process.exit(2);
 }
 const base = `http://127.0.0.1:${port}`;
+/** Where the worker opens a check, and what every count of Claude tabs below matches. */
+const CLAUDE = 'https://claude.ai/';
 
 const attach = async (target) => {
   const ws = new WebSocket(target.webSocketDebuggerUrl);
@@ -131,7 +133,7 @@ await page.ev(`(() => {
   return s.value;
 })()`);
 
-const before = (await targets()).filter((t) => t.url.startsWith('https://claude.ai/')).length;
+const before = (await targets()).filter((t) => t.url.startsWith(CLAUDE)).length;
 
 const clicked = await page.ev(`(() => {
   const b = [...document.querySelectorAll('button')].find((b) => b.textContent.includes('שקלוד יבדוק'));
@@ -146,7 +148,7 @@ check('the check button is there and was pressed', clicked === 'clicked', String
 let opened = [];
 for (let i = 0; i < 30 && opened.length <= before; i++) {
   await wait(500);
-  opened = (await targets()).filter((t) => t.url.startsWith('https://claude.ai/'));
+  opened = (await targets()).filter((t) => t.url.startsWith(CLAUDE));
 }
 check('the worker opened a Claude tab', opened.length > before, opened[0]?.url ?? 'none appeared');
 
@@ -162,7 +164,7 @@ await page.ev(`(() => {
   b?.click();
 })()`);
 await wait(4000);
-const after = (await targets()).filter((t) => t.url.startsWith('https://claude.ai/'));
+const after = (await targets()).filter((t) => t.url.startsWith(CLAUDE));
 check('a double click does not open a second', after.length === opened.length,
   `${after.length - before} total`);
 

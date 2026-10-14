@@ -18,5 +18,9 @@
   "devDependencies": {
     "@types/chrome": "^0.0.287",
     "wxt": "^0.21.4"
+  },
+  "dependencies": {
+    "@learn-math/shared": "workspace:*",
+    "@webext-core/messaging": "^4.0.0"
   }
 }

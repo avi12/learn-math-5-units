@@ -1,9 +1,10 @@
-import { CHECK_MESSAGE } from '@learn-math/shared/protocol';
+import { installLive } from '../utils/live';
 import {
+  ExtensionMessage,
+  extensionMessenger,
   NEW_CHAT,
   PENDING,
   PENDING_TTL_MS,
-  TAKE,
   type PendingCheck
 } from '../utils/protocol';
 
@@ -16,12 +17,15 @@ import {
  * check it was sent for.
  */
 export default defineBackground(() => {
+  // Gemini Live, the second examiner: its own listeners, its own file.
+  installLive();
+
   /** When the last tab was opened, so the same click cannot open two.
    *
    *  A guard, not a diagnosed fix. Nothing in this extension opens a window except the
    *  one `chrome.tabs.create` below — but two copies of it loaded at once (an unpacked
    *  leftover beside the built one is the easy way to get there) would each hear the
-   *  page's `postMessage` and each open a tab, and the symptom would be a stray window
+   *  page's message and each open a tab, and the symptom would be a stray window
    *  that looks like it came from somewhere else entirely.
    *
    *  Lives in module scope, so it survives for as long as the worker does and no longer.
@@ -30,34 +34,28 @@ export default defineBackground(() => {
   let lastOpen = 0;
   const DEDUPE_MS = 1500;
 
-  chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
-    if (msg?.type === CHECK_MESSAGE) {
-      const now = Date.now();
-      if (now - lastOpen < DEDUPE_MS) return false;
-      lastOpen = now;
-      // A stale payload is worse than none: it would be pasted into whatever Claude tab
-      // opens next, days later. Stamped, and refused on the other side if it is old.
-      // Open Claude either way. If the write failed — quota, most likely, since the board
-      // is a data URL — the tab still opens and the Claude script takes its no-payload
-      // path, which is a visibly empty chat. Swallowing the failure here would leave the
-      // click looking like it did nothing at all.
-      void chrome.storage.local
-        .set({ [PENDING]: { ...msg, at: Date.now() } })
-        .catch(() => {})
-        .then(() => chrome.tabs.create({ url: NEW_CHAT }));
-      return false;
-    }
+  extensionMessenger.onMessage(ExtensionMessage.CHECK, ({ data }) => {
+    const now = Date.now();
+    if (now - lastOpen < DEDUPE_MS) {return;}
+    lastOpen = now;
+    // A stale payload is worse than none: it would be pasted into whatever Claude tab
+    // opens next, days later. Stamped, and refused on the other side if it is old.
+    // Open Claude either way. If the write failed — quota, most likely, since the board
+    // is a data URL — the tab still opens and the Claude script takes its no-payload
+    // path, which is a visibly empty chat. Swallowing the failure here would leave the
+    // click looking like it did nothing at all.
+    void chrome.storage.local
+      .set({ [PENDING]: { ...data, at: Date.now() } satisfies PendingCheck })
+      .catch(() => {})
+      .then(() => chrome.tabs.create({ url: NEW_CHAT }));
+  });
 
-    // The Claude tab asking what it was opened for.
-    if (msg?.type === TAKE) {
-      void chrome.storage.local.get(PENDING).then((row) => {
-        const pending = row[PENDING] as PendingCheck | undefined;
-        const fresh = pending && Date.now() - pending.at < PENDING_TTL_MS;
-        reply(fresh ? pending : null);
-        if (pending) void chrome.storage.local.remove(PENDING);
-      });
-      return true; // the reply is async
-    }
-    return false;
+  // The Claude tab asking what it was opened for.
+  extensionMessenger.onMessage(ExtensionMessage.TAKE, async () => {
+    const row = await chrome.storage.local.get(PENDING);
+    const pending = row[PENDING] as PendingCheck | undefined;
+    const fresh = pending && Date.now() - pending.at < PENDING_TTL_MS;
+    if (pending) {void chrome.storage.local.remove(PENDING);}
+    return fresh ? pending : null;
   });
 });
