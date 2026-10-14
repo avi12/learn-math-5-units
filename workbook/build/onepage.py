@@ -129,9 +129,14 @@ def scope(css: str, prefix: str) -> str:
         k = _close(css, j)
         head = sel.strip()
         if head.startswith("@"):
-            if not head.startswith("@media"):
+            # @keyframes is global and its steps are percentages, not selectors — prefixing
+            # either the name or `from`/`to` destroys the animation. It goes through whole.
+            if head.startswith("@keyframes"):
+                out.append(sel + "{" + css[j + 1:k] + "}")
+            elif head.startswith("@media"):
+                out.append(sel + "{" + scope(css[j + 1:k], prefix) + "}")
+            else:
                 raise SystemExit(f"unexpected at-rule in page css: {head[:40]}")
-            out.append(sel + "{" + scope(css[j + 1:k], prefix) + "}")
         elif re.fullmatch(r"\s*body\s*", sel):
             out.append("\n")
         else:

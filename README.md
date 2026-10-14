@@ -95,6 +95,8 @@ python build/verify9.py      # טענות מספריות מול sympy
 python build/rebuild.py      # הסברים, תרגילים ופרומפטים
 python build/skin.py         # העיצוב, מ‑shared/skin
 python build/qsim.py --all   # מקוריות מול השאלונים
+python build/seqreel.py      # סרטון הסדרות — לדף, וגם ל‑lib/seqreel.{json,css} של הלוח
+                             # (להריץ גם על pages/workbook.base.html)
 python build/dupcheck.py     # כפילויות
 python build/onepage.py      # הכול לדף אחד: workbook/dist/hub571/index.html
 python build/graders.py      # הקריטריונים והתרגילים → apps/web/src/lib/graders.json
