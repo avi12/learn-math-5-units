@@ -13,6 +13,7 @@
  * goes out has to contain the marking criteria the workbook wrote for that block.
  */
 import { asTablet, assertPad } from './lib/pad.mjs';
+import { catchFromPage, PadMessage } from './lib/extension.mjs';
 const [, , url, port] = process.argv;
 const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
@@ -137,12 +138,9 @@ await wait(500);
 
 await ev(`(() => {
   document.documentElement.dataset.aviMathCheck = 'ready';
-  window.__caught = null;
-  window.addEventListener('message', (e) => {
-    if (e.source === window && e.data && e.data.type === 'avi-math-check@1') window.__caught = e.data;
-  });
   return 1;
 })()`);
+await ev(catchFromPage(PadMessage.CHECK));
 await ev(`${btn}.click(), 1`);
 for (let i = 0; i < 40 && !(await ev(`!!window.__caught`)); i++) {await wait(250);}
 

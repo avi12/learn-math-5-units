@@ -1,22 +1,30 @@
 <script module lang="ts">
   /** What the page may ask of the board. */
+  import type { Scene } from './frame';
+
   export interface SurfaceApi {
     exportCanvas(w?: number, part?: number): HTMLCanvasElement;
     showPart(i: number): void;
     flash(): void;
+    scene(): Scene;
   }
 </script>
 
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { BandIndex } from './bands';
-  import type { Action } from './history.svelte';
+  import type { Hover } from './directlink';
+  import { ActionKind, type Action } from './history.svelte';
   import {
     PAGE,
     PART,
+    PEN_SIZE,
+    Pen,
+    Tool,
     bounds,
     colour,
     decimate,
+    drawPenMark,
     drawStroke,
     exportParts,
     exportSpan,
@@ -26,14 +34,12 @@
     palette,
     render,
     snapPoint,
-    type Pen,
     type Pt,
-    type Stroke,
-    type Tool
+    type Stroke
   } from './ink';
   import { PenDebug } from './pendebug.svelte';
   import { commit, onSnapshot, onWriteStall, orderBy, publishLive, query, remove, strokeRef, type Room } from './room';
-  import { installSpen, spenHeld } from './spen';
+  import { PointerButton, PointerButtons, PointerKind, installSpen, pad, spenHeld } from './spen';
 
   /** Firestore charges per write, so an in-progress stroke is only broadcast once it has
    *  run long enough to be worth watching, and then at a human frame rate. Handwriting
@@ -41,18 +47,24 @@
   const LIVE_AFTER_MS = 400;
   const LIVE_EVERY_MS = 250;
 
+  /** How long a stroke counts as "just written" in the picture Gemini Live sees. A few
+   *  of its stills, so a stroke is not highlighted in one and gone by the next. */
+  const RECENT_MS = 8000;
+
   let {
     room,
     readonly = false,
     fill = false,
-    tool = 'ink' as Tool,
-    pen = 'ink' as Pen,
-    size = 6,
+    tool = Tool.INK,
+    pen = Pen.INK,
+    size = PEN_SIZE.initial,
     isSnapping = false,
     gridCell,
     onparts,
     onpen,
-    onaction
+    onaction,
+    hover = null,
+    onhover
   }: {
     room: Room;
     readonly?: boolean;
@@ -83,6 +95,12 @@
      *  it made; an erase carries every stroke that gesture removed, which is the whole
      *  reason this is an action and not a stroke. */
     onaction?: (a: Action) => void;
+    /** Where the OTHER device's pen is hovering — the tablet's, shown on the desktop
+     *  mirror (lib/directlink.ts carries it). Drawn only on the mirror. */
+    hover?: Hover;
+    /** Where THIS device's pen is hovering, null when it leaves or lands. Only the
+     *  writing board reports it; see `hovering`. */
+    onhover?: (h: Hover) => void;
   } = $props();
 
   /** `?pendebug`: what the pen reported, printed on the board. See lib/pendebug.svelte.ts. */
@@ -95,6 +113,11 @@
   /** Committed strokes, in insertion order, keyed so undo can remove the last one. */
   let order = $state<string[]>([]);
   const byKey = new Map<string, Stroke>();
+  /** When each stroke arrived, for strokes that arrived after the board first loaded —
+   *  what "just written" means in the picture Gemini sees (`scene`). */
+  const arrived = new Map<string, number>();
+  /** The first snapshot is the board as it already was; nothing in it is new. */
+  let loaded = false;
   let live = $state<Stroke | null>(null);
   /** A listener that dies must say so — a silent one looks exactly like an empty board. */
   let fault = $state('');
@@ -310,7 +333,10 @@
     // The stroke in hand, and the one that has been committed but whose document has not
     // come back from Firestore yet. Drawing the second is what removes the blank frame.
     const wet = live ?? pending?.stroke ?? null;
-    if (!wet && !rubber) {
+    // the tablet's pen, over the mirror — never on the board it is hovering over, which
+    // has the pen itself above it
+    const mark = readonly ? hover : null;
+    if (!wet && !rubber && !mark) {
       return;
     }
 
@@ -321,7 +347,7 @@
     }
 
     if (rubber) {
-      ctx.strokeStyle = colour('ink');
+      ctx.strokeStyle = colour(Pen.INK);
       ctx.globalAlpha = 0.55;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -330,7 +356,18 @@
     }
 
     ctx.restore();
+    if (mark) {
+      drawPenMark(ctx, mark.x * w, (mark.y - top) * w, 11);
+    }
   }
+
+  // A hover is a prop, not a pointer event here, so its changes have to ask for a frame.
+  // Untracked: paint() reads the wet stroke and the scroll position too, and an effect
+  // that re-ran on those would paint every pen move twice.
+  $effect(() => {
+    void hover;
+    untrack(paint);
+  });
 
   /** The rubber follows the thickness slider: the same control that says how wide the
    *  pen writes says how much of it comes off. */
@@ -378,7 +415,7 @@
       void remove(strokeRef(room.id, it.key));
     }
 
-    onaction?.({ kind: 'erase', items: erasedNow });
+    onaction?.({ kind: ActionKind.ERASE, items: erasedNow });
     erasedNow = [];
   }
 
@@ -446,7 +483,12 @@
         if (ch.type === 'removed') {
           byKey.delete(ch.doc.id);
           erased.delete(ch.doc.id);
+          arrived.delete(ch.doc.id);
         } else {
+          if (loaded && ch.type === 'added') {
+            arrived.set(ch.doc.id, performance.now());
+          }
+
           byKey.set(ch.doc.id, ch.doc.data() as Stroke);
           // Undo of an erase writes the stroke back under its own id. If its delete has
           // not echoed yet the key is still in `erased`, and `strokes()` would go on
@@ -456,6 +498,7 @@
         }
       }
       order = snap.docs.map((d) => d.id);
+      loaded = true;
       inkVersion++;
       orderVersion++;
       if (pending && byKey.has(pending.key)) {
@@ -521,7 +564,7 @@
    *  snapping is on, exactly under the pen otherwise. The one place that decides it,
    *  so the corner a shape starts from and the corner it ends on follow the same rule. */
   function place(point: Pt): Pt {
-    if (!isSnapping || acting === 'ink') {
+    if (!isSnapping || acting === Tool.INK) {
       return point;
     }
 
@@ -553,7 +596,7 @@
    *  the S Pen's side button turns any stroke into an erase. Latched at pointerdown and
    *  held for the whole stroke — "touch while holding the button" is the gesture, so
    *  letting go of the button halfway must not turn the rubber back into a pen. */
-  let acting: Tool = 'ink';
+  let acting: Tool = Tool.INK;
 
   /** Is this pointer asking to erase?
    *
@@ -571,7 +614,7 @@
    *  on a whiteboard, and the canvas already suppresses the context menu. Touch is
    *  excluded because a second finger there means panning. */
   function erasingWith(e: PointerEvent): boolean {
-    if (e.pointerType === 'touch') {
+    if (e.pointerType === PointerKind.TOUCH) {
       return false;
     }
 
@@ -580,20 +623,36 @@
     // the wrapper every one of the tests below reads false and this one carries it.
     return (
       spenHeld() ||
-      !!(e.buttons & 2) ||
-      !!(e.buttons & 32) ||
-      e.button === 2 ||
-      e.button === 5
+      !!(e.buttons & PointerButtons.BARREL) ||
+      !!(e.buttons & PointerButtons.ERASER) ||
+      e.button === PointerButton.BARREL ||
+      e.button === PointerButton.ERASER
     );
   }
 
   /** Palm rejection: once a pen has touched the glass, ignore finger input for a while. */
   function rejected(e: PointerEvent): boolean {
-    if (e.pointerType === 'pen') {
+    if (e.pointerType === PointerKind.PEN) {
       penSeen = performance.now();
       return false;
     }
-    return e.pointerType === 'touch' && performance.now() - penSeen < 1500;
+    return e.pointerType === PointerKind.TOUCH && performance.now() - penSeen < 1500;
+  }
+
+  /** Is this move the pen hovering — near the glass, not on it?
+   *
+   *  Avi: "ה-hover עושה אפקט hover ונדמה לי גם קורא לאיוונט mouseover. רק צריך לזהות האם
+   *  המקור הוא בטבלט או לא". It does: Android hands a hovering stylus to the page as
+   *  pointer moves with no button down, and those are what this reads. The source is
+   *  told apart by `pointerType` — 'pen' is the stylus, wherever it is. Inside the wrapper
+   *  a 'mouse' is the stylus too, since the tablet has no mouse to be (the same allowance
+   *  `erasingWith` makes, for the same Android habit). A finger never hovers. */
+  function hovering(e: PointerEvent): boolean {
+    if (e.buttons & PointerButtons.TIP) {
+      return false;
+    }
+
+    return e.pointerType === PointerKind.PEN || (e.pointerType === PointerKind.MOUSE && !!pad());
   }
 
   /* ---- panning -------------------------------------------------------------
@@ -648,7 +707,7 @@
     // A pan is not a reason to give back ink that was genuinely rubbed out — the hand
     // did that on purpose, and the deletes are only waiting for a lift that is now not
     // coming. Without this they would wait for ever and come back on the next reload.
-    if (acting === 'erase') {
+    if (acting === Tool.ERASE) {
       flushErase();
     }
 
@@ -667,7 +726,7 @@
   }
 
   function down(e: PointerEvent) {
-    if (e.pointerType === 'touch') {
+    if (e.pointerType === PointerKind.TOUCH) {
       // A pointerup that never arrives — a finger lifted off the edge of the glass, a
       // cancel the browser eats — would leave a ghost in this map, and from then on the
       // very next single touch would count as the second finger and pan instead of
@@ -690,13 +749,15 @@
       return;
     }
 
+    // On the glass, so no longer hovering: the stroke itself is now where to look.
+    onhover?.(null);
     e.preventDefault();
-    acting = erasingWith(e) ? 'erase' : tool;
+    acting = erasingWith(e) ? Tool.ERASE : tool;
     debug.note(`down→${acting}`, e);
     capture(canvas!, e.pointerId);
     drawing = true;
     onpen?.(true);
-    if (acting === 'erase') {
+    if (acting === Tool.ERASE) {
       erasedNow = [];
       rubber = at(e);
       rub(rubber);
@@ -711,7 +772,7 @@
   }
 
   function move(e: PointerEvent) {
-    if (e.pointerType === 'touch' && touches.has(e.pointerId)) {
+    if (e.pointerType === PointerKind.TOUCH && touches.has(e.pointerId)) {
       touches.set(e.pointerId, e.clientY);
     }
 
@@ -727,6 +788,12 @@
       return;
     }
     if (!drawing) {
+      if (!readonly && hovering(e)) {
+        const p = at(e);
+        onhover?.({ x: p.x, y: p.y });
+        debug.note('hover', e);
+      }
+
       return;
     }
 
@@ -735,15 +802,15 @@
     // move or two after contact, and a gesture that only counted it at touch-down would
     // then write instead of erasing — which is exactly what "the button does nothing"
     // looks like. So the stroke may still become an erase; it never becomes a pen again.
-    if (acting !== 'erase' && erasingWith(e)) {
+    if (acting !== Tool.ERASE && erasingWith(e)) {
       debug.note('move→erase', e);
-      acting = 'erase';
+      acting = Tool.ERASE;
       erasedNow = [];
       dropWet();
-    } else if ((e.buttons & ~1) !== 0) {
+    } else if ((e.buttons & ~PointerButtons.TIP) !== 0) {
       debug.note('move', e);
     }
-    if (acting === 'erase') {
+    if (acting === Tool.ERASE) {
       // every coalesced point, so a fast sweep does not step over a thin stroke
       for (const q of coalesced(e)) {
         rub(at(q));
@@ -757,13 +824,13 @@
       pts.push(at(q));
     }
 
-    if (acting !== 'ink') {
+    if (acting !== Tool.INK) {
       pts = [pts[0], place(pts[pts.length - 1])];
     }
 
     // Where the platform expects the pen to be by the time this frame shows. Drawn only:
     // `pts` never holds them, so the stroke that is stored is exactly what the hand did.
-    const ahead = acting === 'ink' ? predicted(e).map(at) : [];
+    const ahead = acting === Tool.INK ? predicted(e).map(at) : [];
     live = strokeOf(ahead.length ? [...pts, ...ahead] : pts);
     paint();
     const now = performance.now();
@@ -789,6 +856,12 @@
   }
 
   function up(e: PointerEvent) {
+    // Out of range (leave) or taken by the browser (cancel). A plain lift is still a
+    // hover, and the next move says where.
+    if (e.type !== 'pointerup' && e.pointerType !== PointerKind.TOUCH) {
+      onhover?.(null);
+    }
+
     touches.delete(e.pointerId);
     if (panning) {
       // one finger left of a two-finger pan is not a stroke: wait for the glass to clear
@@ -805,7 +878,7 @@
     drawing = false;
     onpen?.(false);
     canvas!.releasePointerCapture?.(e.pointerId);
-    if (acting === 'erase') {
+    if (acting === Tool.ERASE) {
       rubber = null;
       flushErase();
       paint();
@@ -824,7 +897,7 @@
       // lands outside `orderBy('n')` and restores nothing.
       const rec = commit(room, s);
       pending = rec;
-      onaction?.({ kind: 'draw', items: [rec] });
+      onaction?.({ kind: ActionKind.DRAW, items: [rec] });
     }
     paint();
   }
@@ -895,6 +968,25 @@
    *  is what happened, and whether the clipboard took it is what the toast is for. */
   export function flash() {
     shot++;
+  }
+
+  /** The board as the picture for Gemini Live needs it (lib/frame.ts): every stroke, the
+   *  one in hand, the ones that just arrived, and where the tablet's pen is hovering. */
+  export function scene(): Scene {
+    const now = performance.now();
+    const recent: Stroke[] = [];
+    for (const [k, t] of arrived) {
+      if (now - t > RECENT_MS) {
+        arrived.delete(k);
+        continue;
+      }
+
+      const s = erased.has(k) ? undefined : byKey.get(k);
+      if (s) {
+        recent.push(s);
+      }
+    }
+    return { strokes: strokes(), wet: live ?? pending?.stroke ?? null, recent, hover, bottom: inkBottom };
   }
 
 
@@ -992,7 +1084,7 @@
 <div class="host" class:fill bind:this={host}>
   <canvas
     bind:this={canvas}
-    class:erasing={tool === 'erase' && !readonly}
+    class:erasing={tool === Tool.ERASE && !readonly}
     class:readonly
     style:--grid-cell="{gridCell * boardWidth}px"
     style:--grid-y="{-gridPhase(top, gridCell) * boardWidth}px"

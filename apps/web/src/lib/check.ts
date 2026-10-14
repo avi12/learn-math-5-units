@@ -16,9 +16,16 @@
  * those are written there; this file is only the page's half of the contract. A page that assumed the extension would be
  * there would be a button that silently does nothing on any other machine.
  */
-import { CHECK_MESSAGE, PRESENCE_FLAG, PRESENCE_READY, type CheckPayload } from '@learn-math/shared/protocol';
+import {
+  PadMessage,
+  padMessenger,
+  PRESENCE_FLAG,
+  PRESENCE_READY,
+  type CheckPayload,
+  type NoteRequest
+} from '@learn-math/shared/protocol';
 import graders from './graders.json';
-import { blobToBase64, copyImageAndText, pngBlob } from './deliver';
+import { blobToBase64, copyImageAndText, Pasted, PNG, pngBlob } from './deliver';
 
 /** A lesson that explains how to solve one exercise.
  *
@@ -64,6 +71,10 @@ export interface Topic {
   id: string;
   title: string;
   prompt: string;
+  /** Gemini Live's brief, a tutor beside the board — see `liveBrief` */
+  live: string;
+  /** how Gemini is asked for a note in writing — see `noteRequest` */
+  note: string;
   exercises: Exercise[];
 }
 
@@ -72,6 +83,7 @@ interface Graders {
   rungs: Rung[];
   exerciseSlot: string;
   exerciseFormat: Record<'line' | 'section' | 'sectionAll' | 'quote' | 'other', string>;
+  liveNote: Omit<NoteRequest, 'template'>;
 }
 const G = graders as unknown as Graders;
 
@@ -110,6 +122,23 @@ function promptFor(
   return topic.prompt.replace(G.exerciseSlot, describe(exercise, section));
 }
 
+/** Gemini Live's brief for this exercise, with the same exercise slot filled the same way
+ *  — the tutor who watches has to be looking at the question Claude would later be told
+ *  about. */
+export function liveBrief(
+  topic: Topic,
+  exercise: Exercise | null,
+  section: string | null
+): string {
+  return topic.live.replace(G.exerciseSlot, describe(exercise, section));
+}
+
+/** How Gemini is asked to write something down, as the workbook words it, with this
+ *  exercise already in the request — the spoken words are the extension's to fill in. */
+export function noteRequest(topic: Topic, exercise: Exercise | null, section: string | null): NoteRequest {
+  return { ...G.liveNote, template: topic.note.replace(G.exerciseSlot, describe(exercise, section)) };
+}
+
 /** The words that fill the prompt's exercise slot. */
 function describe(exercise: Exercise | null, section: string | null): string {
   if (!exercise) {
@@ -134,7 +163,7 @@ function sectionPhrase(exercise: Exercise, section: string | null): string {
 
 /** The short human label that rides along with the payload — it is what the extension's
  *  banner says, so it has to read as the thing Avi just finished. */
-function checkLabel(
+export function checkLabel(
   topic: Topic,
   exercise: Exercise | null,
   section: string | null
@@ -150,12 +179,12 @@ function checkLabel(
 /** Is the extension listening? It answers a ping by setting this flag on the document.
  *  Asked rather than assumed, because the fallback has to be chosen before the click
  *  does anything the user can see. */
-function extensionPresent(): boolean {
+export function extensionPresent(): boolean {
   return document.documentElement.dataset[PRESENCE_FLAG] === PRESENCE_READY;
 }
 
 function requestCheck(payload: CheckPayload): void {
-  window.postMessage(payload, location.origin);
+  void padMessenger.sendMessage(PadMessage.CHECK, payload, location.origin).catch(() => {});
 }
 
 /** Hand the board and the exercise's criteria to Claude. Returns what to tell the person.
@@ -176,12 +205,12 @@ export async function sendForCheck(
 
   const prompt = promptFor(topic, exercise, section);
   if (extensionPresent()) {
-    const image = `data:image/png;base64,${await blobToBase64(blob)}`;
-    requestCheck({ type: CHECK_MESSAGE, image, prompt, topic: checkLabel(topic, exercise, section) });
+    const image = `data:${PNG};base64,${await blobToBase64(blob)}`;
+    requestCheck({ image, prompt, topic: checkLabel(topic, exercise, section) });
     return 'נשלח לקלוד — נפתחת שיחה חדשה';
   }
 
-  if ((await copyImageAndText(blob, prompt)) === 'both') {
+  if ((await copyImageAndText(blob, prompt)) === Pasted.BOTH) {
     return 'אין תוסף — התמונה והפרומפט הועתקו, הדבק בקלוד';
   }
 

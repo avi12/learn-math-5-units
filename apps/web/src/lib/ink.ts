@@ -528,6 +528,43 @@ export function render(
     if (b && (b.y1 < y0 || b.y0 > y1)) {continue;}
     drawStroke(ctx, s, w);
   }
-  if (live) drawStroke(ctx, live, w);
+  if (live) {drawStroke(ctx, live, w);}
+  ctx.restore();
+}
+
+/** Where the pen is hovering: a ring with four ticks and a dot, in the skin's violet
+ *  (`--cat-3`). Not `--primary`: in the light theme that is the ink colour itself. No pen
+ *  writes in violet (TOKEN), in either theme, so the mark can never be read as ink. Under
+ *  it, a halo in the board's own colour, so it stays visible over a dense patch of work.
+ *
+ *  The one drawing of it. The desktop mirror shows it over the board, and the picture
+ *  Gemini Live sees (frame.ts) draws it on the board and again in its legend — one look,
+ *  so the legend describes exactly the mark on the board. `r` is the ring's radius in px. */
+export function drawPenMark(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
+  const cs = getComputedStyle(document.documentElement);
+  const mark = cs.getPropertyValue('--cat-3').trim() || '#8a5cf6';
+  const halo = cs.getPropertyValue('--surface').trim() || '#fff';
+  const line = Math.max(2, r / 5);
+  const ticks = (): void => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      ctx.moveTo(cx + dx * r * 1.3, cy + dy * r * 1.3);
+      ctx.lineTo(cx + dx * r * 1.85, cy + dy * r * 1.85);
+    }
+    ctx.stroke();
+  };
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = halo;
+  ctx.lineWidth = line + 4;
+  ticks();
+  ctx.strokeStyle = mark;
+  ctx.fillStyle = mark;
+  ctx.lineWidth = line;
+  ticks();
+  ctx.beginPath();
+  ctx.arc(cx, cy, Math.max(2, r / 6), 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }

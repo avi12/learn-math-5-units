@@ -7,26 +7,33 @@
    *    CopyTools      the board out to the clipboard (desktop)
    *    RoomJoin       the tablet's ways into the desktop's room
    *    ConnectCards   the desktop's code and link for the tablet
+   *    LiveNotes      what Gemini Live wrote down, and how the session is doing
    *  — and this file only wires them together. */
   import { onMount } from 'svelte';
+  import { LiveAction, LiveState } from '@learn-math/shared/protocol';
   import Ask from './lib/Ask.svelte';
   import ConnectCards from './lib/ConnectCards.svelte';
   import CopyTools from './lib/CopyTools.svelte';
+  import LiveNotes from './lib/LiveNotes.svelte';
   import PadTools from './lib/PadTools.svelte';
   import QuestionCard from './lib/QuestionCard.svelte';
+  import SeqReel from './lib/SeqReel.svelte';
   import RoomJoin from './lib/RoomJoin.svelte';
   import Surface, { type SurfaceApi } from './lib/Surface.svelte';
-  import { sendForCheck } from './lib/check';
-  import { initialRole } from './lib/device';
-  import { History } from './lib/history.svelte';
-  import { ASPECT, GRID_SCALE, gridCell, PEN_SIZE, type Tool } from './lib/ink';
+  import { checkLabel, extensionPresent, liveBrief, noteRequest, sendForCheck } from './lib/check';
+  import { LinkMessage, LinkState, Side, decodeHover, encodeHover, openLink, type Hover, type Link } from './lib/directlink';
+  import { drawFrame, type Question } from './lib/frame';
+  import { installLive, isRunning, live, requestLive, setNotes } from './lib/live.svelte';
+  import { Role, initialRole } from './lib/device';
+  import { ActionKind, History } from './lib/history.svelte';
+  import { ASPECT, GRID_SCALE, gridCell, PEN_SIZE, Tool } from './lib/ink';
   import { confirm, provideAsk, say, toast } from './lib/notify.svelte';
   import { Choice } from './lib/pick.svelte';
   import { RoomValue } from './lib/roomvalue.svelte';
-  import { readFlag, writeFlag } from './lib/preferences';
+  import { StorageKey, readFlag, writeFlag } from './lib/preferences';
   import { joinUrl, qrImage } from './lib/qr';
   import { watchRelease } from './lib/release';
-  import { clearAll, room as makeRoom, roomId, unsentWrites } from './lib/room';
+  import { clearAll, room as makeRoom, PrefSlot, roomId, unsentWrites } from './lib/room';
   import { pad } from './lib/spen';
   import iconDisplay from './lib/icons/IconDisplay.svg?raw';
   import iconPad from './lib/icons/IconPad.svg?raw';
@@ -39,17 +46,16 @@
   const inWrapper = !!pad();
 
   let role = $state(initialRole());
-  const isPad = $derived(role === 'pad');
+  const isPad = $derived(role === Role.PAD);
 
-  let tool = $state<Tool>('ink');
+  let tool = $state<Tool>(Tool.INK);
   /* Shape corners snap to the notebook grid. Per device, like the question fold, and
      on by default: a straight line in a math notebook is meant to sit on the squares. */
-  const SNAP_KEY = 'avi-math-snap';
-  let isSnapping = $state(readFlag(SNAP_KEY));
-  $effect(() => writeFlag(SNAP_KEY, isSnapping));
+  let isSnapping = $state(readFlag(StorageKey.SNAP));
+  $effect(() => writeFlag(StorageKey.SNAP, isSnapping));
 
-  const grid = new RoomValue(id, 'grid', GRID_SCALE);
-  const size = new RoomValue(id, 'size', PEN_SIZE);
+  const grid = new RoomValue(id, PrefSlot.GRID, GRID_SCALE);
+  const size = new RoomValue(id, PrefSlot.SIZE, PEN_SIZE);
 
   let surface = $state<SurfaceApi>();
   /** How many page-sized parts the strip exports as, and which one the board is sitting
@@ -65,6 +71,139 @@
 
   let ask = $state<Ask>();
   $effect(() => provideAsk(ask));
+
+  /* ---- the direct link, and Gemini Live ------------------------------------
+     The tablet's pen hover goes to the desktop, and Gemini's notes and the session's
+     state come back, over a link between the two devices (lib/directlink.ts). Which end
+     this page is follows the role, so it is rebuilt when the role changes. */
+  let link: Link | null = null;
+  /** where the tablet's pen is hovering — the desktop's to draw, and Gemini's to see */
+  let remoteHover = $state<Hover>(null);
+  /** the last hover sent, so an unmoved pen is not sent again on every event */
+  let sentHover = '';
+
+  $effect(() => {
+    const side = isPad ? Side.PAD : Side.DESK;
+    const mine = openLink(id, side, {
+      // what the other end missed while it was not there
+      open() {
+        if (side === Side.DESK) {
+          mine.sendMessage(LinkMessage.NOTES, $state.snapshot(live.notes));
+          mine.sendMessage(LinkMessage.LIVE, { state: live.state, blind: live.blind });
+        } else {
+          mine.sendMessage(LinkMessage.HOVER, sentHover);
+        }
+      },
+      state(st) {
+        if (st !== LinkState.OPEN && side === Side.DESK) {
+          remoteHover = null;
+        }
+      }
+    });
+    if (side === Side.DESK) {
+      mine.onMessage(LinkMessage.HOVER, (at) => (remoteHover = decodeHover(at)));
+    } else {
+      mine.onMessage(LinkMessage.NOTES, setNotes);
+      mine.onMessage(LinkMessage.LIVE, (m) => {
+        live.state = m.state;
+        live.blind = m.blind;
+      });
+    }
+    link = mine;
+    return () => {
+      mine.stop();
+      link = null;
+      remoteHover = null;
+    };
+  });
+
+  function penHover(h: Hover) {
+    const at = encodeHover(h);
+    if (at === sentHover) {
+      return;
+    }
+
+    sentHover = at;
+    link?.sendMessage(LinkMessage.HOVER, at);
+  }
+
+  // The desktop passes the session on to the tablet as it changes.
+  $effect(() => {
+    const notes = $state.snapshot(live.notes);
+    const state = live.state;
+    const blind = live.blind;
+    if (!isPad) {
+      link?.sendMessage(LinkMessage.NOTES, notes);
+      link?.sendMessage(LinkMessage.LIVE, { state, blind });
+    }
+  });
+
+  /** The question as Gemini's picture shows it, with the newest note under it. */
+  function question(): Question {
+    return {
+      meta: checkLabel(choice.topic, choice.exercise, choice.section || null),
+      html: choice.exercise?.html ?? 'התרגיל אינו מהחוברת: השאלה כתובה על הלוח.',
+      note: live.notes[0]
+    };
+  }
+
+  onMount(() =>
+    installLive(async () => {
+      const board = surface?.scene();
+      return board ? drawFrame(board, question()) : null;
+    })
+  );
+
+  /** What the extension needs to know about the exercise: its name, for the shared tab,
+   *  and how to ask for a note about it. */
+  function exercise() {
+    const section = choice.section || null;
+    return {
+      title: checkLabel(choice.topic, choice.exercise, section),
+      notes: noteRequest(choice.topic, choice.exercise, section)
+    };
+  }
+
+  /** The exercise last told to the session, so a change can be told apart from a session
+   *  that is merely changing state. */
+  let told = '';
+
+  // A new exercise mid-session is NOT briefed again: that would be a text turn, and a
+  // text turn inside Live left it listening and silent (Avi, 14.10.2026). Gemini sees the
+  // new question in its picture, and the brief says to follow it; this only renames the
+  // shared tab and re-aims the note request.
+  $effect(() => {
+    const next = exercise();
+    if (!isRunning(live.state) || !told || next.notes.template === told) {
+      return;
+    }
+
+    told = next.notes.template;
+    requestLive({ action: LiveAction.RETARGET, ...next });
+  });
+
+  function toggleLive() {
+    if (isRunning(live.state)) {
+      requestLive({ action: LiveAction.STOP });
+      return;
+    }
+
+    // There is no fallback here, unlike the Claude check: a live session IS the
+    // extension's window, and there is nothing to paste anywhere.
+    if (!extensionPresent()) {
+      say('ג׳מיני לייב נפתח דרך התוסף של הלוח בכרום, והתוסף לא מותקן כאן');
+      return;
+    }
+
+    const next = exercise();
+    told = next.notes.template;
+    live.state = LiveState.OPENING;
+    requestLive({
+      action: LiveAction.START,
+      prompt: liveBrief(choice.topic, choice.exercise, choice.section || null),
+      ...next
+    });
+  }
 
   onMount(() => {
     // Inside the wrapper no code is ever shown (see the chip below), so it is not made.
@@ -95,7 +234,7 @@
       return;
     }
 
-    if (a.kind !== 'erase') {
+    if (a.kind !== ActionKind.ERASE) {
       return;
     }
 
@@ -153,17 +292,23 @@
           <span>סרוק<code class="rid">{id.slice(0, 6)}</code></span>
         </button>
       {/if}
-      <button class="btn" data-active={isPad} onclick={() => (role = 'pad')}>
+      <button class="btn" data-active={isPad} onclick={() => (role = Role.PAD)}>
         {@html iconPad}לוח כתיבה
       </button>
-      <button class="btn" data-active={!isPad} onclick={() => (role = 'board')}>
+      <button class="btn" data-active={!isPad} onclick={() => (role = Role.BOARD)}>
         {@html iconDisplay}תצוגה
       </button>
     </div>
   </header>
 
   <main>
-    <QuestionCard {choice} {role} oncheck={checkWithClaude} />
+    <QuestionCard {choice} {role} oncheck={checkWithClaude} onlive={toggleLive} />
+
+    <LiveNotes onPad={isPad} />
+
+    <!-- The סדרות chapter's own explainer, under its question. Desktop only, like
+         the "how to solve" videos inside the card: the tablet is a page to write on. -->
+    <SeqReel topicId={choice.topic.id} desktop={!isPad} />
 
     <div class="slot" style:--aspect={ASPECT}>
       <Surface
@@ -192,6 +337,8 @@
           }
         }}
         onaction={(a) => history.record(a)}
+        hover={remoteHover}
+        onhover={penHover}
       />
     </div>
 

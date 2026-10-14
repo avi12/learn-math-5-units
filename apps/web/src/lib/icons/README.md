@@ -19,6 +19,7 @@ The exception is `IconPlay`: no Hebrew player mirrors transport controls.
 **What some of them mean.** `IconCamera`, not two sheets: the copy button takes a picture
 of the board, and its gesture is a shutter. `IconParts` is that sheet with a dashed cut —
 one page out of the strip. `IconInspect` is Claude looking at the work: a magnifier, not
-a tick, because a tick is what comes back. `IconSnap` is the notebook grid.
+a tick, because a tick is what comes back. `IconSnap` is the notebook grid. `IconLive` is Gemini Live, the tutor who watches:
+a point with waves on both sides, because it listens and it speaks.
 
 **Optimised** with `pnpm dlx svgo@4 -f src/lib/icons --multipass` — rerun it after adding one.

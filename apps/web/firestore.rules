@@ -56,6 +56,24 @@ service cloud.firestore {
       allow create, update: if room_ok(room) && pref_ok(slot);
     }
 
+    // The direct link between the tablet and the desktop (WebRTC), which carries where the
+    // pen is hovering. Firestore only introduces the two: the desktop writes one offer,
+    // the tablet one answer, and everything after that goes device to device. So there
+    // are exactly two slots, each a session description and its ids — see
+    // src/lib/hoverlink.ts. The size bound keeps the slot from turning into storage; a
+    // description with its candidates is a few kilobytes.
+    match /rooms/{room}/rtc/{slot} {
+      allow read, delete: if room_ok(room);
+      allow create, update: if room_ok(room)
+        && slot in ['offer', 'answer']
+        && request.resource.data.keys().hasOnly(['sid', 'aid', 'sdp', 'at'])
+        && request.resource.data.sid is string
+        && request.resource.data.sid.size() <= 32
+        && request.resource.data.sdp is string
+        && request.resource.data.sdp.size() < 20000
+        && request.resource.data.at is number;
+    }
+
     // The build the last deploy put live, so an open tab can hear about a new version
     // on the socket it already has. Public to read and closed to every browser: the
     // deploy writes it over the Firestore REST API with a project member's OAuth token,

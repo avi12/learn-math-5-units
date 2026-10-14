@@ -59,7 +59,22 @@ const app = initializeApp({
  *  which is the 429 wearing a different number. Both doors open on the same latch, and
  *  the default database is the one that has every board ever written in it. */
 const db = getFirestore(app);
-const KEY = 'avi-math-room';
+
+/** The collections the app reads and writes, by the names already in the database and in
+ *  firestore.rules. Wire values: every board ever written lives under them. */
+const Collection = {
+  ROOMS: 'rooms',
+  STROKES: 'strokes',
+  LIVE: 'live',
+  PICK: 'pick',
+  PREFS: 'prefs',
+  RTC: 'rtc',
+  /** outside /rooms — written by scripts/deploy.py, see `release` below */
+  META: 'meta'
+} as const;
+
+/** A collection that holds one document per room keeps it under this id. */
+const SINGLE_DOC = 'current';
 
 function fresh(): string {
   const b = new Uint8Array(16);
@@ -305,7 +320,16 @@ export const PrefSlot = { GRID: 'grid', SIZE: 'size' } as const;
 export type PrefSlot = (typeof PrefSlot)[keyof typeof PrefSlot];
 
 export function prefRef(id: string, slot: PrefSlot): DocumentReference {
-  return doc(db, 'rooms', id, 'prefs', slot);
+  return doc(db, Collection.ROOMS, id, Collection.PREFS, slot);
+}
+
+/** The two slots that introduce the tablet and the desktop to each other for the direct
+ *  link — see lib/hoverlink.ts. A closed set, and firestore.rules allows exactly these. */
+export const RtcSlot = { OFFER: 'offer', ANSWER: 'answer' } as const;
+export type RtcSlot = (typeof RtcSlot)[keyof typeof RtcSlot];
+
+export function rtcRef(id: string, slot: RtcSlot): DocumentReference {
+  return doc(db, Collection.ROOMS, id, Collection.RTC, slot);
 }
 
 export function strokeRef(id: string, key: string): DocumentReference {

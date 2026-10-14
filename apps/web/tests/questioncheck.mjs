@@ -14,6 +14,7 @@
  */
 import { writeFileSync } from 'node:fs';
 import { asTablet, roomUrl, freshRoom } from './lib/pad.mjs';
+import { catchFromPage, PadMessage } from './lib/extension.mjs';
 
 const [, , url, port, shots] = process.argv;
 if (!url || !port) {
@@ -228,12 +229,9 @@ await setSelect(1, target);
 await wait(300);
 await ev(`(() => {
   document.documentElement.dataset.aviMathCheck = 'ready';
-  window.__caught = null;
-  window.addEventListener('message', (e) => {
-    if (e.source === window && e.data && e.data.type === 'avi-math-check@1') window.__caught = e.data;
-  });
   return 1;
 })()`);
+await ev(catchFromPage(PadMessage.CHECK));
 const btn = `[...document.querySelectorAll('.question button')].find((b) => b.textContent.includes('שקלוד יבדוק'))`;
 check('the finish button is in the card on the desktop', (await ev(`!!${btn}`)) === true);
 await ev(`${btn}.click(), 1`);

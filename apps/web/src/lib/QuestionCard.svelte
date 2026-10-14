@@ -12,17 +12,26 @@
      inside the Android wrapper there is no extension to hand it to. */
   import { untrack } from 'svelte';
   import { RUNG_LIST, TOPICS, exKey, type Topic } from './check';
-  import type { Role } from './device';
+  import { Role } from './device';
   import { pickOf, type Choice } from './pick.svelte';
-  import { readFlag, writeFlag } from './preferences';
+  import { isRunning, live, liveLabel } from './live.svelte';
+  import { StorageKey, readFlag, writeFlag } from './preferences';
   import iconFold from './icons/IconFold.svg?raw';
   import iconInspect from './icons/IconInspect.svg?raw';
+  import iconLive from './icons/IconLive.svg?raw';
   import iconNext from './icons/IconNext.svg?raw';
   import iconPlay from './icons/IconPlay.svg?raw';
   import iconPrev from './icons/IconPrev.svg?raw';
   import iconUnfold from './icons/IconUnfold.svg?raw';
 
-  let { choice, role, oncheck }: { choice: Choice; role: Role; oncheck: () => void } = $props();
+  let {
+    choice,
+    role,
+    oncheck,
+    onlive
+  }: { choice: Choice; role: Role; oncheck: () => void; onlive: () => void } = $props();
+
+  const liveOn = $derived(isRunning(live.state));
 
   const OTHER = 'אחר — לא מהחוברת';
   const LAST_TIER = RUNG_LIST[RUNG_LIST.length - 1].tier;
@@ -38,9 +47,8 @@
 
   /* On the tablet the board is the screen, so the question can be folded away to its
      controls once it has been read. Per device, like the tool and the pen. */
-  const SHOWQ_KEY = 'avi-math-showq';
-  let showQ = $state(readFlag(SHOWQ_KEY));
-  $effect(() => writeFlag(SHOWQ_KEY, showQ));
+  let showQ = $state(readFlag(StorageKey.SHOW_QUESTION));
+  $effect(() => writeFlag(StorageKey.SHOW_QUESTION, showQ));
 
   /* Which way the question card's entrance sweeps: along the reading direction when the
      new question comes later in ORDER, against it when it comes earlier — so "הבא" and
@@ -104,7 +112,7 @@
   });
 
   const ex = $derived(choice.exercise);
-  const compact = $derived(role === 'pad');
+  const compact = $derived(role === Role.PAD);
   const folded = $derived(compact && !showQ);
 </script>
 
@@ -235,7 +243,18 @@
   </div>
 
   {#if !compact}
+    <!-- Two kinds of help. Claude marks the finished work from one picture; Gemini Live
+         is a private tutor beside the work while it is being done — Avi: "לא מדובר
+         בבחינה. ג'מיני צריך להתנהג כמו מורה פרטי, לעזור לי תוך כדי". It is briefed on
+         this same exercise and criteria (lib/check.ts `liveBrief`). Both go through the
+         extension, so both are desktop-only, and a running session's state sits between. -->
     <div class="qfoot">
+      {#if liveOn || live.detail}
+        <span class="lstate" role="status">{liveLabel()}</span>
+      {/if}
+      <button class="btn big" data-active={liveOn} onclick={onlive}>
+        {@html iconLive}{liveOn ? 'סיום השיעור' : 'מורה פרטי — ג׳מיני לייב'}
+      </button>
       <button class="btn big" data-variant="primary" onclick={oncheck}>
         {@html iconInspect}סיימתי — שקלוד יבדוק
       </button>
