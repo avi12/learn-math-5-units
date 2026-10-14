@@ -93,37 +93,41 @@
     display: grid;
     place-items: center;
     background: var(--scrim);
+
+    video {
+      position: absolute;
+      inset: 0;
+      object-fit: cover;
+      width: 100%;
+      height: 100%;
+    }
+
+    .btn {
+      position: absolute;
+      inset-block-end: 28px;
+    }
   }
-  .scanner video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
+
   /* the frame is the instruction: people aim at a box without being told to */
   .reticle {
     position: relative;
-    width: min(62vw, 62vh);
-    aspect-ratio: 1;
+    width: 62vmin;
     border: 3px solid var(--primary);
     box-shadow:
       0 0 0 100vmax var(--scrim),
       var(--cyber-glow-primary);
+    aspect-ratio: 1;
   }
+
   .shint {
     position: absolute;
-    inset-block-start: 24px;
     inset-inline: 0;
+    inset-block-start: 24px;
     margin: 0;
-    text-align: center;
+    color: var(--fg);
     font-family: var(--font-mono);
     font-size: 13px;
-    color: var(--fg);
+    text-align: center;
     text-shadow: 0 1px 6px var(--scrim);
-  }
-  .scanner .btn {
-    position: absolute;
-    inset-block-end: 28px;
   }
 </style>
