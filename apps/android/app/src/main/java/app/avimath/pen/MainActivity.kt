@@ -79,7 +79,7 @@ class MainActivity : Activity() {
       keepScreenOn = true
       webViewClient = PadWebClient(this@MainActivity, ::greet)
       webChromeClient = chrome
-      addJavascriptInterface(Bridge(this@MainActivity), "AndroidPad")
+      addJavascriptInterface(Bridge(this@MainActivity), Bridge.NAME)
       // A WebView ignores downloads unless told what to do with them. blob: and
       // data: cannot be handed to a system downloader, and those are exactly what
       // a canvas export produces — the page uses AndroidPad.share() for them.
@@ -137,7 +137,7 @@ class MainActivity : Activity() {
   /** A freshly loaded page has heard nothing yet: say hello, with the theme. */
   private fun greet() {
     pen.forget()
-    page.tell("hello" to true, "dark" to isDark(resources))
+    page.tell(PenField.HELLO to true, PenField.DARK to isDark(resources))
   }
 
   override fun onConfigurationChanged(newConfig: Configuration) {
@@ -146,7 +146,7 @@ class MainActivity : Activity() {
       return
     }
 
-    page.tell("dark" to isDark(resources))
+    page.tell(PenField.DARK to isDark(resources))
   }
 
   // ------------------------------------------------------------------- the pen --

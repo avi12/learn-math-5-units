@@ -9,6 +9,9 @@ private const val PEN_BUTTONS =
     MotionEvent.BUTTON_STYLUS_SECONDARY or
     MotionEvent.BUTTON_SECONDARY
 
+/** A buttonState with no button down. */
+private const val NO_BUTTONS = 0
+
 /**
  * Tells the page what the pen reported, and answers whether a button is down.
  *
@@ -34,7 +37,7 @@ class PenReporter(private val page: Page) {
     }
 
     lastSignal = signal
-    page.tell("button" to down, "buttonState" to ev.buttonState, "toolType" to tool)
+    page.tell(PenField.BUTTON to down, PenField.BUTTON_STATE to ev.buttonState, PenField.TOOL_TYPE to tool)
     return down
   }
 }
@@ -61,7 +64,7 @@ fun stripButtons(ev: MotionEvent): MotionEvent {
     props,
     coords,
     ev.metaState,
-    0, // buttonState — the one thing that changes
+    NO_BUTTONS, // the one thing that changes
     ev.xPrecision,
     ev.yPrecision,
     ev.deviceId,

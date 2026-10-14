@@ -22,6 +22,11 @@ private val UNSAFE_NAME = Regex("[^A-Za-z0-9._-]")
  * is locked to HOST (see PadWebClient). That is what makes exposing it defensible at all.
  */
 class Bridge(private val activity: Activity) {
+  companion object {
+    /** The global the page finds this under (`window.AndroidPad` in spen.ts). */
+    const val NAME = "AndroidPad"
+  }
+
   @JavascriptInterface
   fun version(): String = WRAPPER
 

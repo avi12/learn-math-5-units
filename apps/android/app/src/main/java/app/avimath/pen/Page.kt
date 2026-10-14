@@ -9,11 +9,28 @@ import android.webkit.WebView
 import org.json.JSONObject
 
 const val HOST = BuildConfig.PAD_HOST
-private const val HOME = "https://$HOST/?role=pad"
+
+/** The query parameter that picks the page's role, and the value that means "the tablet".
+ *  The page reads the same pair (device.ts, qr.ts). */
+private const val ROLE_PARAM = "role"
+private const val PAD_ROLE = "pad"
+private const val PAD_QUERY = "$ROLE_PARAM=$PAD_ROLE"
+private const val HOME = "https://$HOST/?$PAD_QUERY"
 
 /** Reported to the page, so one `?pendebug` screenshot says which APK is on the tablet.
  *  It IS the versionName in build.gradle.kts — bump that, and only that. */
 const val WRAPPER = BuildConfig.VERSION_NAME
+
+/** The keys of a message to `window.__pen`. They ARE the wire format: the page reads
+ *  them by these exact names (PenReport in apps/web/src/lib/spen.ts). */
+object PenField {
+  const val BUTTON = "button"
+  const val BUTTON_STATE = "buttonState"
+  const val TOOL_TYPE = "toolType"
+  const val HELLO = "hello"
+  const val DARK = "dark"
+  const val WRAPPER = "wrapper"
+}
 
 /**
  * The one way anything native reaches the page: `window.__pen({...})`.
@@ -24,7 +41,7 @@ const val WRAPPER = BuildConfig.VERSION_NAME
  */
 class Page(private val web: WebView) {
   fun tell(vararg fields: Pair<String, Any>) {
-    val json = JSONObject(mapOf(*fields, "wrapper" to WRAPPER))
+    val json = JSONObject(mapOf(*fields, PenField.WRAPPER to WRAPPER))
     web.evaluateJavascript("window.__pen && window.__pen($json)", null)
   }
 }
@@ -57,12 +74,12 @@ fun isDark(resources: Resources): Boolean = (resources.configuration.uiMode and 
  *  own. `role=pad` is appended only if the link is silent about it. */
 fun target(from: Intent?): String {
   val link = from?.data?.takeIf { it.host == HOST }?.toString() ?: return HOME
-  if (link.contains("role=")) {
+  if (link.contains("$ROLE_PARAM=")) {
     return link
   }
 
   val joiner = if ('?' in link) "&" else "?"
-  return "${link}${joiner}role=pad"
+  return "${link}${joiner}$PAD_QUERY"
 }
 
 /** Hand a link to whatever else on the tablet opens it. Nothing installed is not an error. */
