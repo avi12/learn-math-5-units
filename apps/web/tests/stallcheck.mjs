@@ -1,6 +1,6 @@
 /** Does the board say so when the server stops taking the writing?
  *
- *   npm run preview -- --port <p>
+ *   pnpm run preview -- --port <p>
  *   chrome --headless=new --remote-debugging-port=<port> about:blank
  *   node stallcheck.mjs http://localhost:<p>/ <port>
  *

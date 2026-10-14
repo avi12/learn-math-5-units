@@ -7,18 +7,12 @@
   "author": "Avi (https://avi12.com)",
   "license": "GPL-3.0-or-later",
   "homepage": "https://github.com/avi12/learn-math-5-units",
-  "workspaces": [
-    "shared",
-    "apps/web",
-    "apps/extension",
-    "workbook"
-  ],
   "scripts": {
-    "check": "npm run check -w apps/web && npm run compile -w apps/extension",
-    "build": "npm run build -w apps/web && npm run build -w apps/extension",
+    "check": "pnpm --filter @learn-math/web run check && pnpm --filter @learn-math/extension run compile",
+    "build": "pnpm --filter @learn-math/web run build && pnpm --filter @learn-math/extension run build",
     "lint": "oxlint --type-aware --fix -c .oxlintrc.fix.json && eslint --fix && oxlint --type-aware",
     "stylelint": "stylelint \"apps/web/src/**/*.{svelte,css}\" --fix",
-    "deploy": "npm run deploy -w apps/web",
+    "deploy": "pnpm --filter @learn-math/web run deploy",
     "apk": "python apps/android/apk.py",
     "apk:install": "python apps/android/apk.py --install"
   },

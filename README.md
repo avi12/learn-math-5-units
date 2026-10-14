@@ -67,17 +67,17 @@
 2. ```bash
    cp .env.example .env                                 # הגדרות ה‑Web app
    cp apps/web/.firebaserc.example apps/web/.firebaserc # מזהה הפרויקט, ל‑firebase CLI
-   npm i
+   pnpm i
    ```
 
 | | |
 |---|---|
-| הלוח, מקומית | `npm run dev -w apps/web` |
-| בדיקה ובנייה | `npm run check` · `npm run build` |
-| פריסה (אתר + חוקי המסד) | `npm run deploy` — דרך gcloud; החשבון מ‑`gcloud config get account` או `GCLOUD_ACCOUNT` |
-| אנדרואיד | `npm run apk` · `npm run apk:install` (טאבלט ב‑USB) |
+| הלוח, מקומית | `pnpm --filter @learn-math/web run dev` |
+| בדיקה ובנייה | `pnpm run check` · `pnpm run build` |
+| פריסה (אתר + חוקי המסד) | `pnpm run deploy` — דרך gcloud; החשבון מ‑`gcloud config get account` או `GCLOUD_ACCOUNT` |
+| אנדרואיד | `pnpm run apk` · `pnpm run apk:install` (טאבלט ב‑USB) |
 | התוסף | `npm run build -w apps/extension` ← טוענים לכרום את `apps/extension/.output/chrome-mv3` |
-| לינט | `npm run lint` · `npm run stylelint` |
+| לינט | `pnpm run lint` · `pnpm run stylelint` |
 
 כתובת הלוח היא `https://<project-id>.web.app` כברירת מחדל; `PAD_ORIGIN` ב‑`.env` משנה אותה —
 התוסף מאזין לה והעטיפה פותחת אותה.
@@ -105,7 +105,7 @@ python build/graders.py      # הקריטריונים והתרגילים → app
 סקריפטים של Node שמריצים Chrome בלי ממשק דרך DevTools Protocol, ב‑`apps/web/tests`:
 
 ```bash
-npx vite preview --port 4173                          # מתוך apps/web
+pnpm exec vite preview --port 4173                          # מתוך apps/web
 chrome --headless=new --remote-debugging-port=9431 --user-data-dir=<תיקייה> about:blank
 node apps/web/tests/gridcheck.mjs http://localhost:4173/ 9431
 ```

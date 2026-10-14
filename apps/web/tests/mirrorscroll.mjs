@@ -1,6 +1,6 @@
 /** An edit on the tablet must not move the desktop mirror.
  *
- *   npm run preview -- --port <p>
+ *   pnpm run preview -- --port <p>
  *   chrome --headless=new --remote-debugging-port=<port> about:blank
  *   node mirrorscroll.mjs http://localhost:<p>/ <port>
  *

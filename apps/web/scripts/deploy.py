@@ -2,9 +2,9 @@
 
 Uses a short-lived gcloud access token instead of `firebase login`, so there is no
 interactive step and no service-account key file on disk. The Firebase CLI works too
-once you have run `firebase login` — see `npm run deploy:cli`.
+once you have run `firebase login` — see `pnpm run deploy:cli`.
 
-    npm run build && python scripts/deploy.py
+    pnpm run build && python scripts/deploy.py
 """
 import gzip
 import hashlib
@@ -167,7 +167,7 @@ def stamp_release(tok):
 
 def main():
     if not DIST.exists():
-        raise SystemExit("dist/ is missing — run `npm run build` first")
+        raise SystemExit("dist/ is missing — run `pnpm run build` first")
     tok = token()
     ensure_site(tok)
 

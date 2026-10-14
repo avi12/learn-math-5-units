@@ -1,6 +1,6 @@
 /** Does a deploy reach an open tab by itself, and does it wait for the pen?
  *
- *   npm run build && npm run preview -- --port <p>
+ *   pnpm run build && pnpm run preview -- --port <p>
  *   chrome --headless=new --remote-debugging-port=<port> about:blank
  *   node releasetest.mjs http://localhost:<p>/ <port>
  *

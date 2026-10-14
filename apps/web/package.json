@@ -7,8 +7,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
-    "deploy": "npm run build && python scripts/deploy.py",
-    "deploy:cli": "npm run build && firebase deploy",
+    "deploy": "pnpm run build && python scripts/deploy.py",
+    "deploy:cli": "pnpm run build && firebase deploy",
     "fallow": "fallow audit --base HEAD"
   },
   "devDependencies": {
@@ -21,6 +21,7 @@
     "vite": "^8.2.2"
   },
   "dependencies": {
+    "@learn-math/shared": "workspace:*",
     "firebase": "^12.18.0",
     "jsqr": "^1.4.0",
     "qrcode": "^1.5.4"

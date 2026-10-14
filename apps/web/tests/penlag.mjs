@@ -1,6 +1,6 @@
 /** What one pointermove costs while a stroke is in progress, as the board fills.
  *
- *   npm run preview
+ *   pnpm run preview
  *   chrome --headless=new --remote-debugging-port=<port> about:blank
  *   node penlag.mjs http://localhost:4173 <port> [cpuThrottle]
  *

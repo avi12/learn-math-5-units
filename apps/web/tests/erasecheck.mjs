@@ -1,6 +1,6 @@
 /** The rubber and the board size, in the real page on a tablet-shaped screen.
  *
- *   npm run preview
+ *   pnpm run preview
  *   chrome --headless=new --remote-debugging-port=<port> about:blank
  *   node erasecheck.mjs http://localhost:4173 <port>
  *

@@ -21,4 +21,4 @@ of the board, and its gesture is a shutter. `IconParts` is that sheet with a das
 one page out of the strip. `IconInspect` is Claude looking at the work: a magnifier, not
 a tick, because a tick is what comes back. `IconSnap` is the notebook grid.
 
-**Optimised** with `npx svgo@4 -f src/lib/icons --multipass` — rerun it after adding one.
+**Optimised** with `pnpm dlx svgo@4 -f src/lib/icons --multipass` — rerun it after adding one.

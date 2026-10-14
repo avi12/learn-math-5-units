@@ -1,0 +1,11 @@
+packages:
+  - shared
+  - apps/web
+  - apps/extension
+  - workbook
+
+# The install scripts npm ran without asking; pnpm runs only the ones named here.
+allowBuilds:
+  '@firebase/util': true
+  onnxruntime-node: true
+  protobufjs: true

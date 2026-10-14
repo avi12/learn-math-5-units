@@ -1,6 +1,6 @@
 /** Transcribe a 16 kHz mono WAV with Whisper, locally.
  *
- *   npm i                                   (once — see package.json)
+ *   pnpm i                                  (once — see package.json)
  *   node build/transcribe.mjs <in.wav> <out.txt> [model] [lang]
  *
  * Several of the workbook's videos carry no captions at all, so the only way to know

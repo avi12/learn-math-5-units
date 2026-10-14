@@ -68,7 +68,7 @@
 ## איך מריצים בדיקה בדפדפן
 
 ```
-npm run preview                                      # מגיש את dist/
+pnpm run preview                                      # מגיש את dist/
 chrome --headless=new --remote-debugging-port=<port> --user-data-dir=<תיקייה חדשה> about:blank
 node <בדיקה>.mjs http://localhost:<port-של-vite> <debug-port>
 ```
@@ -126,19 +126,19 @@ CDP מעולם לא היה מעורב.
 ## הרצה מקומית
 
 ```
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 ## פריסה
 
 ```
-npm run deploy
+pnpm run deploy
 ```
 
 מפרסם דרך Hosting REST API עם טוקן קצר‑מועד מ‑`gcloud auth print-access-token`, כדי לא
 לדרוש `firebase login` ולא להשאיר מפתח שירות על הדיסק. אחרי `firebase login` חד‑פעמי אפשר
-גם `npm run deploy:cli`.
+גם `pnpm run deploy:cli`.
 
 הסקריפט מתרגם את `firebase.json` לסכמה של ה‑REST API, כך שהקונפיגורציה נשארת במקום אחד
 ושתי דרכי הפריסה לא יכולות להיפרד זו מזו.
@@ -745,8 +745,8 @@ dispatchTouchEvent(ev)
 
 | | |
 |---|---|
-| בנייה | `npm run apk` |
-| בנייה + התקנה | `npm run apk:install` (הטאבלט מחובר, USB debugging פתוח) |
+| בנייה | `pnpm run apk` |
+| בנייה + התקנה | `pnpm run apk:install` (הטאבלט מחובר, USB debugging פתוח) |
 | חוזה עם הדף | `window.__pen({buttonState, toolType, wrapper})` — `src/lib/spen.ts`. בלשונית רגילה אף אחד לא קורא לו, הדגל נשאר false, והכול עובד כמו קודם |
 | גרסאות | AGP 8.5.2 · Kotlin 1.9.24 · Gradle 8.9 · JDK 21 — כולן כבר במטמון של המכונה, אז הבנייה לא מורידה toolchain חדש. `scripts/apk.py` מוצא אותן לבד |
 
@@ -778,7 +778,7 @@ dispatchTouchEvent(ev)
 אחרת לגמרי — כולן פריסת אתר.
 
 **וגם רענון לא צריך.** נמדד באמולטור: סימנו `window.__alive` בתוך ה‑WebView, הרצנו
-`npm run deploy`, ואחרי 12 שניות הדגל נעלם והחדר נשאר אותו חדר — הדף טען את עצמו מחדש
+`pnpm run deploy`, ואחרי 12 שניות הדגל נעלם והחדר נשאר אותו חדר — הדף טען את עצמו מחדש
 דרך אותו מנגנון שמתואר למעלה. הסיבות היחידות שנשארו לגעת ב‑`MainActivity.kt` הן הגדרת
 WebView חדשה או שדה חדש לדווח.
 

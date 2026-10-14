@@ -1,6 +1,6 @@
 /** What the rubber costs on a board the size of a real one.
  *
- *   npm run preview
+ *   pnpm run preview
  *   chrome --headless=new --remote-debugging-port=<port> about:blank
  *   node erasecost.mjs <url> <port> [strokes] [cpuThrottle]
  *

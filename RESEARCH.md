@@ -346,7 +346,7 @@ https://meyda.education.gov.il/sheeloney_bagrut/<שנה>/<מועד>/HEB/<שאל�
 **מתכון התמלול** (לרוב הסרטונים בעברית אין כתוביות):
 
 ```
-npm i      # @huggingface/transformers, ראו package.json
+pnpm i     # @huggingface/transformers, ראו package.json
 yt-dlp --extractor-args "youtube:player_client=web_embedded" -f bestaudio \
   --extract-audio --audio-format wav --postprocessor-args "-ar 16000 -ac 1" <url>
 node build/transcribe.mjs <in.wav> <out.txt> onnx-community/whisper-large-v3-turbo he

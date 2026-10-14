@@ -22,7 +22,7 @@
  *         --load-extension=<same> about:blank
  *   node chaintest.mjs <port>
  *
- * Run `npm run build` first — this loads the built extension, not the source.
+ * Run `pnpm run build` first — this loads the built extension, not the source.
  *
  * What is NOT covered, and still is not: the real DOM of claude.ai. It needs a login, and
  * it is the thing that will change one day and need fixing.

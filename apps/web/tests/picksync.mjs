@@ -1,6 +1,6 @@
 /** The exercise choice has to cross between the devices, like the ink does.
  *
- *   npm run preview
+ *   pnpm run preview
  *   chrome --headless=new --remote-debugging-port=<port> about:blank
  *   node picksync.mjs http://localhost:4173 <port>
  *
