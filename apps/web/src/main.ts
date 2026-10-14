@@ -3,6 +3,7 @@ import '@learn-math/shared/skin/cyberpunk.css';
 import '@learn-math/shared/skin/hebrew.css';
 import './lib/app.css';
 import './lib/controls.css';
+import './lib/seqreel.css';
 import 'temml/dist/Temml-Latin-Modern.css';
 import App from './App.svelte';
 

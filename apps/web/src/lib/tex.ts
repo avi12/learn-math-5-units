@@ -30,6 +30,30 @@ function escape(s: string): string {
 }
 
 const NEWLINE = '\n';
+const FENCE = /(\$[^$]+\$)/;
+
+function isFenced(piece: string): boolean {
+  return piece.length > 2 && piece.startsWith('$') && piece.endsWith('$');
+}
+
+/** One `$…$` as MathML. `wrap: 'tex'` marks a soft break after each top-level relation and
+ *  operator, as TeX does in a paragraph, so a long formula wraps instead of pushing the
+ *  card wide. */
+function fenced(piece: string): string {
+  const html = temml.renderToString(piece.slice(1, -1), { throwOnError: false, wrap: 'tex' });
+  return `<span class="tex" dir="ltr">${html}</span>`;
+}
+
+/** The same pass over generated MARKUP — the narrated reel's scenes, which
+ *  `workbook/build/seqreel.py` writes with its formulas in the same fence. Unlike
+ *  `exerciseHtml` nothing outside a formula is escaped: the input is markup this repo
+ *  generated, not prose someone typed, and escaping it would print the tags instead. */
+export function markupMath(markup: string): string {
+  return markup
+    .split(FENCE)
+    .map((piece) => (isFenced(piece) ? fenced(piece) : piece))
+    .join('');
+}
 
 /** HTML for one exercise. `sections` are its lettered parts (א, ב, …): each starts on its
  *  own line with its letter in bold, so a bagrut-length question reads as the paper prints
@@ -41,16 +65,10 @@ export function exerciseHtml(text: string, sections: string[] = []): string {
   const part = letters ? new RegExp(`(^|[ \\n])([${letters}])\\.[ \\n]`, 'g') : null;
   return text
     .replace(/[ \t]*\n\s*/g, NEWLINE)
-    .split(/(\$[^$]+\$)/)
+    .split(FENCE)
     .map((piece, i) => {
-      if (piece.length > 2 && piece.startsWith('$') && piece.endsWith('$')) {
-        // `wrap: 'tex'` marks a soft break after each top-level relation and operator, as
-        // TeX does in a paragraph, so a long formula wraps instead of pushing the card wide.
-        const html = temml.renderToString(piece.slice(1, -1), {
-          throwOnError: false,
-          wrap: 'tex'
-        });
-        return `<span class="tex" dir="ltr">${html}</span>`;
+      if (isFenced(piece)) {
+        return fenced(piece);
       }
       const t = escape(piece);
       if (!part) {

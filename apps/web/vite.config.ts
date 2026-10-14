@@ -2,7 +2,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { defineConfig, type Plugin } from 'vite'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { exerciseHtml } from './src/lib/tex.ts'
+import { exerciseHtml, markupMath } from './src/lib/tex.ts'
 
 /** The identity of this build, generated once and used in two places that must agree:
  *  baked into the bundle as `__BUILD__`, and written to dist/build-id.txt for the deploy
@@ -16,6 +16,13 @@ const BUILD = Date.now().toString(36)
 const GRADERS = '/src/lib/graders.json'
 type Exercise = { text: string; sections: string[]; html?: string }
 type Graders = { blocks: { exercises: Exercise[] }[] }
+
+/** The same pass over the narrated reel (workbook/build/seqreel.py writes this file).
+ *  Its markup arrives with every formula fenced in `$…$` too, so one renderer serves both
+ *  files and the component receives HTML it only has to show. */
+const REEL = '/src/lib/seqreel.json'
+type Scene = { bodyTex: string; captionTex: string; body?: string; caption?: string }
+type Reel = { groups: { scenes: Scene[] }[] }
 
 /** The fonts' stylesheet link, from shared/skin/fonts.json — the same URL the workbook's
  *  skin.py writes into its pages, so the two cannot ask for different faces. */
@@ -35,17 +42,29 @@ function exerciseHtmlPlugin(): Plugin {
     name: 'exercise-html',
     enforce: 'pre',
     load(id) {
-      if (!id.replaceAll('\\', '/').endsWith(GRADERS)) {
-        return null
+      const path = id.replaceAll('\\', '/')
+      if (path.endsWith(GRADERS)) {
+        const graders: Graders = JSON.parse(readFileSync(id, 'utf8'))
+        for (const block of graders.blocks) {
+          for (const ex of block.exercises) {
+            ex.html = exerciseHtml(ex.text, ex.sections)
+          }
+        }
+        return JSON.stringify(graders)
       }
 
-      const graders: Graders = JSON.parse(readFileSync(id, 'utf8'))
-      for (const block of graders.blocks) {
-        for (const ex of block.exercises) {
-          ex.html = exerciseHtml(ex.text, ex.sections)
+      if (path.endsWith(REEL)) {
+        const reel: Reel = JSON.parse(readFileSync(id, 'utf8'))
+        for (const act of reel.groups) {
+          for (const scene of act.scenes) {
+            scene.body = markupMath(scene.bodyTex)
+            scene.caption = markupMath(scene.captionTex)
+          }
         }
+        return JSON.stringify(reel)
       }
-      return JSON.stringify(graders)
+
+      return null
     }
   }
 }
