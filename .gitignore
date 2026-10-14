@@ -5,6 +5,7 @@ apps/android/local.properties
 
 # --- private: the working log, session handoffs, the unscrubbed plan, the admission page builder
 CLAUDE.md
+CLAUDE.archive.md
 continue-*.md
 workbook/pages/plan.private.html
 workbook/build/goalsec.py
