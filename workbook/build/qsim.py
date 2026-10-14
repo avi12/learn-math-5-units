@@ -27,6 +27,8 @@ import re
 import sys
 from pathlib import Path
 
+from shared import Paper, Rung
+
 ROOT = Path(__file__).resolve().parent.parent
 BIDI = "‎‏‪‫‬‭‮⁦⁧⁨⁩"
 N = 5
@@ -105,7 +107,7 @@ def shared_runs(a, b, limit=4):
 # (35572 summer 2023). Up to two such digits are admitted before the Hebrew. The oracle
 # now runs on 32 papers, and on the 74 old-track 35581/35582 papers as a regression.
 # The oracle as data: how many questions each paper prints on its cover.
-QUESTIONS = {"35571": 8, "35572": 5}
+QUESTIONS = {Paper.NEW_571: 8, Paper.NEW_572: 5}
 QUESTION_MARK = re.compile(r"(?<=[ \t])\.(\d)(?=[ \t]*(?:\d{1,2}[ \t]*)?(?:[\u0590-\u05ea]|$))")
 _HEBREW = re.compile(r"[\u0590-\u05ea]")
 _RUN_IN = re.compile(r"[ \t]{3,}$")
@@ -162,7 +164,7 @@ def tier3(path):
         seg = s[a:b]
         num = re.search(r'class="bnum">(.*?)<', seg).group(1)
         topic = re.search(r"<h3>(.*?)</h3>", seg).group(1)
-        m = re.search(r'<div class="rung r3">([\s\S]*?)\n      </div>', seg)
+        m = re.search(r'<div class="rung r%s">([\s\S]*?)\n      </div>' % Rung.EXAM, seg)
         if not m:
             continue
         qx = re.findall(r'<div class="qx">([\s\S]*?)\n        </div>', m.group(1))

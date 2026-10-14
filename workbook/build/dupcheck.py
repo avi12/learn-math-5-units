@@ -23,6 +23,8 @@ import re
 import sys
 from pathlib import Path
 
+from shared import Rung
+
 ROOT = Path(__file__).resolve().parent.parent
 MIN_LEN = 12         # below this it is a symbol, not an object: "x", "n", "a_{1}"
 
@@ -57,7 +59,7 @@ def exercises(path):
         seg = s[a:b]
         num = re.search(r'class="bnum">(.*?)<', seg).group(1)
         topic = re.sub(r"<.*?>", "", re.search(r"<h3>(.*?)</h3>", seg, re.S).group(1)).strip()
-        for lvl in "123":
+        for lvl in Rung:
             m = re.search(r'<div class="rung r%s">([\s\S]*?)\n      </div>' % lvl, seg)
             if not m:
                 continue

@@ -20,6 +20,7 @@ of trusting a number that short exercises inflate.
 """
 import json
 import sys
+from enum import StrEnum
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -80,6 +81,12 @@ def brief() -> int:
 ELEMENT_TAGS = {"p", "li", "a", "h3", "h4", "figcaption"}
 
 
+class Op(StrEnum):
+    """A patch edit's `op` — the two kinds `_apply` documents."""
+    REPLACE = "replace"
+    ELEMENT = "element"
+
+
 def render(snippets: list) -> dict:
     """⟦…⟧ -> KaTeX html, through the same renderer the page builders use."""
     import re
@@ -129,12 +136,12 @@ def _apply(patches: list, root: Path) -> int:
             s = path.read_text(encoding="utf-8")
             new = math(e["new"]) if e["file"].endswith(".html") else e["new"]
             where = f"{name} edit {i} ({e['file']})"
-            if e.get("op", "replace") == "replace":
+            if e.get("op", Op.REPLACE) == Op.REPLACE:
                 c = s.count(e["old"])
                 if c != 1:
                     raise SystemExit(f"{where}: `old` occurs {c} times — {e['old'][:80]!r}")
                 s = s.replace(e["old"], new)
-            elif e["op"] == "element":
+            elif e["op"] == Op.ELEMENT:
                 tag = e["tag"]
                 if tag not in ELEMENT_TAGS:
                     raise SystemExit(f"{where}: tag {tag!r} is not one of {sorted(ELEMENT_TAGS)}")

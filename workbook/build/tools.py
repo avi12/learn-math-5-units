@@ -89,7 +89,7 @@ def check(bid: str, rows: list, bad: list, tex: dict) -> None:
             bad.append(f"{where}: keys {sorted(r)}")
             continue
         if r["src"] not in (SHEET, HEAD):
-            bad.append(f"{where}: src {r['src']!r} is neither {SHEET!r} nor {HEAD!r}")
+            bad.append(f"{where}: src {r['src']!r} is neither {SHEET.value!r} nor {HEAD.value!r}")
         if r["name"] in seen:
             bad.append(f"{where}: duplicate name {r['name']!r}")
         seen.add(r["name"])

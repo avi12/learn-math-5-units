@@ -23,6 +23,7 @@ reads `\\dfrac{x^{2}-9}{x+3}` and not a pile of positioned spans.
 import json
 import re
 import sys
+from enum import StrEnum
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -35,6 +36,21 @@ from onepage import PARTS, SECTION, H2  # noqa: E402
 from qsim import strip  # noqa: E402
 
 OUT = HERE / "ground" / "elements"
+
+
+class Kind(StrEnum):
+    """An item's `kind`; the table in the docstring says where each one comes from."""
+    TEXT = "text"
+    TITLE = "title"
+    WHY = "why"
+    HOWTO = "howto"
+    TRAP = "trap"
+    GRADER = "grader"
+    TOOL = "tool"
+    EXERCISE = "exercise"
+    VIDEO = "video"
+    SECTION = "section"
+
 CHUNK = re.compile(r"<(h3|h4|p|li|figcaption)\b[^>]*>([\s\S]*?)</\1>")
 
 
@@ -44,7 +60,7 @@ def chunks(fragment: str, prefix: str) -> list:
     for m in CHUNK.finditer(fragment):
         t = strip(m.group(2))
         if len(t) >= 3:
-            out.append({"id": f"{prefix}.{len(out) + 1}", "kind": "text", "text": t})
+            out.append({"id": f"{prefix}.{len(out) + 1}", "kind": Kind.TEXT, "text": t})
     return out
 
 
@@ -56,21 +72,21 @@ def workbook_groups(page: str) -> dict:
         b = content.BLOCKS[num]
         title = strip(re.search(r"<h3[^>]*>([\s\S]*?)</h3>", body).group(1))
         why = re.search(r'<p class="bwhy">([\s\S]*?)</p>', body)
-        items = [{"id": f"wb{num}.title", "kind": "title", "text": title}]
+        items = [{"id": f"wb{num}.title", "kind": Kind.TITLE, "text": title}]
         if why:
-            items.append({"id": f"wb{num}.why", "kind": "why", "text": strip(why.group(1))})
+            items.append({"id": f"wb{num}.why", "kind": Kind.WHY, "text": strip(why.group(1))})
         for i, (head, text) in enumerate(b["howto"], 1):
-            items.append({"id": f"wb{num}.howto{i}", "kind": "howto", "text": f"{head} — {text}"})
-        items.append({"id": f"wb{num}.trap", "kind": "trap", "text": b["trap"]})
-        items.append({"id": f"wb{num}.grader", "kind": "grader", "text": b["grader"]})
+            items.append({"id": f"wb{num}.howto{i}", "kind": Kind.HOWTO, "text": f"{head} — {text}"})
+        items.append({"id": f"wb{num}.trap", "kind": Kind.TRAP, "text": b["trap"]})
+        items.append({"id": f"wb{num}.grader", "kind": Kind.GRADER, "text": b["grader"]})
         for i, (name, rule, src) in enumerate(b["tools"], 1):
-            items.append({"id": f"wb{num}.tool{i}", "kind": "tool", "text": f"{name} — {rule}",
+            items.append({"id": f"wb{num}.tool{i}", "kind": Kind.TOOL, "text": f"{name} — {rule}",
                           "source": src})
         for e in ex[num]:
-            items.append({"id": f"wb{num}.t{e['tier']}.{e['n']}", "kind": "exercise",
+            items.append({"id": f"wb{num}.t{e['tier']}.{e['n']}", "kind": Kind.EXERCISE,
                           "text": e["text"], "label": e["label"]})
         for i, v in enumerate(re.finditer(r'<span class="bt">([\s\S]*?)</span>', body), 1):
-            items.append({"id": f"wb{num}.video{i}", "kind": "video", "text": strip(v.group(1))})
+            items.append({"id": f"wb{num}.video{i}", "kind": Kind.VIDEO, "text": strip(v.group(1))})
         groups[f"wb{num}"] = {"group": f"wb{num}", "page": "מדרגות 571", "title": title,
                               "items": items}
     if len(groups) != len(content.BLOCKS):
@@ -80,7 +96,7 @@ def workbook_groups(page: str) -> dict:
     if not guide:
         raise SystemExit("workbook: the trinomial guide is missing")
     items = chunks(guide.group(1), "guide")
-    items += [{"id": f"guide.video{i}", "kind": "video", "text": strip(v.group(1))}
+    items += [{"id": f"guide.video{i}", "kind": Kind.VIDEO, "text": strip(v.group(1))}
               for i, v in enumerate(re.finditer(r'<span class="bt">([\s\S]*?)</span>',
                                                 guide.group(1)), 1)]
     groups["guide"] = {"group": "guide", "page": "מדרגות 571", "title": "פירוק טרינום",
@@ -100,9 +116,9 @@ def page_groups() -> dict:
             head = strip(h2.group(1)) if h2 else ""
             if keep and not any(head.startswith(w) for w in keep):
                 continue
-            items.append({"id": f"{pid}.s{k}", "kind": "section", "text": head})
+            items.append({"id": f"{pid}.s{k}", "kind": Kind.SECTION, "text": head})
             items += chunks(sec.group(0), f"{pid}.s{k}")
-            items += [{"id": f"{pid}.s{k}.video{i}", "kind": "video", "text": strip(v.group(1))}
+            items += [{"id": f"{pid}.s{k}.video{i}", "kind": Kind.VIDEO, "text": strip(v.group(1))}
                       for i, v in enumerate(re.finditer(
                           r'<(?:span|div) class="[vb]t"[^>]*>([\s\S]*?)</(?:span|div)>', sec.group(0)), 1)]
         groups[pid] = {"group": pid, "page": label, "title": label, "items": items}
@@ -121,7 +137,8 @@ def main() -> int:
                                        encoding="utf-8")
         kinds = {}
         for it in data["items"]:
-            kinds[it["kind"]] = kinds.get(it["kind"], 0) + 1
+            k = str(it["kind"])  # plain str, so the summary line prints values, not reprs
+            kinds[k] = kinds.get(k, 0) + 1
         total += len(data["items"])
         print(f"  {g:<10} {len(data['items']):>4} items  {kinds}")
     print(f"{total} items in {len(groups)} groups -> {OUT}")

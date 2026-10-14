@@ -22,23 +22,26 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
+from shared import Moed, Paper
+
 ROOT = Path(__file__).resolve().parent.parent
 ARCHIVE = "https://meyda.education.gov.il/sheeloney_bagrut/{year}/{moed}/HEB/{paper}.pdf"
 MAFMAR = "https://meyda.education.gov.il/files/Pop/0files/matmatika/Chativa-Elyona/mafmar/"
 
-# moed codes in the archive: 1 = winter, 2 = winter (absentees), 6 = summer A, 8 = summer B.
+
+W, W2, SA, SB = Moed.WINTER, Moed.WINTER_ABSENTEES, Moed.SUMMER_A, Moed.SUMMER_B
 # Not every year has every moed; this is the set the tools were built on.
-SITTINGS = [(2022, 1), (2022, 2), (2022, 6), (2022, 8),
-            (2023, 1), (2023, 6), (2023, 8),
-            (2024, 1), (2024, 6), (2024, 8),
-            (2025, 1), (2025, 6), (2025, 8),
-            (2026, 1), (2026, 6), (2026, 8)]
+SITTINGS = [(2022, W), (2022, W2), (2022, SA), (2022, SB),
+            (2023, W), (2023, SA), (2023, SB),
+            (2024, W), (2024, SA), (2024, SB),
+            (2025, W), (2025, SA), (2025, SB),
+            (2026, W), (2026, SA), (2026, SB)]
 
 SOURCES: list[tuple[str, Path]] = [
     *[(ARCHIVE.format(year=y, moed=m, paper=p), ROOT / "exams" / "text" / f"{p}_{y}_{m}.txt")
-      for p in ("35571", "35572") for y, m in SITTINGS],
-    *[(ARCHIVE.format(year=2026, moed=6, paper=p), ROOT / "exams" / "old" / f"{p}_2026_6.txt")
-      for p in ("35581", "35582")],
+      for p in (Paper.NEW_571, Paper.NEW_572) for y, m in SITTINGS],
+    *[(ARCHIVE.format(year=2026, moed=SA, paper=p), ROOT / "exams" / "old" / f"{p}_2026_{SA}.txt")
+      for p in (Paper.OLD_581, Paper.OLD_582)],
     (MAFMAR + "hozer-mafmar-tashpaz.pdf", ROOT / "exams" / "rules" / "hozer-mafmar-tashpaz.txt"),
     (MAFMAR + "exams-time.pdf", ROOT / "exams" / "rules" / "tashpaz-answer-rules.txt"),
     (MAFMAR + "Topics-not-be-taught-in-Tashpaz.pdf", ROOT / "exams" / "rules" / "tashpaz-not-taught.txt"),

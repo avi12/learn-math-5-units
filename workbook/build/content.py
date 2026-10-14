@@ -22,11 +22,22 @@ to solve is his business, not the page's.
 Every numeric answer here is checked by `build/verify9.py` before anything is published.
 Math is written between the corner brackets and rendered by KaTeX at build time.
 """
+from enum import StrEnum
 
 # Where a rule comes from. A closed set, written once and imported rather than spelled
 # out at each entry: the exam hands you a formula sheet and does not tell you what is
 # missing from it, so this tag is the load-bearing half of a tool.
-SHEET, HEAD = "בנוסחאון", "בעל־פה"
+class ToolSource(StrEnum):
+    """The value is the tag the page prints; `css` is the class rebuild.py styles it by."""
+    SHEET = "בנוסחאון"
+    HEAD = "בעל־פה"
+
+    @property
+    def css(self) -> str:
+        return self.name.lower()
+
+
+SHEET, HEAD = ToolSource.SHEET, ToolSource.HEAD
 
 
 # --------------------------------------------------------------------------- 01

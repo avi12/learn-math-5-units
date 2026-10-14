@@ -29,10 +29,20 @@ import re
 import sys
 import urllib.parse
 import urllib.request
+from enum import StrEnum
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 UA = {"User-Agent": "Mozilla/5.0"}
+
+
+class VideoKind(StrEnum):
+    """A card's `kind` — the same code data/blockvids.json stores per entry."""
+    VIDEO = "v"
+    PLAYLIST = "p"
+
+
+V, P = VideoKind.VIDEO, VideoKind.PLAYLIST
 
 # block -> the cards to append, in reading order.
 #   (kind, id, kicker, caption)
@@ -40,24 +50,24 @@ UA = {"User-Agent": "Mozilla/5.0"}
 # "למה" for the idea behind it.
 ADD = {
     "01": [
-        ("p", "PLCvkcH5OUmCnT8S2bkqFS6FOQZbGs9jCm", "טכניקה",
+        (P, "PLCvkcH5OUmCnT8S2bkqFS6FOQZbGs9jCm", "טכניקה",
          "אי־שוויונות וערך מוחלט, וההבדל בין ⟪או⟫ ל⟪וגם⟫ "
          "בפתרון. זה מה שמדרגה 3 פותחת בו."),
-        ("v", "6ZPyglzZyUA", "טכניקה",
+        (V, "6ZPyglzZyUA", "טכניקה",
          "משוואה עם נעלם במכנה, בסדר שהבלוק דורש: תחום הגדרה קודם, מכנה משותף, ופסילת "
          "פתרון שיצא מחוץ לתחום."),
     ],
     # "02" carried two arithmetic-sequence cards. Removed 17.09.2026: arithmetic sequences
     # are not taught in תשפ"ז (data/tashpaz.json), so neither card is added back.
     "07": [
-        ("v", "9uswdDO4ECw", "טכניקה",
+        (V, "9uswdDO4ECw", "טכניקה",
          "כללי הגזירה עצמם. שבעת הצעדים בבלוק אומרים ⟪ואז נגזרת⟫ ואף פעם לא איך גוזרים."),
     ],
 }
 
 
-def fetch(kind: str, vid: str) -> dict:
-    url = (f"https://www.youtube.com/watch?v={vid}" if kind == "v"
+def fetch(kind: VideoKind, vid: str) -> dict:
+    url = (f"https://www.youtube.com/watch?v={vid}" if kind == VideoKind.VIDEO
            else f"https://www.youtube.com/playlist?list={vid}")
     q = ("https://www.youtube.com/oembed?url="
          + urllib.parse.quote(url, safe="") + "&format=json")
@@ -75,7 +85,7 @@ def card(meta: dict, kicker: str, caption: str) -> str:
     caption is prose under a thumbnail, and a KaTeX box inside it would be the only one
     on the page that is not part of a formula.
     """
-    tag = "סרטון" if meta["kind"] == "v" else "פלייליסט"
+    tag = "סרטון" if meta["kind"] == VideoKind.VIDEO else "פלייליסט"
     t = meta["title"]
     cap = caption.replace("⟪", "&ldquo;").replace("⟫", "&rdquo;")
     return (

@@ -48,6 +48,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from shared import FONTS_LINK  # noqa: E402
+from skin import H_BEG, H_END, L_BEG, L_END  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -55,9 +56,6 @@ DIST = ROOT / "dist" / "hub571"
 OUT = DIST / "index.html"
 LIMIT = 16 * 1024 * 1024          # per file
 TOTAL = 64 * 1024 * 1024          # per Artifact version
-
-H_BEG, H_END = "/* CYBERSKIN:TOKENS:BEGIN */", "/* CYBERSKIN:TOKENS:END */"
-L_BEG, L_END = "/* CYBERSKIN:PASS:BEGIN */", "/* CYBERSKIN:PASS:END */"
 
 # Exercises first, then the why they rest on. `keep` is None for a whole page, or the
 # section headings to carry — matched as a prefix of the <h2>, so `&quot;` in the markup

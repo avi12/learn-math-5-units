@@ -30,9 +30,9 @@ from blockre import BLOCK  # noqa: E402
 from exercises import BUILT, LETTERS, RUNG_NAME, blocks, plain  # noqa: E402
 from exvids import load as exvids_meta, videos as exvids  # noqa: E402
 from graders import titles  # noqa: E402
+from shared import LRM  # noqa: E402
 
 OUT = HERE.parent / "EXERCISES.md"
-LRM = "‎"
 
 
 def gh_math(text: str) -> str:

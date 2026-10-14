@@ -17,6 +17,7 @@ that is how the pairing once drifted into three different answers.
 import json
 import re
 import sys
+from enum import IntEnum, StrEnum
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -51,6 +52,37 @@ FONTS_LINK = f'<link rel="stylesheet" href="{FONTS_URL}">'
 #: as `1·2`. The mark in front turns the digits LTR (rule W7) and the dot follows them.
 #: Measured in a screenshot; it also works inside <title>, where <bdi> cannot go.
 LRM = "‎"
+
+
+class Rung(StrEnum):
+    """The three rungs every block climbs, by the digit the page writes for them.
+
+    The digit is what `class="rung r1"`, the `1·2.` answer labels and content.py's `new`
+    keys all spell, so the values stay the strings they always were — a StrEnum compares,
+    hashes and formats as its value, and a digit read back off the page with a regex
+    still finds its rung in a dict keyed by these. The names are what the digits mean.
+    """
+    WARMUP = "1"
+    MIDDLE = "2"
+    EXAM = "3"
+
+
+class Paper(StrEnum):
+    """Questionnaire numbers. The new 5-unit track's two papers: 35571 is the one the
+    workbook prepares for, 35572 follows a sitting later. And the old track's two, which
+    it replaced — read for comparison, never studied from."""
+    NEW_571 = "35571"
+    NEW_572 = "35572"
+    OLD_581 = "35581"
+    OLD_582 = "35582"
+
+
+class Moed(IntEnum):
+    """The moed code in the archive URL — and in every exams/text/<paper>_<year>_<moed> name."""
+    WINTER = 1
+    WINTER_ABSENTEES = 2
+    SUMMER_A = 6
+    SUMMER_B = 8
 
 
 def _tokens(path: Path) -> dict:

@@ -25,20 +25,33 @@ the `<annotation>` and drops the rendered spans, and it is imported rather than 
 import json
 import re
 import sys
+from enum import StrEnum
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 ROOT = HERE.parent
 
+from addvids import VideoKind  # noqa: E402
 from exercises import plain, sections  # noqa: E402
+from shared import Moed, Paper  # noqa: E402
 from rebuild import RUNG_NAME  # noqa: E402
 
 WORKBOOK = ROOT / "pages" / "workbook.html"
 DERIVED = ROOT / "data" / "derived"
 VIDS = json.loads((ROOT / "data" / "blockvids.json").read_text(encoding="utf-8"))
 
-TIER_NAME = {"warm": "1 · חימום", "mid": "2 · ביניים", "bagrut": "3 · רמת בגרות"}
+
+
+class Tier(StrEnum):
+    """An exercise's `tier` in data/derived/<paper>_q<n>.json."""
+    WARM = "warm"
+    MID = "mid"
+    BAGRUT = "bagrut"
+
+
+# In reading order: sitting_dossier walks this dict.
+TIER_NAME = {Tier.WARM: "1 · חימום", Tier.MID: "2 · ביניים", Tier.BAGRUT: "3 · רמת בגרות"}
 
 
 def vid_line(url: str) -> str:
@@ -49,7 +62,7 @@ def vid_line(url: str) -> str:
     """
     key = re.search(r"(?:watch\?v=|playlist\?list=)([\w-]+)", url)
     meta = VIDS.get(key.group(1), {}) if key else {}
-    kind = "פלייליסט" if meta.get("kind") == "p" else "סרטון"
+    kind = "פלייליסט" if meta.get("kind") == VideoKind.PLAYLIST else "סרטון"
     return f"  [{kind}] {meta.get('title', '(no title)')} — {meta.get('author', '?')}\n    {url}"
 
 
@@ -116,12 +129,12 @@ def workbook_dossier(u: dict) -> str:
 
 
 # --------------------------------------------------------------- sittings ---
-MOED = {"1": "חורף", "6": "קיץ א׳", "8": "קיץ ב׳"}
+MOED = {Moed.WINTER: "חורף", Moed.SUMMER_A: "קיץ א׳", Moed.SUMMER_B: "קיץ ב׳"}
 
 
 def sitting_dossier(paper: str) -> str:
     year, moed = paper.split("_")[1:3]
-    out = [f"# מועדים · שאלון 35571 · {MOED[moed]} {year}", "",
+    out = [f"# מועדים · שאלון {Paper.NEW_571} · {MOED[Moed(int(moed))]} {year}", "",
            "לדף הזה **אין סרטונים בכלל** — הטקסט ההסברי היחיד לכל שאלה הוא רשימת",
            "ה־techniques שלה. זה נתון, לא ממצא; מה שנבדק הוא אם הרשימה מכסה את מה",
            "שהתרגילים באמת דורשים.", ""]
@@ -136,7 +149,7 @@ def sitting_dossier(paper: str) -> str:
         out += [f"{i}. {t}" for i, t in enumerate(d["techniques"], 1)]
         out += ["", "### התרגילים"]
         by = {e["tier"]: e for e in d["exercises"]}
-        for tier in ("warm", "mid", "bagrut"):
+        for tier in TIER_NAME:
             e = by.get(tier)
             if e:
                 out += ["", f"#### מדרגה {TIER_NAME[tier]}", e["q"]]
@@ -157,7 +170,7 @@ def main() -> int:
         nex += len(u["ex"])
     print(f"workbook: {len(units)} units, {nex} exercises")
 
-    papers = sorted({f.name.rsplit("_", 1)[0] for f in DERIVED.glob("35571_*.json")})
+    papers = sorted({f.name.rsplit("_", 1)[0] for f in DERIVED.glob(f"{Paper.NEW_571}_*.json")})
     for p in papers:
         (outdir / f"sitting-{p}.md").write_bytes(sitting_dossier(p).encode("utf-8"))
     print(f"sittings: {len(papers)} papers, {len(papers) * 8} questions, "

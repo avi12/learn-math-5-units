@@ -30,8 +30,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from blockre import BLOCK_OPEN  # noqa: E402
-from shared import LRM  # noqa: E402
-from content import BLOCKS, HEAD, SHEET  # noqa: E402
+from shared import LRM, Paper, Rung  # noqa: E402
+from content import BLOCKS, HEAD  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "pages" / "workbook.html"
@@ -41,14 +41,14 @@ WORK = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "build"
 # grade line of the prompt reads them, so a changed rule is one edit in one file.
 TASHPAZ = json.loads((ROOT / "data" / "tashpaz.json").read_text(encoding="utf-8"))
 
-RUNG_NAME = {"1": "חימום", "2": "ביניים", "3": "רמת בגרות"}
-PIPS = {"1": '<i class="on"></i><i></i><i></i>',
-        "2": '<i class="on"></i><i class="on"></i><i></i>',
-        "3": '<i class="on"></i><i class="on"></i><i class="on"></i>'}
+RUNG_NAME = {Rung.WARMUP: "חימום", Rung.MIDDLE: "ביניים", Rung.EXAM: "רמת בגרות"}
+PIPS = {Rung.WARMUP: '<i class="on"></i><i></i><i></i>',
+        Rung.MIDDLE: '<i class="on"></i><i class="on"></i><i></i>',
+        Rung.EXAM: '<i class="on"></i><i class="on"></i><i class="on"></i>'}
 
 
 # --------------------------------------------------------------- the prompt --
-def prompt_text(title: str, grader: str, paper: str = "35571") -> str:
+def prompt_text(title: str, grader: str, paper: Paper = Paper.NEW_571) -> str:
     """One template, filled per block. The topic-specific part is `grader`.
 
     The web-search instruction is not decoration: without it the model happily invents a
@@ -247,7 +247,7 @@ def tools_html(b: dict, math) -> str:
     rows = "\n".join(
         f'        <div class="trow"><span class="tn">{math(name)}</span>'
         f'<span class="tf">{math(rule)}</span>'
-        f'<span class="tg {"sheet" if src == SHEET else "head"}">{src}</span></div>'
+        f'<span class="tg {src.css}">{src}</span></div>'
         for name, rule, src in b["tools"])
     return (f'    <div class="howto tools">\n'
             f'      <span class="hlabel">הכלים שהבלוק מניח · {len(b["tools"])} כללים</span>\n'
@@ -401,7 +401,7 @@ def main() -> None:
         # continues the one before it (block 03's rung-3 answer runs over three paragraphs).
         # A paragraph that carries labels of two rungs could not be placed, so it is refused.
         old = abody.group(1)
-        by_rung = {lvl: [] for lvl in "123"}
+        by_rung = {lvl: [] for lvl in Rung}
         rung = None
         for p in re.findall(r"<p>[\s\S]*?</p>", old):
             tiers = set(re.findall(r"<b>(\d)[א-ת]*\.</b>", p))
@@ -411,7 +411,7 @@ def main() -> None:
             assert rung, f"block {num}: an answer paragraph before any rung label"
             by_rung[rung].append(re.sub(r"<b>(\d)([א-ת]*)\.</b>", ans_label, p))
         answers = []
-        for lvl in "123":
+        for lvl in Rung:
             if lvl in first:
                 answers.append(f"        <p><b>{LRM}{lvl}·1.</b> {math(first[lvl][1])}</p>")
             else:
