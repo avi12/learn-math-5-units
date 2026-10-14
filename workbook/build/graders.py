@@ -32,7 +32,7 @@ sys.path.insert(0, str(HERE))
 from content import BLOCKS  # noqa: E402
 from exercises import RUNG_NAME, blocks as exercise_blocks  # noqa: E402
 from exvids import PICKS as EXVIDS, load as exvids_meta, videos as exvids  # noqa: E402
-from rebuild import prompt_text  # noqa: E402
+from rebuild import LIVE_CUE_HEAR, LIVE_NOTE_NONE, live_note_text, live_prompt_text, prompt_text  # noqa: E402
 
 # The pad, in the same repo: apps/web reads this file at build time.
 PAD = HERE.parent.parent / "apps" / "web" / "src" / "lib" / "graders.json"
@@ -55,9 +55,15 @@ def titles() -> dict:
 # still tells Claude to look for text that will never come.
 PASTE_EXERCISE = "... כאן מדביקים את התרגיל ..."
 PASTE_SOLUTION = "... כאן מדביקים את הפתרון, כולל כל שלב שכתבתי על הדף ..."
+# The board carries the SOLUTION, and only that. Saying it also carries the exercise sent
+# the exercise twice: the slot above has just quoted it word for word from graders.json,
+# and the picture was then announced as a second copy to read it from — so Claude was told
+# to identify a question it had already been handed, and a misread of the handwriting
+# could contradict the text. The one case where the exercise really is only in the picture
+# is "not from the workbook", and EXERCISE_FORMAT["other"] already says exactly that.
 FROM_BOARD = (
-    "מצורפת תמונה של הלוח שכתבתי עליו בכתב יד. היא מכילה את התרגיל ואת הפתרון שלי,\n"
-    "כולל כל שלב שכתבתי. קרא אותה משם."
+    "מצורפת תמונה של הלוח שכתבתי עליו בכתב יד. היא מכילה את הפתרון שלי,\n"
+    "כולל כל שלב שכתבתי. קרא אותו משם."
 )
 
 
@@ -67,6 +73,12 @@ FROM_BOARD = (
 # question it was even looking at — and a marking scheme fetched for the wrong question
 # is worse than none. The pad fills this slot at the moment of the click.
 EXERCISE_SLOT = "{{EXERCISE}}"
+
+# Where the note request puts the two sides of the exchange (rebuild.live_note_text):
+# what the person was heard saying, and what Gemini said back. The extension fills both,
+# from the Live transcript, once Gemini has finished the sentence that names the note.
+HEARD_SLOT = "{{HEARD}}"
+SAID_SLOT = "{{SAID}}"
 
 # The wording lives here and not in the pad, for the same reason the criteria do: this
 # repo phrases what Claude is asked, the pad only chooses which exercise to say it about.
@@ -139,6 +151,13 @@ def main() -> None:
                 "prompt": for_pad(
                     re.sub(r"⟦(.*?)⟧", r"\1", prompt_text(names[num], BLOCKS[num]["grader"]))
                 ),
+                # Gemini Live, a tutor beside the board: its brief, and the note request
+                # that writes a formula onto the board without pausing it
+                "live": re.sub(
+                    r"⟦(.*?)⟧", r"\1",
+                    live_prompt_text(names[num], BLOCKS[num]["grader"], EXERCISE_SLOT),
+                ),
+                "note": live_note_text(names[num], HEARD_SLOT, SAID_SLOT, EXERCISE_SLOT),
                 "exercises": ex[num],
             }
             for num in sorted(BLOCKS)
@@ -148,6 +167,10 @@ def main() -> None:
         "rungs": [{"tier": k, "name": RUNG_NAME[k]} for k in sorted(RUNG_NAME)],
         "exerciseSlot": EXERCISE_SLOT,
         "exerciseFormat": EXERCISE_FORMAT,
+        # Gemini Live writing something down: the phrase it says first, as a pattern for
+        # the extension to listen for; where the two sides of the exchange go in a block's
+        # note; and the answer that means there is nothing to write
+        "liveNote": {"cue": LIVE_CUE_HEAR, "heard": HEARD_SLOT, "said": SAID_SLOT, "none": LIVE_NOTE_NONE},
     }
     PAD.parent.mkdir(parents=True, exist_ok=True)
     PAD.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")

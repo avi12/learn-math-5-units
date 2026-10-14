@@ -230,6 +230,98 @@ def prompt_text(title: str, grader: str, paper: Paper = Paper.NEW_571) -> str:
 אותה בנפרד תחת "המלצות"."""
 
 
+# What Gemini says first when it is asked to write something down — and how the extension
+# recognises it in Gemini's own transcript. One place for both, so the phrase the brief
+# teaches and the pattern that listens for it cannot part ways. The pattern takes the
+# feminine forms too: the voice is not asked which it is.
+LIVE_CUE_SAY = "רושם לך על הלוח"
+LIVE_CUE_HEAR = r"(?:רושם|רושמת|כותב|כותבת)\s*לך\s*על\s*הלוח"
+
+
+# The note request's answer when there is nothing to write. Gemini says the cue on its own
+# too, and a request transcribed from the room can be anything (Avi's screenshot, 14.10:
+# a note headed "משפט סיכום" holding a line of German nobody said) — so the request is
+# allowed to come back empty, and the extension writes nothing.
+LIVE_NOTE_NONE = "אין"
+
+
+def live_note_text(title: str, heard: str, said: str, exercise: str, paper: Paper = Paper.NEW_571) -> str:
+    """The note Gemini puts on the board. Avi: "תאפשר לג'ימיני גם להזריק דברים לדף
+    לדוגמא נוסחאות ב-LaTeX (לדוגמא 'תזכיר לי מה הנוסחה...')".
+
+    Live only speaks, and a formula said aloud is words, not LaTeX. So when Gemini says
+    LIVE_CUE_SAY the extension asks for it in writing — and NOT inside the Live
+    conversation. That was the first version: pause Live, type this into the same
+    conversation, resume. On the real page Live came back listening and then never
+    answered again (Avi, 14.10.2026). Now it is a separate text request from the same
+    signed-in page (StreamGenerate, as agentic-gaming-assistant asks Gemini in parallel to
+    a Live call), and Live is never touched. The cost is that this request does not see
+    the conversation, so it carries what it needs: the topic, the exercise (`exercise`,
+    filled by the pad), and both sides of the exchange (filled by the extension).
+
+    Both sides, and Gemini's own above all. What it SAID it would write is the reliable
+    half: the first version quoted only what the person was heard saying, and a misheard
+    line made a note out of nothing. What was heard is kept as context and labelled as
+    unreliable, and LIVE_NOTE_NONE is the way out when there is nothing to write. The
+    answer comes back as raw markdown, so the formulas arrive with their LaTeX intact."""
+    return (f'אני לומד ל‑5 יחידות מתמטיקה, שאלון {paper}, ופותר תרגיל בנושא "{title}".\n'
+            f"{exercise}\n"
+            f'בשיחה בקול ביקשתי: "{heard}" (התמלול של הקול שלי לפעמים משובש).\n'
+            f'ואתה ענית: "{said}"\n'
+            "כתוב כפתק ללוח שלי את מה שאמרת שתרשום. בשורה הראשונה: כותרת קצרה בעברית. "
+            "אחריה: התוכן, קצר — הנוסחה או הכלל עצמם, ושורת הסבר אם צריך. בלי מבוא, "
+            "בלי סיכום, בלי כותרות ובלי הדגשות. כל ביטוי מתמטי, גם הקצר ביותר, ב‑LaTeX "
+            "בתוך $…$ (דולר אחד מכל צד, לא שניים).\n"
+            "אם אין כאן נוסחה, כלל או הגדרה במתמטיקה שברור מה הם — ענה רק במילה "
+            f'"{LIVE_NOTE_NONE}".')
+
+
+def live_prompt_text(title: str, grader: str, slot: str, paper: Paper = Paper.NEW_571) -> str:
+    """A private tutor, briefed for Gemini Live on the pad, where it sits beside me as I solve.
+
+    Avi first asked for an examiner ("התפקיד שלו זה להיות בוחן"), then on seeing it:
+    "לא מדובר בבחינה. ג'מיני צריך להתנהג כמו מורה פרטי, לעזור לי תוך כדי". The marking is
+    Claude's job, from the button beside this one; this one helps while the work is being
+    done. So: answer whenever spoken to, the smallest hint that moves me, a mistake
+    pointed at and not fixed, the "why" anchored in code (who the learner is — see the
+    workbook's own rule). The topic's `grader` stays, as what to steer the writing
+    towards, and so does the gate on demands without a source, in its spoken form:
+    nothing is called mandatory that is not known to be.
+
+    The pad types this into Gemini's own box as one text turn before Live starts (the
+    Gemini web client takes no system prompt), and Live keeps that turn in context. It is
+    the ONLY text turn in a session: pausing Live for another one left it silent (see
+    `live_note_text`). So a new exercise is not briefed again — the frame always shows
+    the current question, and the brief says to follow it.
+
+    What is on the screen is described only as far as the prompt needs it. The marks on
+    the frame (what was just written, where the pen hovers) explain themselves in a
+    legend drawn on the frame by the pad (apps/web/src/lib/frame.ts), so the picture and
+    its key cannot drift apart into two files.
+
+    `slot` is where the pad puts the exercise, exactly as it does for Claude. The
+    extension flattens the newlines before typing — Enter in that box sends."""
+    plain = re.sub(r"⟦(.*?)⟧", r"\1", grader)
+    return f"""אתה המורה הפרטי שלי למתמטיקה, 5 יחידות, שאלון {paper}. אנחנו יושבים יחד בזמן שאני פותר תרגיל בנושא "{title}", ותפקידך לעזור לי תוך כדי — לא לבחון אותי. מיד נעבור לשיחה חיה: תשמע אותי ותראה את המסך שלי.
+
+{slot}
+
+מה על המסך: השאלה שאני עובד עליה, תמיד — וכשהיא מתחלפת, עבור איתה — וכל הלוח שאני כותב עליו בכתב יד, כולו, מההתחלה. התמונה מתחדשת בערך פעם בשנייה. מקרא על המסך מסביר את הסימונים: מה שנכתב זה עתה, והמקום שהעט שלי מרחף מעליו. כשהעט מרחף, הלוח מעומעם חוץ מעיגול מואר סביב העט — שם אני מצביע. כשאני אומר "פה", "זה" או "השורה הזאת" — הכוונה למה שבתוך העיגול המואר, ועליו תענה.
+
+איך לעזור לי:
+1. ענה תמיד כשאני מדבר אליך. כשאני כותב בשקט — תן לי לכתוב, ואל תקריא את מה שכתבתי.
+2. נתקעתי — תן רמז קטן או שאלה מכוונת: את הקטן ביותר שיזיז אותי. את הפתרון המלא תן רק אם ביקשתי.
+3. ראית טעות — אמור איפה, בעדינות, ושאל מה אני חושב. לא מצאתי — הסבר.
+4. אני רוצה להבין למה, לא רק איך. אני מהנדס תוכנה, אז כשזה עוזר — עגן את הרעיון במשהו מקוד: רקורסיה, לולאה, פונקציה.
+5. לקראת הבגרות כוון אותי לכתוב כמו נבחן — מפורט יותר ממה שמתמטיקאי היה כותב. בנושא הזה בוחן בגרות מחפש: {plain} אל תציג דבר כחובה בבחינה אם אינך בטוח שהיא דורשת אותו — אז אמור "המלצה, לא חובה".
+6. ביקשתי שתזכיר לי או תרשום לי נוסחה, כלל או הגדרה — התחל במילים "{LIVE_CUE_SAY}", אמור באותו משפט מה אתה רושם, והיא תופיע לי על הלוח בכתב. אחר כך הסבר אותה בקול, בקצרה. את המילים "{LIVE_CUE_SAY}" אל תגיד בשום הקשר אחר — הן מה שכותב על הלוח.
+7. משהו על הלוח לא קריא — אמור שלא ברור. אל תנחש.
+
+דבר רק עברית, לאורך כל השיחה, במשפטים קצרים, כמו בשיחה. גם אם נשמע לך שדיברתי בשפה אחרת, או שאמרתי מונח או אות באנגלית — אני מדבר עברית, ואתה עונה בעברית. נוסחאות אמור בקול כמו שאומרים אותן ("איקס בריבוע פחות ארבע").
+
+עכשיו ענה במילה אחת, "מוכן", ונעבור לשיחה החיה."""
+
+
 # ------------------------------------------------------------ build the html --
 def tools_html(b: dict, math) -> str:
     """The rules the block assumes, stated once.
