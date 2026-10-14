@@ -28,13 +28,13 @@ for (const [key, tex] of Object.entries(map)) {
   try {
     const html = katex.renderToString(tex, { displayMode: false, throwOnError: true, strict: false });
     const real = warned.filter((w) => !w.includes(OK_WARN));
-    if (real.length) bad.push(`${JSON.stringify(tex)} -> ${real[0]}`);
-    else out[key] = html;
+    if (real.length) {bad.push(`${JSON.stringify(tex)} -> ${real[0]}`);}
+    else {out[key] = html;}
   } catch (e) {
     bad.push(`${JSON.stringify(tex)} -> ${e.message.split("\n")[0]}`);
   }
 }
 fs.writeFileSync(process.argv[3], JSON.stringify(out));
 console.log(`rendered ${Object.keys(out).length}, failures ${bad.length}`);
-for (const b of bad) console.error("  KATEX FAIL: " + b);
+for (const b of bad) {console.error("  KATEX FAIL: " + b);}
 process.exit(bad.length ? 1 : 0);

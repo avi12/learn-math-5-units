@@ -66,7 +66,7 @@ for (const [i, src] of ['stylus', 'touchscreen'].entries()) {
 const log = JSON.parse(await ev(`JSON.stringify(window.__lag)`));
 const strokes = [];
 for (const e of log.ev) {
-  if (e.type === 'pointerdown') strokes.push([]);
+  if (e.type === 'pointerdown') {strokes.push([]);}
   strokes.at(-1)?.push(e);
 }
 for (const s of strokes) {
@@ -77,7 +77,7 @@ for (const s of strokes) {
   console.log(`\n${d.kind}: ${m.length} moves`);
   console.log(`  down: queued ${(d.at - d.ts).toFixed(1)}ms, next frame +${(d.raf - d.at).toFixed(1)}ms`);
   if (first)
-    console.log(`  first move: ${(first.ts - d.ts).toFixed(1)}ms after contact, ${Math.hypot(first.x - d.x, first.y - d.y).toFixed(1)}px away`);
+    {console.log(`  first move: ${(first.ts - d.ts).toFixed(1)}ms after contact, ${Math.hypot(first.x - d.x, first.y - d.y).toFixed(1)}px away`);}
   console.log(`  move queue delay median ${gaps.sort((a, b) => a - b)[gaps.length >> 1]?.toFixed(1)}ms; coalesced/event ${m.map((e) => e.co).join(',')}`);
   console.log(`  predicted per move: ${[...new Set(m.map((e) => e.pr))].join(',')}`);
 }

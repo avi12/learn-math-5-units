@@ -21,7 +21,7 @@ interface DetectorCtor {
 
 async function nativeReader(video: HTMLVideoElement): Promise<Reader | null> {
   const Detector = (window as unknown as { BarcodeDetector?: DetectorCtor }).BarcodeDetector;
-  if (!Detector) return null;
+  if (!Detector) {return null;}
   try {
     const formats = (await Detector.getSupportedFormats?.()) ?? ['qr_code'];
     if (!formats.includes('qr_code')) return null;
@@ -39,7 +39,7 @@ async function fallbackReader(video: HTMLVideoElement): Promise<Reader> {
   return async () => {
     const w = video.videoWidth;
     const h = video.videoHeight;
-    if (!w || !h) return null;
+    if (!w || !h) {return null;}
     frame.width = w;
     frame.height = h;
     g.drawImage(video, 0, 0, w, h);
@@ -67,7 +67,7 @@ export async function scan(
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   const look = async () => {
-    if (!live) return;
+    if (!live) {return;}
     try {
       const text = await read();
       if (text) {
@@ -85,7 +85,7 @@ export async function scan(
   return () => {
     live = false;
     clearTimeout(timer);
-    for (const track of stream.getTracks()) track.stop();
+    for (const track of stream.getTracks()) {track.stop();}
     video.srcObject = null;
   };
 }

@@ -40,7 +40,7 @@ const ev = async (x) => {
 
 let bad = 0;
 const check = (name, ok, detail = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(44)} ${detail}`);
 };
 
@@ -66,7 +66,7 @@ for (let i = 0; i < 40; i++) {
   );
   if (s) {
     size = s;
-    if (/^[1-9]\d*x[1-9]\d*$/.test(String(s))) break;
+    if (/^[1-9]\d*x[1-9]\d*$/.test(String(s))) {break;}
   } else if (size !== 'none') {
     break; // it opened and has already closed — the scan landed
   }

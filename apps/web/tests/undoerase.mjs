@@ -36,7 +36,7 @@ const ev = async (x) =>
 
 let bad = 0;
 const check = (n, ok, d = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(50)} ${d}`);
 };
 
@@ -63,7 +63,7 @@ async function stroke(fy) {
   const x0 = rect.left + rect.width * 0.25;
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 });
   for (let i = 1; i <= 10; i++)
-    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 30, y, button: 'left', buttons: 1 });
+    {await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 30, y, button: 'left', buttons: 1 });}
   await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x0 + 300, y, button: 'left', buttons: 0, clickCount: 1 });
   await wait(1800);
 }
@@ -89,7 +89,7 @@ const x = rect.left + rect.width * 0.4;
 const yTop = rect.top + rect.height * 0.25;
 await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y: yTop, button: 'left', buttons: 1, clickCount: 1 });
 for (let i = 1; i <= 14; i++)
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y: yTop + i * 25, button: 'left', buttons: 1 });
+  {await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y: yTop + i * 25, button: 'left', buttons: 1 });}
 await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y: yTop + 350, button: 'left', buttons: 0, clickCount: 1 });
 await wait(2200);
 

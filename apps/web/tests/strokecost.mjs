@@ -30,7 +30,7 @@ const ev = async (x) =>
 await send('Emulation.setDeviceMetricsOverride', { width: 1180, height: 900, deviceScaleFactor: 2, mobile: true });
 await send('Page.navigate', { url });
 await new Promise((r) => setTimeout(r, 6000));
-if (Number(rate) > 1) await send('Emulation.setCPUThrottlingRate', { rate: Number(rate) });
+if (Number(rate) > 1) {await send('Emulation.setCPUThrottlingRate', { rate: Number(rate) });}
 
 const out = await ev(`(() => {
   const c = document.querySelector('canvas');

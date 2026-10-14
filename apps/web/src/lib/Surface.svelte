@@ -1207,7 +1207,8 @@
     /* Fades over the last stretch, and `forwards` is not optional: the default fill mode
        drops the element back to full opacity for the frames between the animation ending
        and the unmount landing — a viewfinder that blinks back on as it leaves. */
-    animation: shotOut var(--dur-medium) var(--ease-emph)
+    animation:
+      shotOut var(--dur-medium) var(--ease-emph)
       calc(var(--shot-dur) - var(--dur-medium)) forwards;
   }
   .shot::before,

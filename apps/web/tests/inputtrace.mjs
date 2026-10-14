@@ -26,8 +26,8 @@ const send = (m, p = {}) =>
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
   if (m.id && pending.has(m.id)) { pending.get(m.id)(m.result); pending.delete(m.id); }
-  if (m.method === 'Tracing.dataCollected') events.push(...m.params.value);
-  if (m.method === 'Tracing.tracingComplete') done();
+  if (m.method === 'Tracing.dataCollected') {events.push(...m.params.value);}
+  if (m.method === 'Tracing.tracingComplete') {done();}
 };
 await new Promise((r) => (ws.onopen = r));
 const ev = async (x) =>

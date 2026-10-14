@@ -44,7 +44,7 @@ async function stroke(fy) {
   const x0 = rect.left + rect.width * 0.12;
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 });
   for (let i = 1; i <= 18; i++)
-    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 44, y: y + Math.sin(i) * 14, button: 'left', buttons: 1 });
+    {await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 44, y: y + Math.sin(i) * 14, button: 'left', buttons: 1 });}
   await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x0 + 792, y, button: 'left', buttons: 0, clickCount: 1 });
   await wait(600);
 }
@@ -84,7 +84,7 @@ const ink = () => ev(`(() => {
 })()`);
 
 const rate = Number(process.argv[4] || 1);
-if (rate > 1) await send('Emulation.setCPUThrottlingRate', { rate });
+if (rate > 1) {await send('Emulation.setCPUThrottlingRate', { rate });}
 console.log(`CPU throttle: ${rate}x`);
 console.log('strokes  median   p90     max     mean   (ms per pointermove)');
 let drawn = 0;

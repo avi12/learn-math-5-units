@@ -18,8 +18,8 @@ import { TAKE, type PendingCheck } from '../utils/protocol';
  *  DOM behind its back, which it would overwrite on the next keystroke. */
 function pasteInto(target: HTMLElement, { file, text }: { file?: File; text?: string }) {
   const dt = new DataTransfer();
-  if (file) dt.items.add(file);
-  if (text) dt.setData('text/plain', text);
+  if (file) {dt.items.add(file);}
+  if (text) {dt.setData('text/plain', text);}
   target.focus();
   return target.dispatchEvent(
     new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })
@@ -42,7 +42,7 @@ function dataUrlToFile(dataUrl: string, name: string): File {
   const mime = /:(.*?);/.exec(head)?.[1] ?? 'image/png';
   const bin = atob(body);
   const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  for (let i = 0; i < bin.length; i++) {bytes[i] = bin.charCodeAt(i);}
   return new File([bytes], name, { type: mime });
 }
 
@@ -53,14 +53,14 @@ function composer(timeoutMs = 15000): Promise<HTMLElement | null> {
     document.querySelector<HTMLElement>('div[contenteditable="true"]');
   return new Promise((resolve) => {
     const now = find();
-    if (now) return resolve(now);
+    if (now) {return resolve(now);}
     const stop = setTimeout(() => {
       observer.disconnect();
       resolve(null);
     }, timeoutMs);
     const observer = new MutationObserver(() => {
       const el = find();
-      if (!el) return;
+      if (!el) {return;}
       clearTimeout(stop);
       observer.disconnect();
       resolve(el);

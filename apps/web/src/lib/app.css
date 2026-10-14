@@ -18,7 +18,8 @@ button {
 
 /* The sheet ships .btn/.card/.card-head; only the RTL corrections live here. */
 .card-head {
-  background: linear-gradient(var(--cyber-stripe), var(--cyber-stripe)) bottom right / 44px 4px
+  background:
+    linear-gradient(var(--cyber-stripe), var(--cyber-stripe)) bottom right / 44px 4px
     no-repeat;
 }
 

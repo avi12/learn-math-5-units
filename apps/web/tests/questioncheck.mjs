@@ -48,7 +48,7 @@ const ev = async (x) => {
 };
 let bad = 0;
 const check = (name, ok, detail = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(56)} ${detail}`);
 };
 
@@ -237,7 +237,7 @@ await ev(`(() => {
 const btn = `[...document.querySelectorAll('.question button')].find((b) => b.textContent.includes('שקלוד יבדוק'))`;
 check('the finish button is in the card on the desktop', (await ev(`!!${btn}`)) === true);
 await ev(`${btn}.click(), 1`);
-for (let i = 0; i < 40 && !(await ev(`!!window.__caught`)); i++) await wait(250);
+for (let i = 0; i < 40 && !(await ev(`!!window.__caught`)); i++) {await wait(250);}
 const prompt = String(await ev(`window.__caught?.prompt ?? ''`));
 check('a prompt went out', prompt.length > 500, `${prompt.length} chars`);
 check('no slot left unfilled', !/\{\{[A-Z]+\}\}/.test(prompt));

@@ -29,7 +29,7 @@ const room = freshRoom();
 function word(x, y) {
   const pts = [];
   for (let i = 0; i < 24; i++)
-    pts.push(`${(x + i * 0.005).toFixed(3)},${(y + Math.sin(i / 2) * 0.008).toFixed(3)},0.50`);
+    {pts.push(`${(x + i * 0.005).toFixed(3)},${(y + Math.sin(i / 2) * 0.008).toFixed(3)},0.50`);}
   return pts.join(';');
 }
 
@@ -67,11 +67,11 @@ async function seed(n) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ writes: writes.slice(i, i + 300) })
       });
-      if (r.ok) done = true;
-      else if (r.status === 429) await new Promise((res) => setTimeout(res, 4000));
-      else throw new Error(`seed failed: ${r.status} ${(await r.text()).slice(0, 200)}`);
+      if (r.ok) {done = true;}
+      else if (r.status === 429) {await new Promise((res) => setTimeout(res, 4000));}
+      else {throw new Error(`seed failed: ${r.status} ${(await r.text()).slice(0, 200)}`);}
     }
-    if (!done) throw new Error('seed failed: still rate limited after six tries');
+    if (!done) {throw new Error('seed failed: still rate limited after six tries');}
     await new Promise((res) => setTimeout(res, 1000));
   }
 }
@@ -81,11 +81,11 @@ async function wipe() {
     delete: `${DOCS}/rooms/${room}/strokes/${docId}`
   }));
   for (let i = 0; i < deletes.length; i += 400)
-    await fetch(`${DB}:commit`, {
+    {await fetch(`${DB}:commit`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ writes: deletes.slice(i, i + 400) })
-    }).catch(() => {});
+    }).catch(() => {});}
 }
 
 
@@ -117,7 +117,7 @@ await send('Runtime.enable');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
   const r = await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true });
-  if (r?.exceptionDetails) throw new Error(r.exceptionDetails.text + ' :: ' + x);
+  if (r?.exceptionDetails) {throw new Error(r.exceptionDetails.text + ' :: ' + x);}
   return r.result?.value;
 };
 
@@ -126,7 +126,7 @@ await asTablet(send);
 await send('Page.navigate', { url: roomUrl(url, room) });
 await wait(10000);
 await assertPad(ev);
-if (Number(cpu) > 1) await send('Emulation.setCPUThrottlingRate', { rate: Number(cpu) });
+if (Number(cpu) > 1) {await send('Emulation.setCPUThrottlingRate', { rate: Number(cpu) });}
 
 const rect = JSON.parse(await ev(`JSON.stringify(document.querySelector('canvas').getBoundingClientRect())`));
 const ink = async () =>
@@ -155,8 +155,8 @@ const notch = (deltaY) => send('Input.dispatchMouseEvent', { type: 'mouseWheel',
 const railTop = () => ev(`(() => { const g = document.querySelector('.rail [class*=grip], .rail > *'); return g ? g.style.top || getComputedStyle(g).top : ''; })()`);
 
 const before = await railTop();
-for (let i = 0; i < 150; i++) await notch(40);
-for (let i = 0; i < 150; i++) await notch(-40);
+for (let i = 0; i < 150; i++) {await notch(40);}
+for (let i = 0; i < 150; i++) {await notch(-40);}
 await wait(300);
 const r = JSON.parse(await ev(`JSON.stringify({ n: window.__n, avg: window.__n ? window.__s / window.__n : 0, max: window.__max })`));
 console.log(`  rail before ${before || '-'}, after a trip down and back ${await railTop() || '-'}`);

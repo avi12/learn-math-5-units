@@ -99,7 +99,7 @@ const ev = async (x) => {
 
 let bad = 0;
 const check = (name, ok, detail = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(50)} ${detail}`.trimEnd());
 };
 
@@ -139,7 +139,7 @@ async function poke(budgetMs = 12000) {
   while (Date.now() - t0 < budgetMs) {
     await ev('window.dispatchEvent(new Event("focus"))');
     await wait(900);
-    if (asked.length > from) return true;
+    if (asked.length > from) {return true;}
   }
   return false;
 }

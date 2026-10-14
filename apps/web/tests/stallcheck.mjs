@@ -59,7 +59,7 @@ const ev = async (x) =>
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let bad = 0;
 const say = (n, ok, d = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(52)} ${d}`.trimEnd());
 };
 
@@ -120,7 +120,7 @@ const banner = () =>
 async function until(want, budgetMs) {
   const t0 = Date.now();
   while (Date.now() - t0 < budgetMs) {
-    if (!!(await banner()) === want) return Date.now() - t0;
+    if (!!(await banner()) === want) {return Date.now() - t0;}
     await wait(500);
   }
   return -1;
@@ -159,11 +159,11 @@ async function backendTakesWrites() {
     })
   });
   if (r.ok)
-    await fetch(`${DB}:commit`, {
+    {await fetch(`${DB}:commit`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ writes: [{ delete: name }] })
-    }).catch(() => {});
+    }).catch(() => {});}
   return { ok: r.ok, status: r.status };
 }
 
@@ -180,7 +180,7 @@ if (!backend.ok) {
       : '    come back. This is NOT the quota (that is 429) — look at firestore.rules'
   );
   if (backend.status !== 429)
-    console.log('    and at the payload this probe sends, which has to satisfy them.');
+    {console.log('    and at the payload this probe sends, which has to satisfy them.');}
   console.log('');
 }
 
@@ -233,5 +233,5 @@ say('the banner goes when writes land again', cleared >= 0, cleared >= 0 ? `afte
 
 console.log(bad ? `\n${bad} FAILED` : '\nall good');
 if (bad && !backend.ok)
-  console.log('(Firestore was refusing writes for this run — see the note at the top.)');
+  {console.log('(Firestore was refusing writes for this run — see the note at the top.)');}
 process.exit(bad ? 1 : 0);

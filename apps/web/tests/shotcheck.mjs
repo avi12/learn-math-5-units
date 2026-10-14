@@ -59,7 +59,7 @@ const ev = async (x) =>
 
 let bad = 0;
 const check = (n, ok, d = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(56)} ${d}`);
 };
 

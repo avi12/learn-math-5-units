@@ -50,13 +50,13 @@ await send('Runtime.enable');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
   const r = await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true });
-  if (r?.exceptionDetails) throw new Error(r.exceptionDetails.text + ' :: ' + x);
+  if (r?.exceptionDetails) {throw new Error(r.exceptionDetails.text + ' :: ' + x);}
   return r.result?.value;
 };
 
 let bad = 0;
 function check(name, ok, detail = '') {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(52)} ${detail}`);
 }
 
@@ -121,7 +121,7 @@ async function strokeAt(yFrac, tag) {
   // ones, so "is there ink" is true immediately and the test would race ahead of the
   // write it just made — which is precisely how the rail and the wheel looked broken.
   let waited = 0;
-  for (let i = 0; i < 40 && (await ink()) <= was; i++, waited += 250) await wait(250);
+  for (let i = 0; i < 40 && (await ink()) <= was; i++, waited += 250) {await wait(250);}
   console.log(`      drew ${tag} at ${Math.round(yFrac * 100)}% of the board (${waited}ms to land)`);
 }
 
@@ -147,7 +147,7 @@ await strokeAt(0.92, 'stroke 2');
 let railBefore = false;
 for (let i = 0; i < 24 && !railBefore; i++) {
   railBefore = await ev(`!!document.querySelector('.rail')`);
-  if (!railBefore) await wait(250);
+  if (!railBefore) {await wait(250);}
 }
 check('a rail appears once there is somewhere to go', railBefore);
 
@@ -306,7 +306,7 @@ await ev(
   `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'נקה')?.click()`
 );
 for (let i = 0; i < 20 && !(await ev(`!!document.querySelector('dialog.ask[open]')`)); i++)
-  await wait(100);
+  {await wait(100);}
 await ev(`document.querySelector('dialog.ask[open] [data-ask="ok"]')?.click()`);
 await wait(1500);
 

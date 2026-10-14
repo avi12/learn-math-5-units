@@ -71,7 +71,7 @@ if (!box) {
 
 let failures = 0;
 const say = (ok, line, detail = '') => {
-  if (!ok) failures++;
+  if (!ok) {failures++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${detail ? line.padEnd(46) : line} ${detail}`.trimEnd());
 };
 
@@ -136,7 +136,7 @@ const ink = (f) =>
 
 console.log('');
 console.log('--- three strokes, then the rubber over the middle one ---');
-for (const f of [0.25, 0.5, 0.75]) await stroke(f);
+for (const f of [0.25, 0.5, 0.75]) {await stroke(f);}
 await wait(600);
 const before = { top: await ink(0.25), mid: await ink(0.5), bottom: await ink(0.75) };
 console.log('ink before      :', JSON.stringify(before));
@@ -201,7 +201,7 @@ await ev(
   `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'נקה')?.click()`
 );
 for (let i = 0; i < 20 && !(await ev(`!!document.querySelector('dialog.ask[open]')`)); i++)
-  await wait(100);
+  {await wait(100);}
 await ev(`document.querySelector('dialog.ask[open] [data-ask="ok"]')?.click()`);
 await wait(1500);
 

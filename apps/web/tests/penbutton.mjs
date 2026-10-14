@@ -40,7 +40,7 @@ const ev = async (x) => {
 
 let bad = 0;
 const check = (name, ok, detail = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(46)} ${detail}`);
 };
 
@@ -90,14 +90,14 @@ async function penStroke(yFrac, held) {
 // ---- write with the pen ----------------------------------------------------
 const before = await ink();
 await penStroke(0.4, false);
-for (let i = 0; i < 40 && (await ink()) <= before; i++) await wait(250);
+for (let i = 0; i < 40 && (await ink()) <= before; i++) {await wait(250);}
 const written = await ink();
 check('the pen writes', written > before, `${before} -> ${written} ink pixels`);
 console.log('      pen reported:', JSON.stringify(await ev('document.querySelector(".probe")?.innerText ?? ""')));
 
 // ---- go back over it with the button held ----------------------------------
 await penStroke(0.4, true);
-for (let i = 0; i < 40 && (await ink()) >= written; i++) await wait(250);
+for (let i = 0; i < 40 && (await ink()) >= written; i++) {await wait(250);}
 const after = await ink();
 check('the side button rubs out instead', after < written, `${written} -> ${after} ink pixels`);
 console.log('      pen reported:', JSON.stringify(await ev('document.querySelector(".probe")?.innerText ?? ""')));
@@ -106,7 +106,7 @@ console.log('      pen reported:', JSON.stringify(await ev('document.querySelect
 // Chrome does not always put the barrel on pointerdown. Write, then start a plain stroke
 // and turn the button on one move later: it has to become an erase anyway.
 await penStroke(0.6, false);
-for (let i = 0; i < 40 && (await ink()) === 0; i++) await wait(250);
+for (let i = 0; i < 40 && (await ink()) === 0; i++) {await wait(250);}
 const second = await ink();
 {
   const y = rect.top + rect.height * 0.6;
@@ -120,7 +120,7 @@ const second = await ink();
   }
   await send('Input.dispatchMouseEvent', { pointerType: 'pen', type: 'mouseReleased', x: x0 + rect.width * 0.5, y, button: 'right', buttons: 0, clickCount: 1 });
 }
-for (let i = 0; i < 40 && (await ink()) >= second; i++) await wait(250);
+for (let i = 0; i < 40 && (await ink()) >= second; i++) {await wait(250);}
 const third = await ink();
 check('a button pressed after contact still erases', third < second, `${second} -> ${third} ink pixels`);
 console.log('      pen reported:', JSON.stringify(await ev('document.querySelector(".probe")?.innerText ?? ""')));
@@ -130,12 +130,12 @@ console.log('      pen reported:', JSON.stringify(await ev('document.querySelect
 // send the button itself, so the wrapper reads MotionEvent.buttonState and calls this —
 // and the page has to erase on a stroke that carries no button bits at all.
 await penStroke(0.25, false);
-for (let i = 0; i < 40 && (await ink()) === 0; i++) await wait(250);
+for (let i = 0; i < 40 && (await ink()) === 0; i++) {await wait(250);}
 const fourth = await ink();
 check('the hook exists', (await ev('typeof window.__spen')) === 'function', await ev('typeof window.__spen'));
 await ev('window.__spen(true), 1');
 await penStroke(0.25, false); // an ORDINARY stroke: no button bits anywhere
-for (let i = 0; i < 40 && (await ink()) >= fourth; i++) await wait(250);
+for (let i = 0; i < 40 && (await ink()) >= fourth; i++) {await wait(250);}
 const fifth = await ink();
 check('a stroke erases while the hook says down', fifth < fourth, `${fourth} -> ${fifth} ink pixels`);
 await ev('window.__spen(false), 1');

@@ -62,10 +62,10 @@ export async function assertPad(ev) {
     return b ? b.dataset.active : 'no button';
   })()`);
   if (active !== 'true')
-    throw new Error(
+    {throw new Error(
       `not on the writing board (role button reports ${active}) — nothing drawn here ` +
         `would leave ink. Call asTablet(send) before Page.navigate.`
-    );
+    );}
 }
 
 /** The URL with a room pinned onto it, whatever query it already carries. */

@@ -75,7 +75,7 @@ function noteTry(build: string) {
 async function liveBuild(): Promise<string | null> {
   try {
     const r = await fetch(`${BUILD_URL}?t=${Date.now()}`, { cache: 'no-store' });
-    if (!r.ok) return null;
+    if (!r.ok) {return null;}
     const id = (await r.text()).trim();
     // A rewrite rule sends unknown paths to index.html, so a missing file comes back as
     // a page rather than a 404. A build id is short and has no markup in it.
@@ -97,7 +97,7 @@ export interface ReleaseWatch {
 export function watchRelease(w: ReleaseWatch): () => void {
   // In dev every `vite dev` mints its own build id while hosting still serves the last
   // deploy, so the tab would reload on the spot, for ever.
-  if (!import.meta.env.PROD) return () => {};
+  if (!import.meta.env.PROD) {return () => {};}
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   let announced = '';
@@ -106,8 +106,8 @@ export function watchRelease(w: ReleaseWatch): () => void {
   const attempt = (build: string) => {
     clearTimeout(timer);
     timer = setTimeout(() => {
-      if (stopped) return;
-      if (w.busy()) return attempt(build); // still writing — ask again in a moment
+      if (stopped) {return;}
+      if (w.busy()) {return attempt(build);} // still writing — ask again in a moment
       noteTry(build);
       location.reload();
     }, QUIET_MS);
@@ -115,13 +115,13 @@ export function watchRelease(w: ReleaseWatch): () => void {
 
   let checking = false;
   const check = async () => {
-    if (stopped || checking) return;
+    if (stopped || checking) {return;}
     checking = true;
     const build = await liveBuild();
     checking = false;
-    if (stopped || !build || build === __BUILD__ || build === announced) return;
+    if (stopped || !build || build === __BUILD__ || build === announced) {return;}
     announced = build;
-    if (tries(build) >= 2) return w.onstuck();
+    if (tries(build) >= 2) {return w.onstuck();}
     w.oncoming(build);
     attempt(build);
   };
@@ -132,7 +132,7 @@ export function watchRelease(w: ReleaseWatch): () => void {
   // when a person is actually about to look at the thing, which is exactly when being on
   // last week's bundle matters.
   const onwake = () => {
-    if (document.visibilityState === 'visible') void check();
+    if (document.visibilityState === 'visible') {void check();}
   };
   document.addEventListener('visibilitychange', onwake);
   window.addEventListener('online', onwake);

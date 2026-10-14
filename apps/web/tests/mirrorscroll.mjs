@@ -73,7 +73,7 @@ async function attach(wsUrl) {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let bad = 0;
 const say = (n, ok, d = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(54)} ${d}`.trimEnd());
 };
 
@@ -187,7 +187,7 @@ async function clearBoard() {
     `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'נקה')?.click()`
   );
   for (let i = 0; i < 20 && !(await A.ev(`!!document.querySelector('dialog.ask[open]')`)); i++)
-    await wait(100);
+    {await wait(100);}
   await A.ev(`document.querySelector('dialog.ask[open] [data-ask="ok"]')?.click()`);
   await wait(1500);
 }
@@ -200,7 +200,7 @@ const strokeCount = async () => {
   const r = await fetch(
     `${DB}/rooms/${room}/strokes?pageSize=300`
   );
-  if (!r.ok) return -1;
+  if (!r.ok) {return -1;}
   return ((await r.json()).documents ?? []).length;
 };
 
@@ -218,7 +218,7 @@ const railAt = (p) =>
 async function untilInk(p, budgetMs = 25000) {
   const t0 = Date.now();
   while (Date.now() - t0 < budgetMs) {
-    if ((await picture(p)).n > 200) return Date.now() - t0;
+    if ((await picture(p)).n > 200) {return Date.now() - t0;}
     await wait(500);
   }
   return -1;

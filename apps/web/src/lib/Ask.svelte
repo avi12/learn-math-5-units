@@ -190,7 +190,6 @@
        like a gradient someone had put on the heading on purpose. */
     animation: sweep 420ms var(--ease-emph) 1 forwards;
     pointer-events: none;
-  }
   @keyframes sweep {
     from {
       transform: translateY(-110%);

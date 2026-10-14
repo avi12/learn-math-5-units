@@ -48,7 +48,7 @@ const ev = async (x) =>
 
 let bad = 0;
 const check = (n, ok, d = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(48)} ${d}`);
 };
 
@@ -76,7 +76,7 @@ async function stroke(f) {
   const x0 = rect.left + rect.width * 0.2;
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 });
   for (let i = 1; i <= 10; i++)
-    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 26, y, button: 'left', buttons: 1 });
+    {await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 26, y, button: 'left', buttons: 1 });}
   await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x0 + 260, y, button: 'left', buttons: 0, clickCount: 1 });
   await wait(2200);
 }

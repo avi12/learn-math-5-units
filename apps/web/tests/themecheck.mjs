@@ -52,7 +52,7 @@ const ev = async (x) =>
 
 let bad = 0;
 const check = (n, ok, d = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(50)} ${d}`);
 };
 
@@ -87,7 +87,7 @@ const sample = () =>
 
 const hex = (s) => {
   const m = /^#?([0-9a-f]{6})$/i.exec(s.trim());
-  if (!m) return null;
+  if (!m) {return null;}
   const n = parseInt(m[1], 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
@@ -111,9 +111,9 @@ await send('Input.dispatchMouseEvent', {
   type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1
 });
 for (let i = 1; i <= 10; i++)
-  await send('Input.dispatchMouseEvent', {
+  {await send('Input.dispatchMouseEvent', {
     type: 'mouseMoved', x: x0 + i * 28, y: y + (i % 2 ? 6 : -6), button: 'left', buttons: 1
-  });
+  });}
 await send('Input.dispatchMouseEvent', {
   type: 'mouseReleased', x: x0 + 280, y, button: 'left', buttons: 0, clickCount: 1
 });
@@ -164,7 +164,7 @@ await ev(
   `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'נקה')?.click()`
 );
 for (let i = 0; i < 20 && !(await ev(`!!document.querySelector('dialog.ask[open]')`)); i++)
-  await wait(100);
+  {await wait(100);}
 await ev(`document.querySelector('dialog.ask[open] [data-ask="ok"]')?.click()`);
 await wait(1200);
 

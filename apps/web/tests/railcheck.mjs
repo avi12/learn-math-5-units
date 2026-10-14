@@ -57,12 +57,12 @@ await send('Runtime.enable');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
   const r = await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true });
-  if (r?.exceptionDetails) throw new Error(r.exceptionDetails.text + ' :: ' + x);
+  if (r?.exceptionDetails) {throw new Error(r.exceptionDetails.text + ' :: ' + x);}
   return r.result?.value;
 };
 let bad = 0;
 const check = (name, ok, detail = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(54)} ${detail}`);
 };
 
@@ -99,15 +99,15 @@ async function strokeAt(yFrac) {
   const was = await ink();
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 });
   for (let i = 1; i <= 8; i++)
-    await send('Input.dispatchMouseEvent', {
+    {await send('Input.dispatchMouseEvent', {
       type: 'mouseMoved',
       x: x0 + ((x1 - x0) * i) / 8,
       y,
       button: 'left',
       buttons: 1
-    });
+    });}
   await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x1, y, button: 'left', buttons: 0, clickCount: 1 });
-  for (let i = 0; i < 40 && (await ink()) <= was; i++) await wait(250);
+  for (let i = 0; i < 40 && (await ink()) <= was; i++) {await wait(250);}
 }
 
 /** CDP's own mouseWheel does not survive touch emulation; a real WheelEvent does. */
@@ -153,7 +153,7 @@ for (let r = 1; r <= 16; r++) {
   await wheelDown();
   await wait(200);
   const g = await geom();
-  if (!g.none) spill = Math.max(spill, g.thumb.bottom - g.rail.bottom);
+  if (!g.none) {spill = Math.max(spill, g.thumb.bottom - g.rail.bottom);}
 }
 
 // Then the short window, which is what makes the floor bind without writing for a minute.
@@ -247,7 +247,7 @@ await send('Emulation.setEmulatedMedia', { features: [] });
 
 // leave nothing behind in the database
 await ev(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'נקה')?.click()`);
-for (let i = 0; i < 20 && !(await ev(`!!document.querySelector('dialog.ask[open]')`)); i++) await wait(100);
+for (let i = 0; i < 20 && !(await ev(`!!document.querySelector('dialog.ask[open]')`)); i++) {await wait(100);}
 await ev(`document.querySelector('dialog.ask[open] [data-ask="ok"]')?.click()`);
 await wait(1500);
 

@@ -47,7 +47,7 @@ const ev = async (x) => {
 
 let bad = 0;
 const check = (name, ok, detail = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(50)} ${detail}`);
 };
 
@@ -144,7 +144,7 @@ await ev(`(() => {
   return 1;
 })()`);
 await ev(`${btn}.click(), 1`);
-for (let i = 0; i < 40 && !(await ev(`!!window.__caught`)); i++) await wait(250);
+for (let i = 0; i < 40 && !(await ev(`!!window.__caught`)); i++) {await wait(250);}
 
 const got = await ev(`(() => {
   const c = window.__caught;

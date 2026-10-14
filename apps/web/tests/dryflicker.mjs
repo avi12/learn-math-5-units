@@ -62,7 +62,7 @@ await ev(`(() => {
 
 await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 });
 for (let i = 1; i <= 12; i++)
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 30, y, button: 'left', buttons: 1 });
+  {await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 30, y, button: 'left', buttons: 1 });}
 await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x0 + 360, y, button: 'left', buttons: 0, clickCount: 1 });
 await wait(4000);
 
@@ -83,10 +83,10 @@ if (!drawn.length) {
   if (zero > 0) {
     console.log('window around the empty frame (ms, ink):');
     console.log('  ' + JSON.stringify(after.slice(Math.max(0, zero - 4), zero + 5)));
-  } else console.log('no empty frame after the stroke was fully drawn');
+  } else {console.log('no empty frame after the stroke was fully drawn');}
   console.log(`peak ink ${peak}px over ${after.length} frames after first ink`);
   console.log(`frames at <25% of peak after the stroke appeared: ${gaps.length}`);
-  if (gaps.length) console.log('  ', JSON.stringify(gaps.slice(0, 6)));
+  if (gaps.length) {console.log('  ', JSON.stringify(gaps.slice(0, 6)));}
   console.log(`final ${after[after.length - 1][1]}px`);
 }
 ws.close();

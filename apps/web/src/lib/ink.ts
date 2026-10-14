@@ -106,7 +106,7 @@ export function exportSpan(bottom: number): number {
  *  the END of the working — which is the answer, and the part worth reading most. */
 export function exportParts(bottom: number): number[] {
   const span = exportSpan(bottom);
-  if (span <= PART + 1e-9) return [0];
+  if (span <= PART + 1e-9) {return [0];}
   const step = PART - PART_OVERLAP;
   const n = Math.ceil((span - PART) / step) + 1;
   return Array.from({ length: n }, (_, i) => Math.min(i * step, span - PART));
@@ -173,7 +173,7 @@ export function pack(pts: Pt[]): string {
 }
 
 function unpack(p: string): Pt[] {
-  if (!p) return [];
+  if (!p) {return [];}
   return p.split(';').map((s) => {
     const [x, y, pr] = s.split(',');
     return { x: +x, y: +y, pr: +pr };
@@ -185,9 +185,9 @@ export function decimate(pts: Pt[], min = 0.0018): Pt[] {
   const out: Pt[] = [];
   for (const q of pts) {
     const last = out[out.length - 1];
-    if (!last || Math.hypot(q.x - last.x, q.y - last.y) >= min) out.push(q);
+    if (!last || Math.hypot(q.x - last.x, q.y - last.y) >= min) {out.push(q);}
   }
-  if (out[out.length - 1] !== pts[pts.length - 1] && pts.length) out.push(pts[pts.length - 1]);
+  if (out[out.length - 1] !== pts[pts.length - 1] && pts.length) {out.push(pts[pts.length - 1]);}
   return out;
 }
 
@@ -245,7 +245,7 @@ function pointsOf(s: Stroke): Pt[] {
 
 export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number): void {
   const pts = pointsOf(s);
-  if (!pts.length) return;
+  if (!pts.length) {return;}
   ctx.save();
   ctx.strokeStyle = colour(s.c);
   ctx.fillStyle = colour(s.c);
@@ -336,14 +336,14 @@ export function hits(s: Stroke, x: number, y: number, r: number): boolean {
   // almost every stroke on the board. Only what survives it pays for a distance
   // calculation per segment.
   const b = boxOf(s);
-  if (!b) return false;
-  if (x + r < b.x0 || x - r > b.x1 || y + r < b.y0 || y - r > b.y1) return false;
+  if (!b) {return false;}
+  if (x + r < b.x0 || x - r > b.x1 || y + r < b.y0 || y - r > b.y1) {return false;}
   const pts = outline(s);
-  if (!pts.length) return false;
+  if (!pts.length) {return false;}
   const reach = r + half(s.w);
-  if (pts.length === 1) return Math.hypot(x - pts[0].x, y - pts[0].y) <= reach;
+  if (pts.length === 1) {return Math.hypot(x - pts[0].x, y - pts[0].y) <= reach;}
   for (let i = 1; i < pts.length; i++) {
-    if (toSegment(x, y, pts[i - 1], pts[i]) <= reach) return true;
+    if (toSegment(x, y, pts[i - 1], pts[i]) <= reach) {return true;}
   }
   return false;
 }
@@ -368,13 +368,13 @@ export function boxOf(s: Stroke): Box | null {
 
 function box(s: Stroke): Box | null {
   const pts = pointsOf(s);
-  if (!pts.length) return null;
+  if (!pts.length) {return null;}
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const q of pts) {
-    if (q.x < x0) x0 = q.x;
-    if (q.x > x1) x1 = q.x;
-    if (q.y < y0) y0 = q.y;
-    if (q.y > y1) y1 = q.y;
+    if (q.x < x0) {x0 = q.x;}
+    if (q.x > x1) {x1 = q.x;}
+    if (q.y < y0) {y0 = q.y;}
+    if (q.y > y1) {y1 = q.y;}
   }
   // the path is the centre of the nib, so the ink reaches half a line width past it
   const h = half(s.w);
@@ -431,7 +431,7 @@ function gap(a: Box, b: Box): number {
 /** How much of `inner`'s width lies inside `outer`'s. */
 function covers(outer: Box, inner: Box): number {
   const w = inner.x1 - inner.x0;
-  if (w <= 0) return 0;
+  if (w <= 0) {return 0;}
   return Math.max(0, Math.min(outer.x1, inner.x1) - Math.max(outer.x0, inner.x0)) / w;
 }
 
@@ -467,7 +467,7 @@ export function bounds(strokes: Stroke[]): Box | null {
   let out: Box | null = null;
   for (const s of strokes) {
     const b = boxOf(s);
-    if (!b) continue;
+    if (!b) {continue;}
     out = out
       ? {
           x0: Math.min(out.x0, b.x0),
@@ -507,7 +507,7 @@ export function render(
   const y1 = top + h / w;
   for (const s of strokes) {
     const b = boxOf(s);
-    if (b && (b.y1 < y0 || b.y0 > y1)) continue;
+    if (b && (b.y1 < y0 || b.y0 > y1)) {continue;}
     drawStroke(ctx, s, w);
   }
   if (live) drawStroke(ctx, live, w);

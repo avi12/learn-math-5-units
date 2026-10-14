@@ -44,7 +44,7 @@ const ev = async (x) =>
 
 let bad = 0;
 const check = (n, ok, d = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(46)} ${d}`);
 };
 
@@ -72,7 +72,7 @@ const draw = async () => {
   const x0 = r.left + r.width * 0.2;
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 });
   for (let i = 1; i <= 10; i++)
-    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 24, y: y + Math.sin(i) * 9, button: 'left', buttons: 1 });
+    {await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 24, y: y + Math.sin(i) * 9, button: 'left', buttons: 1 });}
   await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x0 + 240, y, button: 'left', buttons: 0, clickCount: 1 });
   await wait(2500);
 };
@@ -81,7 +81,7 @@ const clickClear = () =>
   ev(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'נקה')?.click()`);
 const openDialog = async () => {
   for (let i = 0; i < 20; i++) {
-    if (await ev(`!!document.querySelector('dialog.ask[open]')`)) return true;
+    if (await ev(`!!document.querySelector('dialog.ask[open]')`)) {return true;}
     await wait(100);
   }
   return false;

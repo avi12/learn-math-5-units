@@ -14,7 +14,7 @@ let failures = 0;
 function check(name, stroke, x, y, want) {
   const got = hits(stroke, x, y, R);
   const ok = got === want;
-  if (!ok) failures++;
+  if (!ok) {failures++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(56)} ${got}  want ${want}`);
 }
 

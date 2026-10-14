@@ -46,7 +46,7 @@ const room = freshRoom();
 function word(x, y) {
   const pts = [];
   for (let i = 0; i < 24; i++)
-    pts.push(`${(x + i * 0.005).toFixed(3)},${(y + Math.sin(i / 2) * 0.008).toFixed(3)},0.50`);
+    {pts.push(`${(x + i * 0.005).toFixed(3)},${(y + Math.sin(i / 2) * 0.008).toFixed(3)},0.50`);}
   return pts.join(';');
 }
 
@@ -84,11 +84,11 @@ async function seed(n) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ writes: writes.slice(i, i + 300) })
       });
-      if (r.ok) done = true;
-      else if (r.status === 429) await new Promise((res) => setTimeout(res, 4000));
-      else throw new Error(`seed failed: ${r.status} ${(await r.text()).slice(0, 200)}`);
+      if (r.ok) {done = true;}
+      else if (r.status === 429) {await new Promise((res) => setTimeout(res, 4000));}
+      else {throw new Error(`seed failed: ${r.status} ${(await r.text()).slice(0, 200)}`);}
     }
-    if (!done) throw new Error('seed failed: still rate limited after six tries');
+    if (!done) {throw new Error('seed failed: still rate limited after six tries');}
     await new Promise((res) => setTimeout(res, 1000));
   }
 }
@@ -98,11 +98,11 @@ async function wipe() {
     delete: `${DOCS}/rooms/${room}/strokes/${docId}`
   }));
   for (let i = 0; i < deletes.length; i += 400)
-    await fetch(`${DB}:commit`, {
+    {await fetch(`${DB}:commit`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ writes: deletes.slice(i, i + 400) })
-    }).catch(() => {});
+    }).catch(() => {});}
 }
 
 console.log(`seeding ${N} strokes into a fresh room — ${N} writes of the 20,000/day free quota…`);
@@ -133,7 +133,7 @@ await send('Runtime.enable');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
   const r = await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true });
-  if (r?.exceptionDetails) throw new Error(r.exceptionDetails.text + ' :: ' + x);
+  if (r?.exceptionDetails) {throw new Error(r.exceptionDetails.text + ' :: ' + x);}
   return r.result?.value;
 };
 
@@ -142,7 +142,7 @@ await asTablet(send);
 await send('Page.navigate', { url: roomUrl(url, room) });
 await wait(10000);
 await assertPad(ev);
-if (Number(cpu) > 1) await send('Emulation.setCPUThrottlingRate', { rate: Number(cpu) });
+if (Number(cpu) > 1) {await send('Emulation.setCPUThrottlingRate', { rate: Number(cpu) });}
 
 const rect = JSON.parse(await ev(`JSON.stringify(document.querySelector('canvas').getBoundingClientRect())`));
 const ink = async () =>
@@ -192,13 +192,13 @@ async function perMove({ label, x0, y0, dx, dy, moves = 40 }) {
   await probe();
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y: y0, button: 'left', buttons: 1, clickCount: 1 });
   for (let i = 1; i <= moves; i++)
-    await send('Input.dispatchMouseEvent', {
+    {await send('Input.dispatchMouseEvent', {
       type: 'mouseMoved',
       x: x0 + i * dx,
       y: y0 + i * dy,
       button: 'left',
       buttons: 1
-    });
+    });}
   const r = JSON.parse(await readProbe());
   await send('Input.dispatchMouseEvent', {
     type: 'mouseReleased',
@@ -240,7 +240,7 @@ const y = rect.top + rect.height * 0.62;
 const x0 = rect.left + rect.width * 0.05;
 await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 });
 for (let i = 1; i <= 10; i++)
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 55, y, button: 'left', buttons: 1 });
+  {await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 55, y, button: 'left', buttons: 1 });}
 const t0 = Date.now();
 let applied = -1;
 for (let i = 0; i < 300; i++) {

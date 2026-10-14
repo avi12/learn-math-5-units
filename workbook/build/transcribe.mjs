@@ -23,7 +23,7 @@ const [, , inFile, outFile, model = 'onnx-community/whisper-base', lang = 'he'] 
 /** Minimal WAV reader: we control the file, and ffmpeg wrote it as PCM s16le mono. */
 function readWav(path) {
   const buf = readFileSync(path);
-  if (buf.toString('ascii', 0, 4) !== 'RIFF') throw new Error('not a RIFF file');
+  if (buf.toString('ascii', 0, 4) !== 'RIFF') {throw new Error('not a RIFF file');}
   let pos = 12;
   let fmt = null;
   let data = null;
@@ -43,18 +43,18 @@ function readWav(path) {
     }
     pos = body + size + (size % 2);
   }
-  if (!fmt || !data) throw new Error('missing fmt or data chunk');
+  if (!fmt || !data) {throw new Error('missing fmt or data chunk');}
   if (fmt.bits !== 16 || fmt.channels !== 1) {
     throw new Error(`expected 16-bit mono, got ${fmt.bits}-bit x${fmt.channels}`);
   }
   const out = new Float32Array(data.length / 2);
-  for (let i = 0; i < out.length; i++) out[i] = data.readInt16LE(i * 2) / 32768;
+  for (let i = 0; i < out.length; i++) {out[i] = data.readInt16LE(i * 2) / 32768;}
   return { audio: out, rate: fmt.rate };
 }
 
 const { audio, rate } = readWav(inFile);
 console.error(`audio: ${(audio.length / rate / 60).toFixed(1)} min at ${rate} Hz`);
-if (rate !== 16000) throw new Error('resample to 16 kHz first (ffmpeg -ar 16000)');
+if (rate !== 16000) {throw new Error('resample to 16 kHz first (ffmpeg -ar 16000)');}
 
 let last = -1;
 const asr = await pipeline('automatic-speech-recognition', model, {

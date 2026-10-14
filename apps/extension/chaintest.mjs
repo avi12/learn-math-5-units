@@ -63,7 +63,7 @@ const attach = async (target) => {
       returnByValue: true,
       awaitPromise: true
     });
-    if (r?.exceptionDetails) return 'EXC: ' + r.exceptionDetails.text;
+    if (r?.exceptionDetails) {return 'EXC: ' + r.exceptionDetails.text;}
     return r.result?.value;
   };
   return { ws, send, ev };
@@ -74,7 +74,7 @@ const targets = async () => await (await fetch(`${base}/json/list`)).json();
 
 let bad = 0;
 const check = (name, ok, detail = '') => {
-  if (!ok) bad++;
+  if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(46)} ${detail}`);
 };
 
@@ -114,9 +114,9 @@ await page.send('Input.dispatchMouseEvent', {
   type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1
 });
 for (let i = 1; i <= 12; i++)
-  await page.send('Input.dispatchMouseEvent', {
+  {await page.send('Input.dispatchMouseEvent', {
     type: 'mouseMoved', x: x0 + i * 26, y: y + Math.sin(i) * 10, button: 'left', buttons: 1
-  });
+  });}
 await page.send('Input.dispatchMouseEvent', {
   type: 'mouseReleased', x: x0 + 312, y, button: 'left', buttons: 0, clickCount: 1
 });
