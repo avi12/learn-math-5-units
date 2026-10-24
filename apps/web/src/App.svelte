@@ -20,10 +20,10 @@
   import SeqReel from './lib/SeqReel.svelte';
   import RoomJoin from './lib/RoomJoin.svelte';
   import Surface, { type SurfaceApi } from './lib/Surface.svelte';
-  import { checkLabel, extensionPresent, liveBrief, noteRequest, sendForCheck } from './lib/check';
+  import { checkLabel, liveBrief, noteRequest, sendForCheck } from './lib/check';
   import { LinkMessage, LinkState, Side, decodeHover, encodeHover, openLink, type Hover, type Link } from './lib/directlink';
   import { drawFrame, type Question } from './lib/frame';
-  import { clearNotes, installLive, isRunning, live, retargetLive, startLive, stopLive } from './lib/live.svelte';
+  import { canStart, clearNotes, installLive, isRunning, live, retargetLive, startLive, stopLive } from './lib/live.svelte';
   import { Role, initialRole } from './lib/device';
   import { ActionKind, History } from './lib/history.svelte';
   import { ASPECT, GRID_SCALE, gridCell, PEN_SIZE, Tool } from './lib/ink';
@@ -201,10 +201,9 @@
       return;
     }
 
-    // There is no fallback here, unlike the Claude check: a live session IS the
-    // extension's window, and there is nothing to paste anywhere.
-    if (!extensionPresent()) {
-      say({ text: 'ג׳מיני לייב נפתח דרך התוסף של הלוח בכרום, והתוסף לא מותקן כאן' });
+    // On the key with no key yet, the question card opens the key field instead; the
+    // subscription is only offered where the extension is (lib/engine.ts `readEngine`).
+    if (!canStart()) {
       return;
     }
 
