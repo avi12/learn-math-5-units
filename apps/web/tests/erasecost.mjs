@@ -43,7 +43,7 @@ const room = freshRoom();
 
 // ---- seed a board ----------------------------------------------------------
 /** One handwritten word: a short wobble, about a tenth of the width across. */
-function word(x, y) {
+function word({ x, y }) {
   const pts = [];
   for (let i = 0; i < 24; i++)
     {pts.push(`${(x + i * 0.005).toFixed(3)},${(y + Math.sin(i / 2) * 0.008).toFixed(3)},0.50`);}
@@ -67,7 +67,7 @@ async function seed(n) {
           t: { stringValue: 'ink' },
           c: { stringValue: 'ink' },
           w: { integerValue: '6' },
-          p: { stringValue: word(x, y) },
+          p: { stringValue: word({ x, y }) },
           n: { integerValue: String(i + 1) }
         }
       }
@@ -113,12 +113,12 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r, j) => {
     const i = ++id;
     pending.set(i, r);
-    setTimeout(() => j(new Error('CDP timeout: ' + m)), 60000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => j(new Error('CDP timeout: ' + method)), 60000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -128,21 +128,21 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
-  const r = await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true });
+  const r = await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } });
   if (r?.exceptionDetails) {throw new Error(r.exceptionDetails.text + ' :: ' + x);}
   return r.result?.value;
 };
 
-await send('Emulation.setDeviceMetricsOverride', { width: 1180, height: 900, deviceScaleFactor: 2, mobile: true });
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: { width: 1180, height: 900, deviceScaleFactor: 2, mobile: true } });
 await asTablet(send);
-await send('Page.navigate', { url: roomUrl(url, room) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room }) } });
 await wait(10000);
 await assertPad(ev);
-if (Number(cpu) > 1) {await send('Emulation.setCPUThrottlingRate', { rate: Number(cpu) });}
+if (Number(cpu) > 1) {await send({ method: 'Emulation.setCPUThrottlingRate', params: { rate: Number(cpu) } });}
 
 const rect = JSON.parse(await ev(`JSON.stringify(document.querySelector('canvas').getBoundingClientRect())`));
 const ink = async () =>
@@ -190,24 +190,24 @@ const readProbe = () => ev(`JSON.stringify({ n: window.__n, avg: window.__n ? wi
 
 async function perMove({ label, x0, y0, dx, dy, moves = 40 }) {
   await probe();
-  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y: y0, button: 'left', buttons: 1, clickCount: 1 });
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mousePressed', x: x0, y: y0, button: 'left', buttons: 1, clickCount: 1 } });
   for (let i = 1; i <= moves; i++)
-    {await send('Input.dispatchMouseEvent', {
+    {await send({ method: 'Input.dispatchMouseEvent', params: {
       type: 'mouseMoved',
       x: x0 + i * dx,
       y: y0 + i * dy,
       button: 'left',
       buttons: 1
-    });}
+    } });}
   const r = JSON.parse(await readProbe());
-  await send('Input.dispatchMouseEvent', {
+  await send({ method: 'Input.dispatchMouseEvent', params: {
     type: 'mouseReleased',
     x: x0 + dx * moves,
     y: y0 + dy * moves,
     button: 'left',
     buttons: 0,
     clickCount: 1
-  });
+  } });
   await wait(900);
   console.log(`  ${label.padEnd(36)} ${r.avg.toFixed(2)} ms / move  (worst ${r.max.toFixed(1)}, n=${r.n})`);
   return r.avg;
@@ -238,9 +238,9 @@ console.log('-- applying: how long until it is gone, pen still down --');
 const before = await ink();
 const y = rect.top + rect.height * 0.62;
 const x0 = rect.left + rect.width * 0.05;
-await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 });
+await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 } });
 for (let i = 1; i <= 10; i++)
-  {await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 55, y, button: 'left', buttons: 1 });}
+  {await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mouseMoved', x: x0 + i * 55, y, button: 'left', buttons: 1 } });}
 const t0 = Date.now();
 let applied = -1;
 for (let i = 0; i < 300; i++) {
@@ -250,7 +250,7 @@ for (let i = 0; i < 300; i++) {
   }
   await wait(8);
 }
-await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x0 + 550, y, button: 'left', buttons: 0, clickCount: 1 });
+await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mouseReleased', x: x0 + 550, y, button: 'left', buttons: 0, clickCount: 1 } });
 console.log(`  ink gone after                       ${applied < 0 ? 'still there while held' : applied + ' ms'}`);
 
 console.log('');

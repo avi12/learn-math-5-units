@@ -15,12 +15,12 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r, j) => {
     const i = ++id;
     pending.set(i, r);
-    setTimeout(() => j(new Error('CDP timeout: ' + m)), 20000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => j(new Error('CDP timeout: ' + method)), 20000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -30,24 +30,24 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) =>
-  (await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true }))
+  (await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } }))
     .result?.value;
 
 let bad = 0;
-const check = (n, ok, d = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
-  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(52)} ${d}`);
+  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(52)} ${detail}`);
 };
 
 // A plain desktop: no touch, so the app opens on the mirror.
-await send('Emulation.setDeviceMetricsOverride', {
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: {
   width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false
-});
-await send('Page.navigate', { url: roomUrl(url, freshRoom()) });
+} });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room: freshRoom() }) } });
 await wait(6000);
 
 const role = (name) =>
@@ -65,23 +65,23 @@ const box = () =>
   })()`);
 
 const mirror = await box();
-check('the mirror is a 3:2 page', Math.abs(mirror.w / mirror.canvas - 1.5) < 0.02,
-  `${mirror.w}x${mirror.canvas}`);
-check('and the page fits the viewport', mirror.doc <= mirror.view, `${mirror.doc} of ${mirror.view}`);
+check({ name: 'the mirror is a 3:2 page', ok: Math.abs(mirror.w / mirror.canvas - 1.5) < 0.02,
+  detail: `${mirror.w}x${mirror.canvas}` });
+check({ name: 'and the page fits the viewport', ok: mirror.doc <= mirror.view, detail: `${mirror.doc} of ${mirror.view}` });
 
 await role('לוח כתיבה');
 await wait(800);
 const pad = await box();
-check('on the writing board the canvas fills its box', Math.abs(pad.canvas - pad.host) <= 1,
-  `canvas ${pad.canvas} in host ${pad.host}`);
-check('and the board grew past the mirror height', pad.canvas > mirror.canvas + 100,
-  `${mirror.canvas} -> ${pad.canvas}`);
+check({ name: 'on the writing board the canvas fills its box', ok: Math.abs(pad.canvas - pad.host) <= 1,
+  detail: `canvas ${pad.canvas} in host ${pad.host}` });
+check({ name: 'and the board grew past the mirror height', ok: pad.canvas > mirror.canvas + 100,
+  detail: `${mirror.canvas} -> ${pad.canvas}` });
 
 await role('תצוגה');
 await wait(800);
 const back = await box();
-check('back on the mirror, the 3:2 page returns', Math.abs(back.canvas - mirror.canvas) <= 1,
-  `${mirror.canvas} -> ${back.canvas}`);
+check({ name: 'back on the mirror, the 3:2 page returns', ok: Math.abs(back.canvas - mirror.canvas) <= 1,
+  detail: `${mirror.canvas} -> ${back.canvas}` });
 
 // The switch is animated: each role has its own animation name, so the class swap restarts
 // it with no JS. Read main's running animations right after the click (Svelte prefixes
@@ -96,34 +96,34 @@ await role('לוח כתיבה');
 await wait(30);
 const toPad = JSON.parse(await anims());
 const midClip = await clipNow();
-check('to the writing board: the power-on runs', toPad.includes('role-to-pad') &&
-  toPad.includes('role-scan-down'), toPad.join(' '));
-check('and mid-way the board is still opening', midClip.startsWith('inset('), midClip);
+check({ name: 'to the writing board: the power-on runs', ok: toPad.includes('role-to-pad') &&
+  toPad.includes('role-scan-down'), detail: toPad.join(' ') });
+check({ name: 'and mid-way the board is still opening', ok: midClip.startsWith('inset('), detail: midClip });
 await wait(400);
-check('and it ends with nothing held', (await clipNow()) === 'none' &&
-  JSON.parse(await anims()).length === 0, await clipNow());
+check({ name: 'and it ends with nothing held', ok: (await clipNow()) === 'none' &&
+  JSON.parse(await anims()).length === 0, detail: await clipNow() });
 await role('תצוגה');
 await wait(30);
 const toMirror = JSON.parse(await anims());
-check('to the mirror: the other direction runs', toMirror.includes('role-to-mirror') &&
-  toMirror.includes('role-scan-across'), toMirror.join(' '));
+check({ name: 'to the mirror: the other direction runs', ok: toMirror.includes('role-to-mirror') &&
+  toMirror.includes('role-scan-across'), detail: toMirror.join(' ') });
 await wait(400);
-await send('Emulation.setEmulatedMedia', {
+await send({ method: 'Emulation.setEmulatedMedia', params: {
   features: [{ name: 'prefers-reduced-motion', value: 'reduce' }]
-});
+} });
 await role('לוח כתיבה');
 await wait(30);
 const reduced = JSON.parse(await anims());
-check('reduced motion: no animation at all', reduced.length === 0, reduced.join(' ') || 'none');
+check({ name: 'reduced motion: no animation at all', ok: reduced.length === 0, detail: reduced.join(' ') || 'none' });
 await role('תצוגה');
 await wait(100);
-await send('Emulation.setEmulatedMedia', { features: [] });
+await send({ method: 'Emulation.setEmulatedMedia', params: { features: [] } });
 
 // A tall window: the full-width page needs less than the leftover height, so the board
 // stops growing — and the tools must stay right under it, not drift to the bottom.
-await send('Emulation.setDeviceMetricsOverride', {
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: {
   width: 1371, height: 2000, deviceScaleFactor: 1, mobile: false
-});
+} });
 await wait(800);
 const tall = await ev(`(() => {
   const h = document.querySelector('.host').getBoundingClientRect();
@@ -131,9 +131,9 @@ const tall = await ev(`(() => {
   return { w: Math.round(h.width), h: Math.round(h.height), gap: Math.round(t.top - h.bottom),
     main: Math.round(document.querySelector('main').getBoundingClientRect().width) };
 })()`);
-check('tall window: the board takes the full width', Math.abs(tall.w - tall.main) <= 1,
-  `${tall.w} of ${tall.main}`);
-check('and the tools sit right under it', tall.gap >= 0 && tall.gap < 40, `gap ${tall.gap}px`);
+check({ name: 'tall window: the board takes the full width', ok: Math.abs(tall.w - tall.main) <= 1,
+  detail: `${tall.w} of ${tall.main}` });
+check({ name: 'and the tools sit right under it', ok: tall.gap >= 0 && tall.gap < 40, detail: `gap ${tall.gap}px` });
 
 console.log(bad ? `\n${bad} FAILED` : '\nthe board keeps its shape across a role switch');
 process.exit(bad ? 1 : 0);

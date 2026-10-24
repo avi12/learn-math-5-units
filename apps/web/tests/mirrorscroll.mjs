@@ -47,12 +47,12 @@ async function attach(wsUrl) {
   const ws = new WebSocket(wsUrl);
   let id = 0;
   const pending = new Map();
-  const send = (m, p = {}) =>
+  const send = ({ method, params = {} }) =>
     new Promise((res, rej) => {
       const i = ++id;
       pending.set(i, res);
-      setTimeout(() => rej(new Error('CDP timeout: ' + m)), 20000);
-      ws.send(JSON.stringify({ id: i, method: m, params: p }));
+      setTimeout(() => rej(new Error('CDP timeout: ' + method)), 20000);
+      ws.send(JSON.stringify({ id: i, method, params }));
     });
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
@@ -62,23 +62,23 @@ async function attach(wsUrl) {
     }
   };
   await new Promise((r) => (ws.onopen = r));
-  await send('Page.enable');
-  await send('Runtime.enable');
+  await send({ method: 'Page.enable' });
+  await send({ method: 'Runtime.enable' });
   const ev = async (x) =>
-    (await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true }))
+    (await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } }))
       .result?.value;
   return { ws, send, ev };
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let bad = 0;
-const say = (n, ok, d = '') => {
+const say = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
-  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(54)} ${d}`.trimEnd());
+  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(54)} ${detail}`.trimEnd());
 };
 
 const room = freshRoom();
-const target = roomUrl(url, room);
+const target = roomUrl({ url, room });
 
 const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const first = list.find((t) => t.type === 'page');
@@ -92,8 +92,8 @@ const B = await attach(made.webSocketDebuggerUrl); // desktop, the mirror
 await asTablet(A.send);
 // ?role= rather than trusting the viewport: this file is about the mirror, and a mirror
 // that quietly came up as a second pad would pass every assertion below by not being one.
-await A.send('Page.navigate', { url: `${target}&role=pad` });
-await B.send('Page.navigate', { url: `${target}&role=board` });
+await A.send({ method: 'Page.navigate', params: { url: `${target}&role=pad` } });
+await B.send({ method: 'Page.navigate', params: { url: `${target}&role=board` } });
 await wait(9000);
 
 /** The canvas box in CSS pixels, on whichever page is asked. */
@@ -108,7 +108,7 @@ const boxOf = (p) =>
 
 const boxA = await boxOf(A);
 const boxB = await boxOf(B);
-say('both pages have a board', !!boxA && !!boxB, boxA && `tablet ${Math.round(boxA.w)}px`);
+say({ name: 'both pages have a board', ok: !!boxA && !!boxB, detail: boxA && `tablet ${Math.round(boxA.w)}px` });
 if (!boxA || !boxB) {
   console.log('\nno canvas, so nothing below could mean anything.');
   process.exit(1);
@@ -121,10 +121,10 @@ if (!boxA || !boxB) {
  *  never sends input to either; it sets values from inside the page.) So `pen()` puts
  *  the tablet in front, once, before a gesture — not between the events of one, which
  *  would be moving the window out from under a pointer that is already down. */
-const pen = (p) => p.send('Page.bringToFront');
+const pen = (p) => p.send({ method: 'Page.bringToFront' });
 
-const pt = (p, box, type, x, y) =>
-  p.send('Input.dispatchMouseEvent', {
+const pt = ({ page, box, type, x, y }) =>
+  page.send({ method: 'Input.dispatchMouseEvent', params: {
     type,
     x,
     y,
@@ -133,19 +133,19 @@ const pt = (p, box, type, x, y) =>
     clickCount: 1,
     pointerType: 'pen',
     force: 0.5
-  });
+  } });
 
 /** One horizontal stroke at a fraction of the way down the VISIBLE board. */
-async function stroke(p, box, f) {
-  await pen(p);
+async function stroke({ page, box, f }) {
+  await pen(page);
   const y = box.y + box.h * f;
   const x0 = box.x + box.w * 0.2;
-  await pt(p, box, 'mousePressed', x0, y);
+  await pt({ page, box, type: 'mousePressed', x: x0, y });
   for (let s = 1; s <= 8; s++) {
-    await pt(p, box, 'mouseMoved', x0 + (box.w * 0.5 * s) / 8, y);
+    await pt({ page, box, type: 'mouseMoved', x: x0 + (box.w * 0.5 * s) / 8, y });
     await wait(15);
   }
-  await pt(p, box, 'mouseReleased', x0 + box.w * 0.5, y);
+  await pt({ page, box, type: 'mouseReleased', x: x0 + box.w * 0.5, y });
   await wait(350);
 }
 
@@ -157,8 +157,8 @@ async function stroke(p, box, f) {
  *  already records. On the tablet page it does not merely fail — the call never comes
  *  back, and the first version of this file died on a CDP timeout. `cancelable` because
  *  the handler calls preventDefault. */
-const scroll = (p, box, screens) =>
-  p.ev(
+const scroll = ({ page, box, screens }) =>
+  page.ev(
     `document.querySelector('canvas').dispatchEvent(
        new WheelEvent('wheel', { deltaY: ${box.h * screens}, bubbles: true, cancelable: true })), 1`
   );
@@ -215,10 +215,10 @@ const railAt = (p) =>
 
 /** Wait for ink to reach a page rather than sleeping a guessed number of seconds. A run
  *  where the strokes had not arrived yet measured an empty mirror and failed on that. */
-async function untilInk(p, budgetMs = 25000) {
+async function untilInk({ page, budgetMs = 25000 }) {
   const t0 = Date.now();
   while (Date.now() - t0 < budgetMs) {
-    if ((await picture(p)).n > 200) {return Date.now() - t0;}
+    if ((await picture(page)).n > 200) {return Date.now() - t0;}
     await wait(500);
   }
   return -1;
@@ -236,46 +236,46 @@ async function untilInk(p, budgetMs = 25000) {
 // can only add about a third of a tablet screen: write near the bottom, scroll by less.
 console.log('--- the tablet writes a board several desktop screens long ---');
 for (let i = 0; i < 36; i++) {
-  await stroke(A, boxA, 0.85);
-  await scroll(A, boxA, 0.4);
+  await stroke({ page: A, box: boxA, f: 0.85 });
+  await scroll({ page: A, box: boxA, screens: 0.4 });
   await wait(120);
 }
-say('ink reached the mirror', (await untilInk(B)) >= 0);
+say({ name: 'ink reached the mirror', ok: (await untilInk({ page: B })) >= 0 });
 
 // ---- the reader parks the desktop by hand ------------------------------------
 // Avi's case exactly: he had scrolled the desktop there himself.
 console.log('--- the reader scrolls the desktop back up ---');
-await scroll(B, boxB, -1.5);
+await scroll({ page: B, box: boxB, screens: -1.5 });
 await wait(1200);
 const before = await picture(B);
 const railBefore = await railAt(B);
-say('the desktop is parked on ink', before.n > 200, `${before.n}px, topmost row ${before.topRow}`);
+say({ name: 'the desktop is parked on ink', ok: before.n > 200, detail: `${before.n}px, topmost row ${before.topRow}` });
 // The guard that makes the assertion below mean anything: a mirror already sitting at the
 // top cannot be observed jumping to the top. An earlier run of this file built a board
 // only 1.1 desktop screens long, the scroll up hit the top, and the "jump" it then
 // measured was the mirror moving DOWN.
-say('and it is well below the top of the board', railBefore > 10, `rail at ${railBefore}%`);
+say({ name: 'and it is well below the top of the board', ok: railBefore > 10, detail: `rail at ${railBefore}%` });
 
 // ---- the tablet erases, and the ceiling collapses ----------------------------
 console.log('--- the tablet rubs out the bottom of the board ---');
 const wrote = await strokeCount();
 await A.ev(`document.querySelector('button[data-tool="erase"]').click()`);
 await wait(200);
-say(
-  'the rubber is selected on the tablet',
-  (await A.ev(`document.querySelector('button[data-active="true"][data-tool="erase"]') !== null`)) ===
+say({
+  name: 'the rubber is selected on the tablet',
+  ok: (await A.ev(`document.querySelector('button[data-active="true"][data-tool="erase"]') !== null`)) ===
     true
-);
+});
 
 for (const f of [0.3, 0.55, 0.8]) {
   await pen(A);
   const y = boxA.y + boxA.h * f;
-  await pt(A, boxA, 'mousePressed', boxA.x + boxA.w * 0.1, y);
+  await pt({ page: A, box: boxA, type: 'mousePressed', x: boxA.x + boxA.w * 0.1, y });
   for (let s = 1; s <= 16; s++) {
-    await pt(A, boxA, 'mouseMoved', boxA.x + boxA.w * (0.1 + (0.8 * s) / 16), y);
+    await pt({ page: A, box: boxA, type: 'mouseMoved', x: boxA.x + boxA.w * (0.1 + (0.8 * s) / 16), y });
     await wait(15);
   }
-  await pt(A, boxA, 'mouseReleased', boxA.x + boxA.w * 0.9, y);
+  await pt({ page: A, box: boxA, type: 'mouseReleased', x: boxA.x + boxA.w * 0.9, y });
   await wait(400);
 }
 await wait(3500);
@@ -286,31 +286,31 @@ const left = await strokeCount();
 console.log(`desktop before  : ${JSON.stringify(before)}  rail ${railBefore}%`);
 console.log(`desktop after   : ${JSON.stringify(after)}  rail ${railAfter}%`);
 
-say('the erase reached the room', left >= 0 && left < wrote, `${wrote} strokes -> ${left}`);
+say({ name: 'the erase reached the room', ok: left >= 0 && left < wrote, detail: `${wrote} strokes -> ${left}` });
 
 // The assertion, in Avi's words: the desktop must not be thrown to the beginning of the
 // board because the tablet was edited. The rail says it plainly — 0 is the top, whatever
 // the erase did to the board's length.
-say(
-  'the desktop was not thrown to the top of the board',
-  railAfter > 0,
-  `rail ${railBefore}% -> ${railAfter}%`
-);
+say({
+  name: 'the desktop was not thrown to the top of the board',
+  ok: railAfter > 0,
+  detail: `rail ${railBefore}% -> ${railAfter}%`
+});
 // And the stronger form: it is showing the same region it was showing. The rubber never
 // reached that region, so nothing about it has changed.
-say(
-  'it is still showing the same region',
-  Math.abs(after.n - before.n) <= Math.max(20, before.n * 0.02) &&
+say({
+  name: 'it is still showing the same region',
+  ok: Math.abs(after.n - before.n) <= Math.max(20, before.n * 0.02) &&
     Math.abs(after.topRow - before.topRow) <= 4,
-  `${before.n}px@${before.topRow} -> ${after.n}px@${after.topRow}`
-);
+  detail: `${before.n}px@${before.topRow} -> ${after.n}px@${after.topRow}`
+});
 
 // ---- and the ceiling still stops a deliberate scroll -------------------------
 // The clamp did not go away, it moved to where asking happens.
 console.log('--- the end of the board is still the end ---');
-await scroll(B, boxB, 40);
+await scroll({ page: B, box: boxB, screens: 40 });
 await wait(1000);
-say('a scroll past the end lands back on the board', (await picture(B)).n > 100);
+say({ name: 'a scroll past the end lands back on the board', ok: (await picture(B)).n > 100 });
 
 // ---- leave nothing behind ----------------------------------------------------
 

@@ -34,12 +34,12 @@ const ws = new WebSocket(
 );
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((res, rej) => {
     const i = ++id;
     pending.set(i, res);
-    setTimeout(() => rej(new Error('CDP timeout: ' + m)), 30000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => rej(new Error('CDP timeout: ' + method)), 30000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -49,36 +49,36 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
-await send('Network.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
+await send({ method: 'Network.enable' });
 const ev = async (x) =>
-  (await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true }))
+  (await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } }))
     .result?.value;
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let bad = 0;
-const say = (n, ok, d = '') => {
+const say = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
-  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(52)} ${d}`.trimEnd());
+  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(52)} ${detail}`.trimEnd());
 };
 
 const offline = (yes) =>
-  send('Network.emulateNetworkConditions', {
+  send({ method: 'Network.emulateNetworkConditions', params: {
     offline: yes,
     latency: 0,
     downloadThroughput: -1,
     uploadThroughput: -1
-  });
+  } });
 
 await asTablet(send);
-await send('Emulation.setDeviceMetricsOverride', {
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: {
   width: 1180,
   height: 820,
   deviceScaleFactor: 1,
   mobile: false
-});
-await send('Page.navigate', { url: roomUrl(url, freshRoom()) });
+} });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room: freshRoom() }) } });
 await wait(7000);
 await assertPad(ev);
 
@@ -87,8 +87,8 @@ const box = JSON.parse(
     return JSON.stringify({ x: r.x, y: r.y, w: r.width, h: r.height }); })()`)
 );
 
-const pt = (type, x, y) =>
-  send('Input.dispatchMouseEvent', {
+const pt = ({ type, x, y }) =>
+  send({ method: 'Input.dispatchMouseEvent', params: {
     type,
     x,
     y,
@@ -97,18 +97,18 @@ const pt = (type, x, y) =>
     clickCount: 1,
     pointerType: 'pen',
     force: 0.5
-  });
+  } });
 
 /** One stroke across the board at height `f` of it. */
 async function stroke(f) {
   const y = box.y + box.h * f;
   const x0 = box.x + box.w * 0.2;
-  await pt('mousePressed', x0, y);
+  await pt({ type: 'mousePressed', x: x0, y });
   for (let s = 1; s <= 10; s++) {
-    await pt('mouseMoved', x0 + (box.w * 0.5 * s) / 10, y);
+    await pt({ type: 'mouseMoved', x: x0 + (box.w * 0.5 * s) / 10, y });
     await wait(20);
   }
-  await pt('mouseReleased', x0 + box.w * 0.5, y);
+  await pt({ type: 'mouseReleased', x: x0 + box.w * 0.5, y });
   await wait(300);
 }
 
@@ -117,7 +117,7 @@ const banner = () =>
 
 /** Poll rather than sleep the whole budget: the pass is "it appears within", and the
  *  time it actually took is worth printing when the margin is what is in question. */
-async function until(want, budgetMs) {
+async function until({ want, budgetMs }) {
   const t0 = Date.now();
   while (Date.now() - t0 < budgetMs) {
     if (!!(await banner()) === want) {return Date.now() - t0;}
@@ -192,18 +192,18 @@ await stroke(0.3);
 // backend that was refusing every write.
 await wait(11000);
 const quiet = await banner();
-say('nothing on the board while writes land', quiet === '', quiet && `showed: ${quiet.slice(0, 60)}`);
+say({ name: 'nothing on the board while writes land', ok: quiet === '', detail: quiet && `showed: ${quiet.slice(0, 60)}` });
 
 // ---- 2. cut the network and write --------------------------------------------
 console.log('--- the server stops taking it ---');
 await offline(true);
 await stroke(0.5);
-const appeared = await until(true, 20000);
-say('the board says the writing is not leaving', appeared >= 0, appeared >= 0 ? `after ${appeared}ms` : 'never showed');
+const appeared = await until({ want: true, budgetMs: 20000 });
+say({ name: 'the board says the writing is not leaving', ok: appeared >= 0, detail: appeared >= 0 ? `after ${appeared}ms` : 'never showed' });
 
 const text = await banner();
-say('it says what went wrong', /לא מקבל|נשאר במכשיר/.test(text), text.slice(0, 70));
-say('and what to do about it', /רשת/.test(text) && /מכסת/.test(text));
+say({ name: 'it says what went wrong', ok: /לא מקבל|נשאר במכשיר/.test(text), detail: text.slice(0, 70) });
+say({ name: 'and what to do about it', ok: /רשת/.test(text) && /מכסת/.test(text) });
 
 // It must not touch the canvas at all. The first version floated across the top of the
 // board, and the screenshot that came back had it sitting on the top line of real
@@ -216,20 +216,20 @@ const geom = await ev(`(() => {
   return JSON.stringify({ gap: Math.round(b.top - a.bottom), above: a.bottom <= b.top + 0.5 });
 })()`);
 const g = JSON.parse(geom);
-say('it does not cover any of the board', g.above === true, `gap to canvas: ${g.gap}px`);
+say({ name: 'it does not cover any of the board', ok: g.above === true, detail: `gap to canvas: ${g.gap}px` });
 
 // The ink is still on the glass — the writing is not lost, only unsent, and the page
 // must not imply otherwise by dropping it.
 const inkPx = await ev(`(() => { const c = document.querySelector('canvas');
   const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
   let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 10) n++; return n; })()`);
-say('the ink is still on the glass', inkPx > 200, `${inkPx}px`);
+say({ name: 'the ink is still on the glass', ok: inkPx > 200, detail: `${inkPx}px` });
 
 // ---- 3. it comes back ---------------------------------------------------------
 console.log('--- the server comes back ---');
 await offline(false);
-const cleared = await until(false, 25000);
-say('the banner goes when writes land again', cleared >= 0, cleared >= 0 ? `after ${cleared}ms` : 'still showing');
+const cleared = await until({ want: false, budgetMs: 25000 });
+say({ name: 'the banner goes when writes land again', ok: cleared >= 0, detail: cleared >= 0 ? `after ${cleared}ms` : 'still showing' });
 
 console.log(bad ? `\n${bad} FAILED` : '\nall good');
 if (bad && !backend.ok)

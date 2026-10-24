@@ -32,12 +32,12 @@ async function attach(wsUrl) {
   const ws = new WebSocket(wsUrl);
   let id = 0;
   const pending = new Map();
-  const send = (m, p = {}) =>
+  const send = ({ method, params = {} }) =>
     new Promise((res, rej) => {
       const i = ++id;
       pending.set(i, res);
-      setTimeout(() => rej(new Error('CDP timeout: ' + m)), 20000);
-      ws.send(JSON.stringify({ id: i, method: m, params: p }));
+      setTimeout(() => rej(new Error('CDP timeout: ' + method)), 20000);
+      ws.send(JSON.stringify({ id: i, method, params }));
     });
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
@@ -47,23 +47,23 @@ async function attach(wsUrl) {
     }
   };
   await new Promise((r) => (ws.onopen = r));
-  await send('Page.enable');
-  await send('Runtime.enable');
+  await send({ method: 'Page.enable' });
+  await send({ method: 'Runtime.enable' });
   const ev = async (x) =>
-    (await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true }))
+    (await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } }))
       .result?.value;
   return { ws, send, ev };
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let bad = 0;
-const say = (n, ok, d = '') => {
+const say = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
-  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(56)} ${d}`.trimEnd());
+  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(56)} ${detail}`.trimEnd());
 };
 
 const room = freshRoom();
-const target = roomUrl(url, room);
+const target = roomUrl({ url, room });
 const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const first = list.find((t) => t.type === 'page');
 const made = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
@@ -71,8 +71,8 @@ const A = await attach(first.webSocketDebuggerUrl); // the tablet
 const B = await attach(made.webSocketDebuggerUrl); // the desktop
 
 await asTablet(A.send);
-await A.send('Page.navigate', { url: `${target}&role=pad` });
-await B.send('Page.navigate', { url: `${target}&role=board` });
+await A.send({ method: 'Page.navigate', params: { url: `${target}&role=pad` } });
+await B.send({ method: 'Page.navigate', params: { url: `${target}&role=board` } });
 await wait(9000);
 
 const boxOf = (p) =>
@@ -86,17 +86,17 @@ const boxOf = (p) =>
 
 const boxA = await boxOf(A);
 const boxB = await boxOf(B);
-say('both pages have a board', !!boxA && !!boxB);
+say({ name: 'both pages have a board', ok: !!boxA && !!boxB });
 if (!boxA || !boxB) {
   process.exit(1);
 }
 
 /** CDP input reaches only the tab in front; see mirrorscroll.mjs. */
-const front = (p) => p.send('Page.bringToFront');
+const front = (p) => p.send({ method: 'Page.bringToFront' });
 /** A pen event. A release names the button it lets go of — a release with no button
  *  lifts nothing, the nib stays down, and every later move draws. A hover names none. */
-const pen = (type, x, y, buttons) =>
-  A.send('Input.dispatchMouseEvent', {
+const pen = ({ type, x, y, buttons }) =>
+  A.send({ method: 'Input.dispatchMouseEvent', params: {
     type,
     x,
     y,
@@ -105,17 +105,17 @@ const pen = (type, x, y, buttons) =>
     clickCount: type === 'mouseMoved' ? 0 : 1,
     pointerType: 'pen',
     force: buttons ? 0.5 : 0
-  });
+  } });
 
-async function stroke(fx, fy, len = 0.4) {
+async function stroke({ fx, fy, len = 0.4 }) {
   const x0 = boxA.x + boxA.w * fx;
   const y = boxA.y + boxA.h * fy;
-  await pen('mousePressed', x0, y, 1);
+  await pen({ type: 'mousePressed', x: x0, y, buttons: 1 });
   for (let s = 1; s <= 8; s++) {
-    await pen('mouseMoved', x0 + (boxA.w * len * s) / 8, y + Math.sin(s) * 6, 1);
+    await pen({ type: 'mouseMoved', x: x0 + (boxA.w * len * s) / 8, y: y + Math.sin(s) * 6, buttons: 1 });
     await wait(12);
   }
-  await pen('mouseReleased', x0 + boxA.w * len, y, 0);
+  await pen({ type: 'mouseReleased', x: x0 + boxA.w * len, y, buttons: 0 });
   await wait(250);
 }
 
@@ -149,12 +149,12 @@ await wait(1500);
 // ---- ink down two screens of the strip, so the picture needs columns ----
 await front(A);
 for (const [i, fy] of [0.15, 0.4, 0.7].entries()) {
-  await stroke(0.1 + i * 0.05, fy);
+  await stroke({ fx: 0.1 + i * 0.05, fy });
 }
 await scrollA(0.9);
 await wait(300);
 for (const fy of [0.3, 0.55, 0.85]) {
-  await stroke(0.15, fy, 0.55);
+  await stroke({ fx: 0.15, fy, len: 0.55 });
 }
 await wait(2500);
 
@@ -165,18 +165,18 @@ await front(A);
 const hx = boxA.x + boxA.w * 0.6;
 const hy = boxA.y + boxA.h * 0.5;
 for (let s = 0; s < 6; s++) {
-  await pen('mouseMoved', hx + s * 3, hy, 0);
+  await pen({ type: 'mouseMoved', x: hx + s * 3, y: hy, buttons: 0 });
   await wait(40);
 }
 await wait(1500);
 const during = await violet();
-say('the hover reaches the desktop and is drawn', during > before + 40, `${before} -> ${during} px`);
+say({ name: 'the hover reaches the desktop and is drawn', ok: during > before + 40, detail: `${before} -> ${during} px` });
 
 let frame = null;
-const ask = () => B.ev(askPage(PadMessage.FRAME)).then((s) => JSON.parse(s));
+const ask = () => B.ev(askPage({ type: PadMessage.FRAME })).then((s) => JSON.parse(s));
 frame = await ask();
-say('the picture is a JPEG', frame?.mimeType === 'image/jpeg' && frame.base64.length > 20000,
-  frame ? `${frame.width}x${frame.height}, ${Math.round((frame.base64.length * 3) / 4 / 1024)} KB` : 'none');
+say({ name: 'the picture is a JPEG', ok: frame?.mimeType === 'image/jpeg' && frame.base64.length > 20000,
+  detail: frame ? `${frame.width}x${frame.height}, ${Math.round((frame.base64.length * 3) / 4 / 1024)} KB` : 'none' });
 if (frame && out) {
   writeFileSync(out, Buffer.from(frame.base64, 'base64'));
   console.log(`      picture kept at ${out}`);
@@ -191,23 +191,23 @@ const timed = async () => {
 };
 const p1 = await timed();
 await front(A);
-await stroke(0.5, 0.5, 0.3);
+await stroke({ fx: 0.5, fy: 0.5, len: 0.3 });
 await wait(1500);
 const p2 = await timed();
-say('a picture is drawn well inside the 2.5 s the relay waits', Math.max(p1.ms, p2.ms) < 1500, `${p1.ms} / ${p2.ms} ms`);
-say('a stroke written since changes the next picture', !!p2.f && p1.f?.base64 !== p2.f.base64);
+say({ name: 'a picture is drawn well inside the 2.5 s the relay waits', ok: Math.max(p1.ms, p2.ms) < 1500, detail: `${p1.ms} / ${p2.ms} ms` });
+say({ name: 'a stroke written since changes the next picture', ok: !!p2.f && p1.f?.base64 !== p2.f.base64 });
 
 // leaving the board ends the hover
 await front(A);
-await pen('mouseMoved', boxA.x + boxA.w * 0.6, boxA.y - 40, 0);
+await pen({ type: 'mouseMoved', x: boxA.x + boxA.w * 0.6, y: boxA.y - 40, buttons: 0 });
 await wait(1500);
 const after = await violet();
-say('and goes away when the pen leaves', after <= before + 5, `${during} -> ${after} px`);
+say({ name: 'and goes away when the pen leaves', ok: after <= before + 5, detail: `${during} -> ${after} px` });
 // While the pen is there the picture is a close-up around it; a moment after it goes,
 // the whole board is back (frame.ts `FOCUS_LINGER_MS`). Kept beside the first, for eyes.
 await wait(2500);
 const whole = await ask();
-say('the pen gone a while, the picture shows the whole board again', !!whole && whole.base64 !== p2.f?.base64);
+say({ name: 'the pen gone a while, the picture shows the whole board again', ok: !!whole && whole.base64 !== p2.f?.base64 });
 if (whole && out) {
   const wholeOut = out.replace(/(\.\w+)?$/, '-board$1');
   writeFileSync(wholeOut, Buffer.from(whole.base64, 'base64'));
@@ -216,9 +216,9 @@ if (whole && out) {
 
 // ---- notes on the desktop, state to the tablet ----
 console.log('--- what Gemini writes, on the desktop only ---');
-await B.ev(askPage(PadMessage.LIVE_STATUS, { state: 'live' }));
-await B.ev(askPage(PadMessage.LIVE_NOTE, { id: 'n1', title: 'נוסחת השורשים',
-  body: 'הפתרונות של $ax^{2}+bx+c=0$:' + String.fromCharCode(10) + '$x_{1,2}=' + String.fromCharCode(92) + 'frac{-b' + String.fromCharCode(92) + 'pm' + String.fromCharCode(92) + 'sqrt{b^{2}-4ac}}{2a}$' }));
+await B.ev(askPage({ type: PadMessage.LIVE_STATUS, data: { state: 'live' } }));
+await B.ev(askPage({ type: PadMessage.LIVE_NOTE, data: { id: 'n1', title: 'נוסחת השורשים',
+  body: 'הפתרונות של $ax^{2}+bx+c=0$:' + String.fromCharCode(10) + '$x_{1,2}=' + String.fromCharCode(92) + 'frac{-b' + String.fromCharCode(92) + 'pm' + String.fromCharCode(92) + 'sqrt{b^{2}-4ac}}{2a}$' } }));
 await wait(2500);
 const noteOf = (p) =>
   p.ev(`JSON.stringify({
@@ -227,41 +227,45 @@ const noteOf = (p) =>
     state: document.querySelector('.notes .lstate')?.textContent?.trim() ?? '' })`).then(JSON.parse);
 const nb = await noteOf(B);
 const na = await noteOf(A);
-say('the desktop shows the note, formulas typeset', nb.title === 'נוסחת השורשים' && nb.maths >= 2, `${nb.maths} formulas`);
-say('the tablet does not show it', !na.title && !na.maths, na.title);
-say('and that Gemini is listening', na.state.includes('מקשיב'), na.state);
+say({ name: 'the desktop shows the note, formulas typeset', ok: nb.title === 'נוסחת השורשים' && nb.maths >= 2, detail: `${nb.maths} formulas` });
+say({ name: 'the tablet does not show it', ok: !na.title && !na.maths, detail: na.title });
+say({ name: 'and that Gemini is listening', ok: na.state.includes('מקשיב'), detail: na.state });
 // no picture asked for since Live came up: Gemini is no longer looking, and both say so
 await wait(6500);
 const blindA = (await noteOf(A)).state;
-say('a Gemini that stopped asking for pictures is shown as not looking', blindA.includes('הפסיק'), blindA);
+say({ name: 'a Gemini that stopped asking for pictures is shown as not looking', ok: blindA.includes('הפסיק'), detail: blindA });
 await ask();
 await wait(2000);
 const seesA = (await noteOf(A)).state;
-say('and a new picture clears it', !seesA.includes('הפסיק'), seesA);
+say({ name: 'and a new picture clears it', ok: !seesA.includes('הפסיק'), detail: seesA });
 const button = await B.ev(
   `[...document.querySelectorAll('.qfoot button')].map((b) => b.textContent.trim()).join(' | ')`
 );
-say('the desktop offers to end the session', button.includes('סיום השיעור'), button);
+say({ name: 'the desktop offers to end the session', ok: button.includes('סיום השיעור'), detail: button });
 
 // a hidden tab runs no transitions, and a note leaves only when its fold has run
 await front(B);
 await B.ev(`document.querySelector('.notes .note .close')?.click(), 1`);
 const folding = await B.ev(`!!document.querySelector('.notes .note[data-leaving]')`);
 await wait(800);
-say('a closed note folds away rather than vanishing', folding && !(await B.ev(`!!document.querySelector('.notes')`)));
+say({ name: 'a closed note folds away rather than vanishing', ok: folding && !(await B.ev(`!!document.querySelector('.notes')`)) });
 for (const n of ['n2', 'n3', 'n4', 'n5']) {
-  await B.ev(askPage(PadMessage.LIVE_NOTE, { id: n, title: n, body: 'x' }));
+  await B.ev(askPage({ type: PadMessage.LIVE_NOTE, data: { id: n, title: n, body: 'x' } }));
 }
 await wait(1500);
 const kept = await B.ev(`[...document.querySelectorAll('.notes .note h3')].map((h) => h.textContent).join(' ')`);
-say('a fourth note pushes the oldest out', kept === 'n5 n4 n3', kept);
+say({ name: 'a fourth note pushes the oldest out', ok: kept === 'n5 n4 n3', detail: kept });
 await B.ev(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'הבא')?.click(), 1`);
 const folds = await B.ev(`document.querySelectorAll('.notes .note[data-leaving]').length`);
 await wait(800);
-say('the next question folds them all away', folds === 3 && !(await B.ev(`!!document.querySelector('.notes')`)), `${folds} folding`);
-await B.ev(askPage(PadMessage.LIVE_STATUS, { state: 'ended' }));
+say({
+  name: 'the next question folds them all away',
+  ok: folds === 3 && !(await B.ev(`!!document.querySelector('.notes')`)),
+  detail: `${folds} folding`
+});
+await B.ev(askPage({ type: PadMessage.LIVE_STATUS, data: { state: 'ended' } }));
 await wait(1500);
-say('the session ending reaches the tablet', !(await A.ev(`!!document.querySelector('.notes .lstate')`)));
+say({ name: 'the session ending reaches the tablet', ok: !(await A.ev(`!!document.querySelector('.notes .lstate')`)) });
 
 // ---- leave nothing behind ----
 await A.ev(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'נקה')?.click()`);

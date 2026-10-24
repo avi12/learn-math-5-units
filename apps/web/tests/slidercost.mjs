@@ -19,20 +19,20 @@ ws.onmessage = (m) => {
     w.delete(d.id);
   }
 };
-const send = (method, params = {}) => {
+const send = ({ method, params = {} }) => {
   const id = ++seq;
   ws.send(JSON.stringify({ id, method, params }));
   return new Promise((r) => w.set(id, r));
 };
-const ev = async (e) => (await send('Runtime.evaluate', { expression: e, returnByValue: true, awaitPromise: true })).result?.result?.value;
+const ev = async (e) => (await send({ method: 'Runtime.evaluate', params: { expression: e, returnByValue: true, awaitPromise: true } })).result?.result?.value;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-await send('Emulation.setDeviceMetricsOverride', { width: 1180, height: 820, deviceScaleFactor: 2, mobile: true });
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: { width: 1180, height: 820, deviceScaleFactor: 2, mobile: true } });
 await asTablet(send);
-await send('Page.navigate', { url: roomUrl(`${url}?role=pad`, freshRoom()) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url: `${url}?role=pad`, room: freshRoom() }) } });
 await sleep(4000);
 await assertPad(ev);
-await send('Emulation.setCPUThrottlingRate', { rate: Number(cpu) });
+await send({ method: 'Emulation.setCPUThrottlingRate', params: { rate: Number(cpu) } });
 
 const box = await ev(`(() => {
   const r = [...document.querySelectorAll('.tools label')].find((l) => l.textContent.includes('גודל משבצת')).querySelector('input');
@@ -48,12 +48,12 @@ const box = await ev(`(() => {
 await sleep(1500);
 // RTL range: the max end is on the left
 const xs = Array.from({ length: 31 }, (_, i) => box.x + box.w - 2 - (i / 30) * (box.w - 4));
-await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: xs[0], y: box.y, button: 'left', buttons: 1, clickCount: 1 });
+await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mousePressed', x: xs[0], y: box.y, button: 'left', buttons: 1, clickCount: 1 } });
 for (const x of [...xs, ...xs.slice().reverse()]) {
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y: box.y, button: 'left', buttons: 1 });
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mouseMoved', x, y: box.y, button: 'left', buttons: 1 } });
   await sleep(16);
 }
-await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: xs[0], y: box.y, button: 'left', buttons: 0, clickCount: 1 });
+await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mouseReleased', x: xs[0], y: box.y, button: 'left', buttons: 0, clickCount: 1 } });
 await sleep(1500);
 const lag = await ev(`window.__lag`);
 const avg = lag.reduce((a, b) => a + b, 0) / (lag.length || 1);

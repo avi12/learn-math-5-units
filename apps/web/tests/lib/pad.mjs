@@ -47,7 +47,7 @@ export const DB = `https://firestore.googleapis.com/v1/${DOCS}`;
  *      tests keep testing what they always tested. Two scripts carried a comment saying
  *      the opposite and turned touch emulation off because of it; it was folklore. */
 export async function asTablet(send) {
-  await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+  await send({ method: 'Emulation.setTouchEmulationEnabled', params: { enabled: true, maxTouchPoints: 5 } });
 }
 
 /** Throw unless the writing board is the live role. Pass the script's own `ev`.
@@ -69,7 +69,7 @@ export async function assertPad(ev) {
 }
 
 /** The URL with a room pinned onto it, whatever query it already carries. */
-export function roomUrl(url, room) {
+export function roomUrl({ url, room }) {
   const u = new URL(url);
   u.searchParams.set('room', room);
   return u.href;

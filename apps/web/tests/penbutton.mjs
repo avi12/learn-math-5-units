@@ -15,12 +15,12 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r, j) => {
     const i = ++id;
     pending.set(i, r);
-    setTimeout(() => j(new Error('CDP timeout: ' + m)), 20000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => j(new Error('CDP timeout: ' + method)), 20000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -30,23 +30,23 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
-  const r = await send('Runtime.evaluate', { expression: x, returnByValue: true });
+  const r = await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true } });
   return r?.exceptionDetails ? 'EXC ' + r.exceptionDetails.text : r.result?.value;
 };
 
 let bad = 0;
-const check = (name, ok, detail = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(46)} ${detail}`);
 };
 
-await send('Emulation.setDeviceMetricsOverride', { width: 1180, height: 820, deviceScaleFactor: 1, mobile: false });
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: { width: 1180, height: 820, deviceScaleFactor: 1, mobile: false } });
 await asTablet(send);
-await send('Page.navigate', { url });
+await send({ method: 'Page.navigate', params: { url } });
 await wait(6000);
 await assertPad(ev);
 
@@ -67,77 +67,77 @@ const ink = async () =>
  *  is measured, not assumed. The barrel alone is `button: 'right', buttons: 2`, and that
  *  is also how Chrome on Android delivers a stylus touch with the button held: as a
  *  secondary-button pointer, which is why the canvas suppresses the context menu. */
-async function penStroke(yFrac, held) {
+async function penStroke({ yFrac, held }) {
   const y = rect.top + rect.height * yFrac;
   const x0 = rect.left + rect.width * 0.2;
   const x1 = rect.left + rect.width * 0.7;
   const button = held ? 'right' : 'left';
   const buttons = held ? 2 : 1;
   const common = { pointerType: 'pen', force: 0.6, button };
-  await send('Input.dispatchMouseEvent', { ...common, type: 'mousePressed', x: x0, y, buttons, clickCount: 1 });
+  await send({ method: 'Input.dispatchMouseEvent', params: { ...common, type: 'mousePressed', x: x0, y, buttons, clickCount: 1 } });
   for (let i = 1; i <= 14; i++) {
-    await send('Input.dispatchMouseEvent', {
+    await send({ method: 'Input.dispatchMouseEvent', params: {
       ...common,
       type: 'mouseMoved',
       x: x0 + ((x1 - x0) * i) / 14,
       y,
       buttons
-    });
+    } });
   }
-  await send('Input.dispatchMouseEvent', { ...common, type: 'mouseReleased', x: x1, y, buttons: 0, clickCount: 1 });
+  await send({ method: 'Input.dispatchMouseEvent', params: { ...common, type: 'mouseReleased', x: x1, y, buttons: 0, clickCount: 1 } });
 }
 
 // ---- write with the pen ----------------------------------------------------
 const before = await ink();
-await penStroke(0.4, false);
+await penStroke({ yFrac: 0.4, held: false });
 for (let i = 0; i < 40 && (await ink()) <= before; i++) {await wait(250);}
 const written = await ink();
-check('the pen writes', written > before, `${before} -> ${written} ink pixels`);
+check({ name: 'the pen writes', ok: written > before, detail: `${before} -> ${written} ink pixels` });
 console.log('      pen reported:', JSON.stringify(await ev('document.querySelector(".probe")?.innerText ?? ""')));
 
 // ---- go back over it with the button held ----------------------------------
-await penStroke(0.4, true);
+await penStroke({ yFrac: 0.4, held: true });
 for (let i = 0; i < 40 && (await ink()) >= written; i++) {await wait(250);}
 const after = await ink();
-check('the side button rubs out instead', after < written, `${written} -> ${after} ink pixels`);
+check({ name: 'the side button rubs out instead', ok: after < written, detail: `${written} -> ${after} ink pixels` });
 console.log('      pen reported:', JSON.stringify(await ev('document.querySelector(".probe")?.innerText ?? ""')));
 
 // ---- the button arriving late still erases ---------------------------------
 // Chrome does not always put the barrel on pointerdown. Write, then start a plain stroke
 // and turn the button on one move later: it has to become an erase anyway.
-await penStroke(0.6, false);
+await penStroke({ yFrac: 0.6, held: false });
 for (let i = 0; i < 40 && (await ink()) === 0; i++) {await wait(250);}
 const second = await ink();
 {
   const y = rect.top + rect.height * 0.6;
   const x0 = rect.left + rect.width * 0.2;
-  await send('Input.dispatchMouseEvent', { pointerType: 'pen', force: 0.6, type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 });
+  await send({ method: 'Input.dispatchMouseEvent', params: { pointerType: 'pen', force: 0.6, type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 } });
   for (let i = 1; i <= 14; i++) {
-    await send('Input.dispatchMouseEvent', {
+    await send({ method: 'Input.dispatchMouseEvent', params: {
       pointerType: 'pen', force: 0.6, type: 'mouseMoved',
       x: x0 + (rect.width * 0.5 * i) / 14, y, button: 'right', buttons: 2
-    });
+    } });
   }
-  await send('Input.dispatchMouseEvent', { pointerType: 'pen', type: 'mouseReleased', x: x0 + rect.width * 0.5, y, button: 'right', buttons: 0, clickCount: 1 });
+  await send({ method: 'Input.dispatchMouseEvent', params: { pointerType: 'pen', type: 'mouseReleased', x: x0 + rect.width * 0.5, y, button: 'right', buttons: 0, clickCount: 1 } });
 }
 for (let i = 0; i < 40 && (await ink()) >= second; i++) {await wait(250);}
 const third = await ink();
-check('a button pressed after contact still erases', third < second, `${second} -> ${third} ink pixels`);
+check({ name: 'a button pressed after contact still erases', ok: third < second, detail: `${second} -> ${third} ink pixels` });
 console.log('      pen reported:', JSON.stringify(await ev('document.querySelector(".probe")?.innerText ?? ""')));
 
 // ---- the native wrapper's hook ---------------------------------------------
 // This is the contract android/ speaks: window.__spen(true|false). Chrome will never
 // send the button itself, so the wrapper reads MotionEvent.buttonState and calls this —
 // and the page has to erase on a stroke that carries no button bits at all.
-await penStroke(0.25, false);
+await penStroke({ yFrac: 0.25, held: false });
 for (let i = 0; i < 40 && (await ink()) === 0; i++) {await wait(250);}
 const fourth = await ink();
-check('the hook exists', (await ev('typeof window.__spen')) === 'function', await ev('typeof window.__spen'));
+check({ name: 'the hook exists', ok: (await ev('typeof window.__spen')) === 'function', detail: await ev('typeof window.__spen') });
 await ev('window.__spen(true), 1');
-await penStroke(0.25, false); // an ORDINARY stroke: no button bits anywhere
+await penStroke({ yFrac: 0.25, held: false }); // an ORDINARY stroke: no button bits anywhere
 for (let i = 0; i < 40 && (await ink()) >= fourth; i++) {await wait(250);}
 const fifth = await ink();
-check('a stroke erases while the hook says down', fifth < fourth, `${fourth} -> ${fifth} ink pixels`);
+check({ name: 'a stroke erases while the hook says down', ok: fifth < fourth, detail: `${fourth} -> ${fifth} ink pixels` });
 await ev('window.__spen(false), 1');
 console.log('      pen reported:', JSON.stringify(await ev('document.querySelector(".probe")?.innerText ?? ""')));
 
@@ -145,7 +145,7 @@ console.log('      pen reported:', JSON.stringify(await ev('document.querySelect
 const stillInk = await ev(
   `[...document.querySelectorAll('button[data-tool]')].find((b) => b.dataset.active === 'true')?.dataset.tool ?? ''`
 );
-check('the chosen tool is unchanged', stillInk === 'ink', JSON.stringify(stillInk));
+check({ name: 'the chosen tool is unchanged', ok: stillInk === 'ink', detail: JSON.stringify(stillInk) });
 
 console.log(bad ? `\n${bad} FAILED` : '\nall checks passed');
 ws.close();

@@ -20,18 +20,18 @@ const home = target.url;
 const ws = new WebSocket(target.webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
-  new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method: m, params: p })); });
+const send = ({ method, params = {} }) =>
+  new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
   if (m.id && pending.has(m.id)) { pending.get(m.id)(m.result); pending.delete(m.id); }
 };
 await new Promise((r) => (ws.onopen = r));
 const ev = async (x) =>
-  (await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true })).result?.value;
+  (await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } })).result?.value;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-await send('Page.navigate', { url: roomUrl(home, freshRoom()) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url: home, room: freshRoom() }) } });
 await wait(6000);
 
 await ev(`(() => {
@@ -52,13 +52,13 @@ await ev(`(() => {
 })()`);
 
 const box = JSON.parse(await ev(`JSON.stringify({ ...document.querySelector('canvas').getBoundingClientRect().toJSON(), dpr: devicePixelRatio, sy: screen.height, ih: innerHeight })`));
-const dev = (cx, cy) => [Math.round(cx * box.dpr), Math.round((cy + (box.sy - box.ih)) * box.dpr)];
+const dev = ({ cx, cy }) => [Math.round(cx * box.dpr), Math.round((cy + (box.sy - box.ih)) * box.dpr)];
 console.log('canvas', box);
 
 for (const [i, src] of ['stylus', 'touchscreen'].entries()) {
   const y = box.top + box.height * (0.3 + 0.3 * i);
-  const [x1, y1] = dev(box.left + box.width * 0.15, y);
-  const [x2, y2] = dev(box.left + box.width * 0.85, y);
+  const [x1, y1] = dev({ cx: box.left + box.width * 0.15, cy: y });
+  const [x2, y2] = dev({ cx: box.left + box.width * 0.85, cy: y });
   execFileSync('adb', ['shell', 'input', src, 'swipe', x1, y1, x2, y2, 400].map(String));
   await wait(1200);
 }
@@ -83,5 +83,5 @@ for (const s of strokes) {
 }
 console.log('\nevent timing (contact -> next paint):', log.timing.map((t) => `${t.name} ${t.dur}ms`).join(' | ') || 'none over 16ms');
 
-await send('Page.navigate', { url: home });
+await send({ method: 'Page.navigate', params: { url: home } });
 ws.close();

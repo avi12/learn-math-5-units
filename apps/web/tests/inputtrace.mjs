@@ -21,8 +21,8 @@ const pending = new Map();
 const events = [];
 let done;
 const finished = new Promise((r) => (done = r));
-const send = (m, p = {}) =>
-  new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method: m, params: p })); });
+const send = ({ method, params = {} }) =>
+  new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
   if (m.id && pending.has(m.id)) { pending.get(m.id)(m.result); pending.delete(m.id); }
@@ -31,23 +31,23 @@ ws.onmessage = (e) => {
 };
 await new Promise((r) => (ws.onopen = r));
 const ev = async (x) =>
-  (await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true })).result?.value;
+  (await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } })).result?.value;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-await send('Page.navigate', { url: roomUrl(home, freshRoom()) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url: home, room: freshRoom() }) } });
 await wait(6000);
 const box = JSON.parse(await ev(`JSON.stringify({ ...document.querySelector('canvas').getBoundingClientRect().toJSON(), dpr: devicePixelRatio, off: screen.height - innerHeight })`));
-const dev = (cx, cy) => [Math.round(cx * box.dpr), Math.round((cy + box.off) * box.dpr)];
+const dev = ({ cx, cy }) => [Math.round(cx * box.dpr), Math.round((cy + box.off) * box.dpr)];
 
-await send('Tracing.start', {
+await send({ method: 'Tracing.start', params: {
   categories: 'devtools.timeline,disabled-by-default-devtools.timeline,v8.execute,blink.user_timing,input,latencyInfo',
   transferMode: 'ReportEvents'
-});
+} });
 await wait(500);
 const y = box.top + box.height * 0.4;
-execFileSync('adb', ['shell', 'input', 'stylus', 'swipe', ...dev(box.left + box.width * 0.15, y), ...dev(box.left + box.width * 0.85, y), 400].map(String));
+execFileSync('adb', ['shell', 'input', 'stylus', 'swipe', ...dev({ cx: box.left + box.width * 0.15, cy: y }), ...dev({ cx: box.left + box.width * 0.85, cy: y }), 400].map(String));
 await wait(1000);
-await send('Tracing.end');
+await send({ method: 'Tracing.end' });
 await finished;
 writeFileSync(out, JSON.stringify(events));
 
@@ -64,5 +64,5 @@ for (const task of tasks) {
   console.log(`${((task.ts - t0) / 1000).toFixed(1).padStart(7)}ms  ${(task.dur / 1000).toFixed(1).padStart(6)}ms  ${what}`);
 }
 
-await send('Page.navigate', { url: home });
+await send({ method: 'Page.navigate', params: { url: home } });
 ws.close();

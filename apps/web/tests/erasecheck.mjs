@@ -25,11 +25,11 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r) => {
     const i = ++id;
     pending.set(i, r);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -39,22 +39,22 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
 // a tablet held sideways — the case that ran out of room
-await send('Emulation.setDeviceMetricsOverride', {
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: {
   width: 1180,
   height: 820,
   deviceScaleFactor: 2,
   mobile: true
-});
+} });
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) =>
-  (await send('Runtime.evaluate', { expression: x, returnByValue: true })).result?.value;
+  (await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true } })).result?.value;
 
 await asTablet(send);
-await send('Page.navigate', { url: roomUrl(url, room) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room }) } });
 await wait(6000);
 await assertPad(ev);
 
@@ -70,7 +70,7 @@ if (!box) {
 }
 
 let failures = 0;
-const say = (ok, line, detail = '') => {
+const say = ({ ok, line, detail = '' }) => {
   if (!ok) {failures++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${detail ? line.padEnd(46) : line} ${detail}`.trimEnd());
 };
@@ -82,8 +82,8 @@ const gutter = Math.round((box.vw - box.w) / 2);
 const below = Math.round(box.vh - (box.y + box.h));
 console.log(`side gutter     : ${gutter}px      below the board: ${below}px`);
 
-const pt = async (type, x, y) =>
-  send('Input.dispatchMouseEvent', {
+const pt = async ({ type, x, y }) =>
+  send({ method: 'Input.dispatchMouseEvent', params: {
     type,
     x,
     y,
@@ -92,18 +92,18 @@ const pt = async (type, x, y) =>
     clickCount: 1,
     pointerType: 'pen',
     force: 0.5
-  });
+  } });
 
 /** A horizontal stroke across the middle of the board at height `f` of it. */
 async function stroke(f) {
   const y = box.y + box.h * f;
   const x0 = box.x + box.w * 0.2;
-  await pt('mousePressed', x0, y);
+  await pt({ type: 'mousePressed', x: x0, y });
   for (let s = 1; s <= 12; s++) {
-    await pt('mouseMoved', x0 + (box.w * 0.5 * s) / 12, y);
+    await pt({ type: 'mouseMoved', x: x0 + (box.w * 0.5 * s) / 12, y });
     await wait(20);
   }
-  await pt('mouseReleased', x0 + box.w * 0.5, y);
+  await pt({ type: 'mouseReleased', x: x0 + box.w * 0.5, y });
   await wait(250);
 }
 
@@ -141,7 +141,7 @@ await wait(600);
 const before = { top: await ink(0.25), mid: await ink(0.5), bottom: await ink(0.75) };
 console.log('ink before      :', JSON.stringify(before));
 const landed = before.top > 200 && before.mid > 200 && before.bottom > 200;
-say(landed, 'all three strokes are on the board');
+say({ ok: landed, line: 'all three strokes are on the board' });
 
 // Everything below compares ink after against ink before, and on an empty board both
 // are zero — so "the swept stroke is gone" and "the other two are untouched" BOTH pass
@@ -162,35 +162,35 @@ await wait(400);
 const picked = await ev(
   `document.querySelector('button[data-active="true"][data-tool="erase"]') !== null`
 );
-say(picked === true, 'the rubber button is there and takes the selection');
+say({ ok: picked === true, line: 'the rubber button is there and takes the selection' });
 
 // sweep along the middle stroke
 {
   const y = box.y + box.h * 0.5;
-  await pt('mousePressed', box.x + box.w * 0.18, y);
+  await pt({ type: 'mousePressed', x: box.x + box.w * 0.18, y });
   for (let s = 1; s <= 20; s++) {
-    await pt('mouseMoved', box.x + box.w * (0.18 + (0.56 * s) / 20), y);
+    await pt({ type: 'mouseMoved', x: box.x + box.w * (0.18 + (0.56 * s) / 20), y });
     await wait(20);
   }
-  await pt('mouseReleased', box.x + box.w * 0.74, y);
+  await pt({ type: 'mouseReleased', x: box.x + box.w * 0.74, y });
 }
 await wait(1500);
 
 const after = { top: await ink(0.25), mid: await ink(0.5), bottom: await ink(0.75) };
 console.log('ink after       :', JSON.stringify(after));
-say(after.mid === 0, 'the swept stroke is gone');
+say({ ok: after.mid === 0, line: 'the swept stroke is gone' });
 // Not exact equality. The erase repaints the whole strip, and a redrawn antialiased
 // stroke does not land on bit-identical pixels: measured drift is 1-2 pixels in 17340,
 // which failed this check while the rubber was working perfectly. What the check is for
 // is a rubber that reaches strokes it was never swept over, and that empties a band or
 // takes a visible bite out of it — so 1% is both far above the noise and far below any
 // erase worth catching.
-const intact = (a, b) => Math.abs(a - b) <= Math.max(20, b * 0.01);
-say(
-  intact(after.top, before.top) && intact(after.bottom, before.bottom),
-  'the other two are untouched',
-  `top ${before.top}->${after.top}, bottom ${before.bottom}->${after.bottom}`
-);
+const intact = ({ got, was }) => Math.abs(got - was) <= Math.max(20, was * 0.01);
+say({
+  ok: intact({ got: after.top, was: before.top }) && intact({ got: after.bottom, was: before.bottom }),
+  line: 'the other two are untouched',
+  detail: `top ${before.top}->${after.top}, bottom ${before.bottom}->${after.bottom}`
+});
 
 // leave nothing behind in the database
 // The page asks with its own <dialog> now, so the answer is a click and not a stubbed

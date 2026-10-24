@@ -41,12 +41,12 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r, j) => {
     const i = ++id;
     pending.set(i, r);
-    setTimeout(() => j(new Error(`CDP timeout: ${m}`)), 20000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => j(new Error(`CDP timeout: ${method}`)), 20000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -56,32 +56,32 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
-  const r = await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true });
+  const r = await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } });
   if (r?.exceptionDetails) {throw new Error(r.exceptionDetails.text + ' :: ' + x);}
   return r.result?.value;
 };
 let bad = 0;
-const check = (name, ok, detail = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(56)} ${detail}`);
 };
 
-await send('Emulation.setDeviceMetricsOverride', {
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: {
   width: 1180,
   height: 820,
   deviceScaleFactor: 1,
   mobile: false
-});
-await send('Browser.grantPermissions', {
+} });
+await send({ method: 'Browser.grantPermissions', params: {
   permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite']
-}).catch(() => {});
+} }).catch(() => {});
 await asTablet(send);
-await send('Page.navigate', { url: roomUrl(url, room) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room }) } });
 await wait(6000);
 await assertPad(ev);
 
@@ -103,16 +103,16 @@ async function strokeAt(yFrac) {
   const x0 = rect.left + rect.width * 0.15;
   const x1 = rect.left + rect.width * 0.7;
   const was = await ink();
-  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 });
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 } });
   for (let i = 1; i <= 10; i++)
-    {await send('Input.dispatchMouseEvent', {
+    {await send({ method: 'Input.dispatchMouseEvent', params: {
       type: 'mouseMoved',
       x: x0 + ((x1 - x0) * i) / 10,
       y: y + Math.sin(i) * 10,
       button: 'left',
       buttons: 1
-    });}
-  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x1, y, button: 'left', buttons: 0, clickCount: 1 });
+    } });}
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mouseReleased', x: x1, y, button: 'left', buttons: 0, clickCount: 1 } });
   for (let i = 0; i < 40 && (await ink()) <= was; i++) {await wait(250);}
 }
 
@@ -143,8 +143,8 @@ const onPad = await ev(`(() => {
   });
 })()`);
 const pad = JSON.parse(onPad);
-check('tablet: no whole-board copy', pad.whole === 0, `${pad.whole} buttons`);
-check('tablet: no part copy either', pad.part === 0, `${pad.part} buttons`);
+check({ name: 'tablet: no whole-board copy', ok: pad.whole === 0, detail: `${pad.whole} buttons` });
+check({ name: 'tablet: no part copy either', ok: pad.part === 0, detail: `${pad.part} buttons` });
 
 // The copy lives where the pasting is, so the test does what a person does: write on the
 // pad, flip to the desktop view, copy there. The role buttons flip in place, so the room
@@ -218,15 +218,15 @@ async function openPicker() {
     })()`)
   );
   if (r.none) {return 'no picker';}
-  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: r.x, y: r.y, button: 'left', buttons: 1, clickCount: 1 });
-  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: r.x, y: r.y, button: 'left', buttons: 0, clickCount: 1 });
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mousePressed', x: r.x, y: r.y, button: 'left', buttons: 1, clickCount: 1 } });
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mouseReleased', x: r.x, y: r.y, button: 'left', buttons: 0, clickCount: 1 } });
   return 'opened';
 }
 
 /** Close whatever the click above opened, without choosing. */
 const escape = async () => {
-  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await send({ method: 'Input.dispatchKeyEvent', params: { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 } });
+  await send({ method: 'Input.dispatchKeyEvent', params: { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 } });
 };
 
 /** Where the board is looking, as the rail reports it: top / total, in whole percent. */
@@ -278,92 +278,92 @@ const grab = async () =>
   );
 
 // ---- the whole strip, unchanged -------------------------------------------
-check('the whole-board button is on the desktop', (await clickText('העתק כתמונה')) === 'clicked');
+check({ name: 'the whole-board button is on the desktop', ok: (await clickText('העתק כתמונה')) === 'clicked' });
 await wait(1500);
 const whole = await grab();
-check('the whole board is on the clipboard', !whole.error, whole.error ?? `${whole.w}x${whole.h}`);
-check(
-  'and it is still the whole strip, taller than a page',
-  !whole.error && whole.h > whole.w * PAGE + 1,
-  `${whole.h}px tall; a page would be ${Math.round(whole.w * PAGE)}`
-);
+check({ name: 'the whole board is on the clipboard', ok: !whole.error, detail: whole.error ?? `${whole.w}x${whole.h}` });
+check({
+  name: 'and it is still the whole strip, taller than a page',
+  ok: !whole.error && whole.h > whole.w * PAGE + 1,
+  detail: `${whole.h}px tall; a page would be ${Math.round(whole.w * PAGE)}`
+});
 
 // ---- the parts -------------------------------------------------------------
 const first = await label();
-check('the part button appears once the strip is long', first !== null, `label "${first}"`);
+check({ name: 'the part button appears once the strip is long', ok: first !== null, detail: `label "${first}"` });
 const parts = Number(String(first).split('/')[1] || 0);
-check('it says how many parts there are', parts >= 2, `${parts} parts`);
+check({ name: 'it says how many parts there are', ok: parts >= 2, detail: `${parts} parts` });
 
 // Every part is one page, so the count follows from the height alone. Restated from
 // ink.ts rather than imported, like `PAGE` in scrolltest.
 const step = (PART - PART_OVERLAP) * W;
 const want = whole.h <= PART * W + 1 ? 1 : Math.ceil((whole.h - PART * W) / step) + 1;
-check('the count covers the strip', parts === want, `${parts}, expected ${want}`);
+check({ name: 'the count covers the strip', ok: parts === want, detail: `${parts}, expected ${want}` });
 
 // Start the walk at part one, explicitly. The picker no longer holds a count of its own
 // that begins at zero — it reports which part the BOARD is on, and the board is still
 // where the writing left it, at the bottom of the strip. Showing the last part there is
 // correct, so this is the test arriving at the first part rather than assuming it.
-check('the walk can start at part one', (await choose(0)) === 'set');
+check({ name: 'the walk can start at part one', ok: (await choose(0)) === 'set' });
 await wait(600);
 
 const shots = [];
 for (let i = 1; i <= parts; i++) {
   const at = await label();
-  check(`part ${i}: the button points at it`, at === `${i}/${parts}`, `says "${at}"`);
+  check({ name: `part ${i}: the button points at it`, ok: at === `${i}/${parts}`, detail: `says "${at}"` });
   await clickText('העתק חלק');
   await wait(1400);
   const g = await grab();
   shots.push(g);
-  check(
-    `part ${i}: two pages on the clipboard`,
-    !g.error && g.w === W && g.h === Math.round(PART * W),
-    g.error ?? `${g.w}x${g.h}`
-  );
-  check(`part ${i}: it is not blank`, !g.error && g.ink > 200, `${g.ink ?? '-'} ink pixels`);
+  check({
+    name: `part ${i}: two pages on the clipboard`,
+    ok: !g.error && g.w === W && g.h === Math.round(PART * W),
+    detail: g.error ?? `${g.w}x${g.h}`
+  });
+  check({ name: `part ${i}: it is not blank`, ok: !g.error && g.ink > 200, detail: `${g.ink ?? '-'} ink pixels` });
 }
 
-check(
-  'the parts are different images',
-  new Set(shots.map((s) => s.sig)).size === parts,
-  `${new Set(shots.map((s) => s.sig)).size} distinct of ${parts}`
-);
+check({
+  name: 'the parts are different images',
+  ok: new Set(shots.map((s) => s.sig)).size === parts,
+  detail: `${new Set(shots.map((s) => s.sig)).size} distinct of ${parts}`
+});
 // Both ends pinned, and they are pinned differently on purpose. Part one starts at the
 // very top, so it is rendered at exactly the same offset as the whole export and its top
 // 60 rows are the SAME pixels — that one is exact. The last part is rendered at a
 // fractional offset, so its bottom rows are the same ink re-antialiased; a few percent of
 // drift there is the renderer, not a missing part.
-check(
-  'part one starts where the whole export starts',
-  whole.head > 200 && Math.abs(shots[0].head - whole.head) <= 2,
-  `top band: part ${shots[0].head} vs whole ${whole.head}`
-);
-check(
-  'the last part ends where the whole export ends',
-  whole.band > 0 && Math.abs(shots[parts - 1].band - whole.band) <= Math.max(20, whole.band * 0.15),
-  `bottom band: part ${shots[parts - 1].band} vs whole ${whole.band}`
-);
+check({
+  name: 'part one starts where the whole export starts',
+  ok: whole.head > 200 && Math.abs(shots[0].head - whole.head) <= 2,
+  detail: `top band: part ${shots[0].head} vs whole ${whole.head}`
+});
+check({
+  name: 'the last part ends where the whole export ends',
+  ok: whole.band > 0 && Math.abs(shots[parts - 1].band - whole.band) <= Math.max(20, whole.band * 0.15),
+  detail: `bottom band: part ${shots[parts - 1].band} vs whole ${whole.band}`
+});
 // Avi (20.09.2026): "אני בוחר בחלק האחרון ואז אני מעתיק את החלק הזה הקנבס גולל פתאום
 // לטופ". The counter used to wrap here, which was free while it was only a number — but
 // the picker moves the BOARD now, and wrapping threw the reader to the top of the strip
 // exactly when they copied the end of their working. The walk stops at the end.
-check('the walk stops at the last part', (await label()) === `${parts}/${parts}`, await label());
+check({ name: 'the walk stops at the last part', ok: (await label()) === `${parts}/${parts}`, detail: await label() });
 // The label alone would not have caught what Avi saw: it is the BOARD that was thrown to
 // the top, and a picker reading 1/N is only the symptom of it. 0% is the top of the strip.
-check('and the board did not jump to the top', (await at()) > 0, `rail at ${await at()}%`);
+check({ name: 'and the board did not jump to the top', ok: (await at()) > 0, detail: `rail at ${await at()}%` });
 
 // Jumping, which is the reason the counter is a picker: Avi's own board is 18 parts, and
 // stepping to the one he wants would be seventeen presses.
-check('you can jump straight to a part', (await choose(parts - 1)) === 'set');
-check('and the picker went there', (await label()) === `${parts}/${parts}`, await label());
+check({ name: 'you can jump straight to a part', ok: (await choose(parts - 1)) === 'set' });
+check({ name: 'and the picker went there', ok: (await label()) === `${parts}/${parts}`, detail: await label() });
 await clickText('העתק חלק');
 await wait(1400);
 const jumped = await grab();
-check(
-  'copying after a jump copies THAT part',
-  !jumped.error && jumped.sig === shots[parts - 1].sig,
-  jumped.error ?? `sig ${jumped.sig} vs ${shots[parts - 1].sig}`
-);
+check({
+  name: 'copying after a jump copies THAT part',
+  ok: !jumped.error && jumped.sig === shots[parts - 1].sig,
+  detail: jumped.error ?? `sig ${jumped.sig} vs ${shots[parts - 1].sig}`
+});
 
 // Avi (19.09.2026): "בחרתי אופציה אחרת ואז גללתי ואז ב-select שוב בחרתי, זה צריך לגלול
 // לנקודה ההיא שוב פעם. כרגע זה לא גולל". Picking the part that is already picked fires no
@@ -375,46 +375,46 @@ const parkedLabel = await label();
 await wheelUp();
 await wait(500);
 const wandered = await at();
-check('scrolling moves the board off the part', wandered < parked - 1, `${parked}% -> ${wandered}%`);
+check({ name: 'scrolling moves the board off the part', ok: wandered < parked - 1, detail: `${parked}% -> ${wandered}%` });
 // Avi (19.09.2026): "כשאני גולל בקנבס בדסקטופ, ה‑select של החלק הנוכחי להעתיק כתמונה
 // צריך להתעדכן בהתאם". The picker is not a counter the toolbar keeps; it says which part
 // is on the screen. Scroll off the part and it has to say so, or "העתק חלק" copies
 // something other than what is being looked at.
 const wanderedLabel = await label();
-check(
-  'and the picker goes with it',
-  wanderedLabel !== parkedLabel,
-  `${parkedLabel} -> ${wanderedLabel}`
-);
+check({
+  name: 'and the picker goes with it',
+  ok: wanderedLabel !== parkedLabel,
+  detail: `${parkedLabel} -> ${wanderedLabel}`
+});
 // Opening the list is not choosing, and must not move anything by itself.
-check('opening the picker alone moves nothing', (await openPicker()) === 'opened');
+check({ name: 'opening the picker alone moves nothing', ok: (await openPicker()) === 'opened' });
 await wait(500);
-check('and the board stayed where it was', (await at()) === wandered, `${await at()}% vs ${wandered}%`);
+check({ name: 'and the board stayed where it was', ok: (await at()) === wandered, detail: `${await at()}% vs ${wandered}%` });
 await escape();
 await wait(300);
-check('re-picking the same option', (await repick(parts - 1)) === 'repicked');
+check({ name: 're-picking the same option', ok: (await repick(parts - 1)) === 'repicked' });
 await wait(500);
 const back = await at();
-check(
-  'picking the SAME part brings it back',
-  Math.abs(back - parked) <= 1,
-  `${wandered}% -> ${back}%, wanted ${parked}%`
-);
+check({
+  name: 'picking the SAME part brings it back',
+  ok: Math.abs(back - parked) <= 1,
+  detail: `${wandered}% -> ${back}%, wanted ${parked}%`
+});
 // The round trip closes: the board went to the part's own top, and reading that position
 // back through the same map lands on the part that was picked. If those were two maps
 // instead of one, this is where they would disagree.
-check(
-  'and the picker reads that part back',
-  (await label()) === parkedLabel,
-  `${await label()}, wanted ${parkedLabel}`
-);
+check({
+  name: 'and the picker reads that part back',
+  ok: (await label()) === parkedLabel,
+  detail: `${await label()}, wanted ${parkedLabel}`
+});
 
 // leave nothing behind in the database
 await ev(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'נקה')?.click()`);
 for (let i = 0; i < 20 && !(await ev(`!!document.querySelector('dialog.ask[open]')`)); i++) {await wait(100);}
 await ev(`document.querySelector('dialog.ask[open] [data-ask="ok"]')?.click()`);
 await wait(1500);
-check('a cleared board has nothing to split', (await label()) === null, String(await label()));
+check({ name: 'a cleared board has nothing to split', ok: (await label()) === null, detail: String(await label()) });
 
 console.log(bad ? `\n${bad} FAILED` : '\nthe long board copies in pages');
 ws.close();

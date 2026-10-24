@@ -18,18 +18,18 @@ const home = target.url;
 const ws = new WebSocket(target.webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
-  new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method: m, params: p })); });
+const send = ({ method, params = {} }) =>
+  new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
   if (m.id && pending.has(m.id)) { pending.get(m.id)(m.result); pending.delete(m.id); }
 };
 await new Promise((r) => (ws.onopen = r));
 const ev = async (x) =>
-  (await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true })).result?.value;
+  (await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } })).result?.value;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-await send('Page.navigate', { url: roomUrl(home, freshRoom()) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url: home, room: freshRoom() }) } });
 await wait(6000);
 
 /** One stroke of `n` moves through the real handlers, each move timed, a frame between
@@ -68,5 +68,5 @@ for (const n of [40, 120, 300]) {
   await wait(1500);
 }
 
-await send('Page.navigate', { url: home });
+await send({ method: 'Page.navigate', params: { url: home } });
 ws.close();

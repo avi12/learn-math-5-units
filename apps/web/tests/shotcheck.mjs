@@ -35,12 +35,12 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r, j) => {
     const i = ++id;
     pending.set(i, r);
-    setTimeout(() => j(new Error('CDP timeout: ' + m)), 20000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => j(new Error('CDP timeout: ' + method)), 20000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -50,17 +50,17 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) =>
-  (await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true }))
+  (await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } }))
     .result?.value;
 
 let bad = 0;
-const check = (n, ok, d = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
-  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(56)} ${d}`);
+  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(56)} ${detail}`);
 };
 
 const copy = () =>
@@ -93,16 +93,16 @@ const state = () =>
 
 async function run(reduce) {
   const label = reduce ? 'reduced motion' : 'full motion';
-  await send('Emulation.setEmulatedMedia', {
+  await send({ method: 'Emulation.setEmulatedMedia', params: {
     features: [{ name: 'prefers-reduced-motion', value: reduce ? 'reduce' : 'no-preference' }]
-  });
-  await send('Page.navigate', { url: 'about:blank' });
+  } });
+  await send({ method: 'Page.navigate', params: { url: 'about:blank' } });
   await wait(300);
-  await send('Page.navigate', { url });
+  await send({ method: 'Page.navigate', params: { url } });
   await wait(6000);
 
   const before = JSON.parse(await state());
-  check(`${label}: nothing over the board before the press`, before.present === false);
+  check({ name: `${label}: nothing over the board before the press`, ok: before.present === false });
 
   await copy();
   await wait(90);
@@ -110,26 +110,26 @@ async function run(reduce) {
   await wait(110);
   const b = JSON.parse(await state());
 
-  check(`${label}: the press is answered on the board`, a.present === true);
-  check(`${label}: and it cannot be clicked`, a.events === 'none', a.events);
-  check(
-    `${label}: the board did not grow a scrollbar`,
-    (a.overflow ?? 0) <= 1,
-    `${a.overflow}px of overflow`
-  );
+  check({ name: `${label}: the press is answered on the board`, ok: a.present === true });
+  check({ name: `${label}: and it cannot be clicked`, ok: a.events === 'none', detail: a.events });
+  check({
+    name: `${label}: the board did not grow a scrollbar`,
+    ok: (a.overflow ?? 0) <= 1,
+    detail: `${a.overflow}px of overflow`
+  });
 
   if (reduce) {
     // The viewfinder is not motion, so it stays; the two moving parts are gone entirely.
-    check(`${label}: the scanline does not run at all`, a.scanShown === 'none', a.scanShown);
-    check(`${label}: but the viewfinder still shows`, a.opacity > 0.9, `opacity ${a.opacity}`);
+    check({ name: `${label}: the scanline does not run at all`, ok: a.scanShown === 'none', detail: a.scanShown });
+    check({ name: `${label}: but the viewfinder still shows`, ok: a.opacity > 0.9, detail: `opacity ${a.opacity}` });
   } else {
-    check(`${label}: the scanline animates`, a.scanDur >= 0.05, `${a.scanDur}s`);
+    check({ name: `${label}: the scanline animates`, ok: a.scanDur >= 0.05, detail: `${a.scanDur}s` });
     // Two samples, because one proves a position and only two prove travel.
-    check(
-      `${label}: and it is really travelling`,
-      a.ty !== null && b.ty !== null && b.ty > a.ty + 1,
-      `y ${Math.round(a.ty)} → ${Math.round(b.ty)}`
-    );
+    check({
+      name: `${label}: and it is really travelling`,
+      ok: a.ty !== null && b.ty !== null && b.ty > a.ty + 1,
+      detail: `y ${Math.round(a.ty)} → ${Math.round(b.ty)}`
+    });
   }
 
   // The one that matters most: it goes, and it does not blink back on the way out.
@@ -137,24 +137,24 @@ async function run(reduce) {
   const after = JSON.parse(await state());
   // Gone means invisible: the overlay stays mounted (CSS ends it at opacity 0, no timer)
   // until the next press replaces it.
-  check(
-    `${label}: and it is gone afterwards, with no leftover`,
-    after.present === false || after.opacity === 0,
-    after.present ? `opacity ${after.opacity}` : 'unmounted'
-  );
+  check({
+    name: `${label}: and it is gone afterwards, with no leftover`,
+    ok: after.present === false || after.opacity === 0,
+    detail: after.present ? `opacity ${after.opacity}` : 'unmounted'
+  });
 
   // A second press has to replay it. A boolean flag would already be set and nothing
   // would restart — this is the whole reason the trigger is a counter.
   await copy();
   await wait(60);
   const again = JSON.parse(await state());
-  check(`${label}: pressing again replays it`, again.present === true);
+  check({ name: `${label}: pressing again replays it`, ok: again.present === true });
 
   // And two presses in a row are one gesture, not two overlays stacked on each other.
   await copy();
   await wait(60);
   const twice = JSON.parse(await state());
-  check(`${label}: pressing twice leaves exactly one`, twice.count === 1, `${twice.count}`);
+  check({ name: `${label}: pressing twice leaves exactly one`, ok: twice.count === 1, detail: `${twice.count}` });
   await wait(900);
 }
 
@@ -164,13 +164,13 @@ await run(true);
 // Desktop only. `asTablet` is how every other test gets onto the writing board — touch
 // emulation, and the app's own `pointer: coarse` guess does the rest — so this asks the
 // question through the same door the tablet comes in, not through `?role=pad`.
-await send('Emulation.setEmulatedMedia', {
+await send({ method: 'Emulation.setEmulatedMedia', params: {
   features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }]
-});
-await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-await send('Page.navigate', { url: 'about:blank' });
+} });
+await send({ method: 'Emulation.setTouchEmulationEnabled', params: { enabled: true, maxTouchPoints: 5 } });
+await send({ method: 'Page.navigate', params: { url: 'about:blank' } });
 await wait(300);
-await send('Page.navigate', { url });
+await send({ method: 'Page.navigate', params: { url } });
 await wait(6000);
 const onPad = JSON.parse(
   await ev(`(() => {
@@ -180,10 +180,10 @@ const onPad = JSON.parse(
     return JSON.stringify({ role, copy: has('העתק כתמונה'), undo: has('בטל אחרון') });
   })()`)
 );
-check('the page is on the writing board', onPad.role === 'true', `role active: ${onPad.role}`);
-check('tablet: no copy button', onPad.copy === false);
+check({ name: 'the page is on the writing board', ok: onPad.role === 'true', detail: `role active: ${onPad.role}` });
+check({ name: 'tablet: no copy button', ok: onPad.copy === false });
 // The row it used to sit in is still there — this is one button gone, not a toolbar.
-check('tablet: the rest of the toolbar stayed', onPad.undo === true);
+check({ name: 'tablet: the rest of the toolbar stayed', ok: onPad.undo === true });
 
 ws.close();
 console.log(bad ? `\n${bad} FAILED` : '\nthe board answers the copy, and clears itself');

@@ -71,7 +71,7 @@ function decodePng(buf) {
       px[y * stride + x] = v & 255;
     }
   }
-  return { width, height, lum(x, y) {
+  return { width, height, lum({ x, y }) {
     const i = y * stride + x * channels;
     return 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
   } };
@@ -90,42 +90,42 @@ ws.onmessage = (m) => {
     waiting.delete(msg.id);
   }
 };
-function send(method, params = {}) {
+function send({ method, params = {} }) {
   const id = ++seq;
   ws.send(JSON.stringify({ id, method, params }));
   return new Promise((r) => waiting.set(id, r));
 }
 async function ev(expr) {
-  const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
+  const r = await send({ method: 'Runtime.evaluate', params: { expression: expr, returnByValue: true, awaitPromise: true } });
   return r.result?.result?.value;
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let failed = 0;
-function check(name, ok, detail = '') {
+function check({ name, ok, detail = '' }) {
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(56)} ${detail}`);
   if (!ok) {
     failed++;
   }
 }
 
-async function drag(x0, y0, x1, y1) {
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0, y: y0 });
-  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y: y0, button: 'left', buttons: 1, clickCount: 1 });
+async function drag({ x0, y0, x1, y1 }) {
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mouseMoved', x: x0, y: y0 } });
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mousePressed', x: x0, y: y0, button: 'left', buttons: 1, clickCount: 1 } });
   for (let i = 1; i <= 8; i++) {
     const t = i / 8;
-    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t, button: 'left', buttons: 1 });
+    await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mouseMoved', x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t, button: 'left', buttons: 1 } });
   }
-  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x1, y: y1, button: 'left', buttons: 0, clickCount: 1 });
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mouseReleased', x: x1, y: y1, button: 'left', buttons: 0, clickCount: 1 } });
 }
 
-/** The darkness-weighted centre of the pixels within `r` of `guess` (in scanline
+/** The darkness-weighted centre of the pixels within `radius` of `guess` (in scanline
  *  indices): a threshold run is quantised to half a pixel and reads an antialiased edge as
  *  a whole pixel, which made a line exactly on the grid look a pixel off. */
-function centroid(values, guess, r, bg) {
+function centroid({ values, guess, radius, bg }) {
   let sum = 0;
   let mass = 0;
-  for (let i = Math.max(0, Math.round(guess - r)); i <= Math.min(values.length - 1, Math.round(guess + r)); i++) {
+  for (let i = Math.max(0, Math.round(guess - radius)); i <= Math.min(values.length - 1, Math.round(guess + radius)); i++) {
     const d = Math.max(0, bg - values[i]);
     sum += d * (i + 0.5);
     mass += d;
@@ -134,7 +134,7 @@ function centroid(values, guess, r, bg) {
 }
 
 /** Centre of each run of rows (or columns) darker than `below` along a scanline. */
-function runs(values, below) {
+function runs({ values, below }) {
   const out = [];
   let start = -1;
   values.forEach((v, i) => {
@@ -159,10 +159,10 @@ async function setScale(scale) {
 }
 
 for (const [dpr, scale] of [[1, 1], [2, 1], [1, 2.3], [2, 2.3]]) {
-  await send('Emulation.setDeviceMetricsOverride', { width: 1000, height: 1500, deviceScaleFactor: dpr, mobile: false });
+  await send({ method: 'Emulation.setDeviceMetricsOverride', params: { width: 1000, height: 1500, deviceScaleFactor: dpr, mobile: false } });
   await asTablet(send);
   const room = freshRoom();
-  await send('Page.navigate', { url: roomUrl(`${url}?role=pad`, room) });
+  await send({ method: 'Page.navigate', params: { url: roomUrl({ url: `${url}?role=pad`, room }) } });
   await sleep(2500);
   await assertPad(ev);
   await setScale(scale);
@@ -175,7 +175,7 @@ for (const [dpr, scale] of [[1, 1], [2, 1], [1, 2.3], [2, 2.3]]) {
     return { left: r.left + c.clientLeft, top: r.top + c.clientTop, w: c.clientWidth, h: c.clientHeight,
              snap: [...document.querySelectorAll('.btn')].find((b) => b.textContent.includes('הצמד'))?.dataset.active };
   })()`);
-  check(`dpr ${dpr} ×${scale}: snapping is on`, box.snap === 'true', box.snap);
+  check({ name: `dpr ${dpr} ×${scale}: snapping is on`, ok: box.snap === 'true', detail: box.snap });
   const cell = (box.w / 40) * scale;
   // A horizontal line near the top and one near the bottom, a vertical near each side.
   // Pressed off-grid on purpose (a third of a cell), so only the snap can put them on.
@@ -190,11 +190,11 @@ for (const [dpr, scale] of [[1, 1], [2, 1], [1, 2.3], [2, 2.3]]) {
     { dir: 'v', a: [box.left + box.w - near(3), box.top + box.h - near(12)], b: [box.left + box.w - near(3), box.top + box.h - near(5)] }
   ];
   for (const l of lines) {
-    await drag(l.a[0], l.a[1], l.b[0], l.b[1]);
+    await drag({ x0: l.a[0], y0: l.a[1], x1: l.b[0], y1: l.b[1] });
     await sleep(150);
   }
   await sleep(600);
-  const shot = await send('Page.captureScreenshot', { format: 'png' });
+  const shot = await send({ method: 'Page.captureScreenshot', params: { format: 'png' } });
   const img = decodePng(Buffer.from(shot.result.data, 'base64'));
   for (const [i, l] of lines.entries()) {
     const horizontal = l.dir === 'h';
@@ -205,10 +205,10 @@ for (const [dpr, scale] of [[1, 1], [2, 1], [1, 2.3], [2, 2.3]]) {
     const to = Math.round((across + 2 * cell) * dpr);
     const vals = [];
     for (let p = from; p <= to; p++) {
-      vals.push(horizontal ? img.lum(Math.round(mid * dpr), p) : img.lum(p, Math.round(mid * dpr)));
+      vals.push(horizontal ? img.lum({ x: Math.round(mid * dpr), y: p }) : img.lum({ x: p, y: Math.round(mid * dpr) }));
     }
     const ibg = Math.max(...vals);
-    const ink = runs(vals, 110).map((v) => (centroid(vals, v, 3 * dpr, ibg) + from) / dpr);
+    const ink = runs({ values: vals, below: 110 }).map((v) => (centroid({ values: vals, guess: v, radius: 3 * dpr, bg: ibg }) + from) / dpr);
     // The grid on the same axis, read past the end of the line, in the middle of a square
     // — so neither the ink nor a crossing grid line is on that scanline.
     // Before the line's start rather than past its end: past the end of a line near the
@@ -218,17 +218,17 @@ for (const [dpr, scale] of [[1, 1], [2, 1], [1, 2.3], [2, 2.3]]) {
     const beside = (Math.floor((start - origin) / cell) - 0.5) * cell + origin;
     const gvals = [];
     for (let p = from; p <= to; p++) {
-      gvals.push(horizontal ? img.lum(Math.round(beside * dpr), p) : img.lum(p, Math.round(beside * dpr)));
+      gvals.push(horizontal ? img.lum({ x: Math.round(beside * dpr), y: p }) : img.lum({ x: p, y: Math.round(beside * dpr) }));
     }
     const bg = Math.max(...gvals);
-    const grid = runs(gvals, bg - 6).map((v) => (centroid(gvals, v, 1.5 * dpr, bg) + from) / dpr);
+    const grid = runs({ values: gvals, below: bg - 6 }).map((v) => (centroid({ values: gvals, guess: v, radius: 1.5 * dpr, bg }) + from) / dpr);
     // the ink run nearest to where the pen pressed — the board's border and its scroll rail
     // are dark too, and sit on the same scanline near the edges
     const centre = ink.reduce((b, v) => (Math.abs(v - across) < Math.abs(b - across) ? v : b), Infinity);
     const nearest = grid.reduce((b, g) => (Math.abs(g - centre) < Math.abs(b - centre) ? g : b), Infinity);
     const gap = Math.abs(nearest - centre);
-    check(`dpr ${dpr} ×${scale}: line ${i + 1} (${horizontal ? 'horizontal' : 'vertical'}) sits on a grid line`,
-      Number.isFinite(centre) && gap <= 0.5, `ink ${centre.toFixed(2)}px, grid ${nearest.toFixed(2)}px, off ${gap.toFixed(2)}px`);
+    check({ name: `dpr ${dpr} ×${scale}: line ${i + 1} (${horizontal ? 'horizontal' : 'vertical'}) sits on a grid line`,
+      ok: Number.isFinite(centre) && gap <= 0.5, detail: `ink ${centre.toFixed(2)}px, grid ${nearest.toFixed(2)}px, off ${gap.toFixed(2)}px` });
   }
 
   if (scale !== 1) {
@@ -248,23 +248,23 @@ for (const [dpr, scale] of [[1, 1], [2, 1], [1, 2.3], [2, 2.3]]) {
     for (let i = 0; i < 40 && ((await stored('grid')) !== scale || (await stored('size')) !== 11); i++) {
       await sleep(250);
     }
-    check(`dpr ${dpr} ×${scale}: the room holds the square size`, (await stored('grid')) === scale);
-    check(`dpr ${dpr} ×${scale}: and the thickness`, (await stored('size')) === 11);
+    check({ name: `dpr ${dpr} ×${scale}: the room holds the square size`, ok: (await stored('grid')) === scale });
+    check({ name: `dpr ${dpr} ×${scale}: and the thickness`, ok: (await stored('size')) === 11 });
     // The mirror, on another "device": nothing remembered locally, so only the room can
     // tell it the size.
     await ev(`localStorage.removeItem('avi-math-grid'), localStorage.removeItem('avi-math-size'), 1`);
-    await send('Page.navigate', { url: roomUrl(`${url}?role=board`, room) });
+    await send({ method: 'Page.navigate', params: { url: roomUrl({ url: `${url}?role=board`, room }) } });
     await sleep(3500);
     const mirror = await ev(`(() => {
       const c = document.querySelector('canvas');
       return parseFloat(c.style.getPropertyValue('--grid-cell')) / c.clientWidth * 40;
     })()`);
-    check(`dpr ${dpr} ×${scale}: the mirror draws the room's squares`, Math.abs(mirror - scale) < 0.01, `×${mirror?.toFixed(3)}`);
+    check({ name: `dpr ${dpr} ×${scale}: the mirror draws the room's squares`, ok: Math.abs(mirror - scale) < 0.01, detail: `×${mirror?.toFixed(3)}` });
     await ev(`localStorage.removeItem('avi-math-size'), 1`);
-    await send('Page.navigate', { url: roomUrl(`${url}?role=pad`, room) });
+    await send({ method: 'Page.navigate', params: { url: roomUrl({ url: `${url}?role=pad`, room }) } });
     await sleep(3500);
     const thick = await ev(`[...document.querySelectorAll('.tools label')].find((l) => /עובי|גודל המחק/.test(l.textContent))?.querySelector('input').value`);
-    check(`dpr ${dpr} ×${scale}: a fresh pad picks the room's thickness`, thick === '11', thick);
+    check({ name: `dpr ${dpr} ×${scale}: a fresh pad picks the room's thickness`, ok: thick === '11', detail: thick });
   }
 }
 

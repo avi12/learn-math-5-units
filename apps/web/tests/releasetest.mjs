@@ -51,12 +51,12 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r, j) => {
     const i = ++id;
     pending.set(i, r);
-    setTimeout(() => j(new Error('CDP timeout: ' + m)), 20000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => j(new Error('CDP timeout: ' + method)), 20000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 
 /** What hosting is currently pretending to serve, and what it was asked with. */
@@ -73,7 +73,7 @@ ws.onmessage = (e) => {
   if (m.method === 'Fetch.requestPaused') {
     const { requestId, request } = m.params;
     asked.push(request);
-    void send('Fetch.fulfillRequest', {
+    void send({ method: 'Fetch.fulfillRequest', params: {
       requestId,
       responseCode: 200,
       responseHeaders: [
@@ -81,38 +81,38 @@ ws.onmessage = (e) => {
         { name: 'cache-control', value: 'no-store' }
       ],
       body: Buffer.from(serve, 'utf-8').toString('base64')
-    });
+    } });
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
-await send('Fetch.enable', {
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
+await send({ method: 'Fetch.enable', params: {
   patterns: [{ urlPattern: '*build-id.txt*', requestStage: 'Request' }]
-});
+} });
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
-  const r = await send('Runtime.evaluate', { expression: x, returnByValue: true });
+  const r = await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true } });
   return r?.exceptionDetails ? 'EXC ' + r.exceptionDetails.text : r.result?.value;
 };
 
 let bad = 0;
-const check = (name, ok, detail = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(50)} ${detail}`.trimEnd());
 };
 
 console.log('      bundle build:', OWN);
 
-await send('Emulation.setDeviceMetricsOverride', {
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: {
   width: 1180,
   height: 820,
   deviceScaleFactor: 1,
   mobile: false
-});
+} });
 await asTablet(send);
-await send('Page.navigate', { url });
+await send({ method: 'Page.navigate', params: { url } });
 await wait(9000);
 await assertPad(ev);
 // Belt as well as braces on the counter above: a tab reused from an earlier run carries
@@ -148,52 +148,52 @@ async function poke(budgetMs = 12000) {
 await mark();
 await poke();
 await poke();
-check('a tab told its own build sits still', await alive(), 'no reload');
+check({ name: 'a tab told its own build sits still', ok: await alive(), detail: 'no reload' });
 
 const seen = asked.length;
-check('and it did ask', seen > 0, `${seen} request(s) to build-id.txt`);
+check({ name: 'and it did ask', ok: seen > 0, detail: `${seen} request(s) to build-id.txt` });
 
 // ---- 5. the answer cannot come out of a cache ------------------------------
 const last = asked[asked.length - 1];
-check(
-  'the request is unanswerable from a cache',
-  /[?&]t=\d+/.test(last.url) || last.headers?.['Cache-Control'] === 'no-store',
-  last.url.replace(/^.*\/build-id/, 'build-id')
-);
+check({
+  name: 'the request is unanswerable from a cache',
+  ok: /[?&]t=\d+/.test(last.url) || last.headers?.['Cache-Control'] === 'no-store',
+  detail: last.url.replace(/^.*\/build-id/, 'build-id')
+});
 
 // ---- 2. a newer build, with the pen down -----------------------------------
 const rect = JSON.parse(
   await ev('JSON.stringify(document.querySelector("canvas").getBoundingClientRect())')
 );
 const at = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-await send('Input.dispatchMouseEvent', {
+await send({ method: 'Input.dispatchMouseEvent', params: {
   ...at,
   type: 'mousePressed',
   button: 'left',
   buttons: 1,
   clickCount: 1,
   pointerType: 'pen'
-});
+} });
 
 serve = NEXT;
 const landed = await poke();
-check('the tab asks hosting when it wakes', landed, `served ${NEXT}`);
+check({ name: 'the tab asks hosting when it wakes', ok: landed, detail: `served ${NEXT}` });
 await wait(6000);
 
-check('the pen on the glass holds the page', await alive(), 'still here with the pen down');
-check('but the tab has been told', (await toast()).includes('גרסה חדשה'), await toast());
+check({ name: 'the pen on the glass holds the page', ok: await alive(), detail: 'still here with the pen down' });
+check({ name: 'but the tab has been told', ok: (await toast()).includes('גרסה חדשה'), detail: await toast() });
 
 // ---- 3. pen up, and it goes ------------------------------------------------
-await send('Input.dispatchMouseEvent', {
+await send({ method: 'Input.dispatchMouseEvent', params: {
   ...at,
   type: 'mouseReleased',
   button: 'left',
   buttons: 0,
   clickCount: 1,
   pointerType: 'pen'
-});
+} });
 await wait(9000);
-check('pen up, and the tab reloads itself', !(await alive()), 'the marker is gone');
+check({ name: 'pen up, and the tab reloads itself', ok: !(await alive()), detail: 'the marker is gone' });
 
 // ---- 4. it does not spin ---------------------------------------------------
 // The tab came back on the same bundle — exactly what a CDN edge serving the previous
@@ -211,12 +211,12 @@ if (!survivedSecond) {
 }
 await poke();
 await wait(9000);
-check('it stops after two tries instead of spinning', await alive(), 'the marker survived');
-check(
-  'and says the browser is serving an old one',
-  (await toast()).includes('ידנית'),
-  await toast()
-);
+check({ name: 'it stops after two tries instead of spinning', ok: await alive(), detail: 'the marker survived' });
+check({
+  name: 'and says the browser is serving an old one',
+  ok: (await toast()).includes('ידנית'),
+  detail: await toast()
+});
 
 console.log(bad ? `\n${bad} FAILED` : '\nall checks passed');
 ws.close();

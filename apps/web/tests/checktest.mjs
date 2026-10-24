@@ -19,12 +19,12 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r, j) => {
     const i = ++id;
     pending.set(i, r);
-    setTimeout(() => j(new Error('CDP timeout: ' + m)), 25000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => j(new Error('CDP timeout: ' + method)), 25000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -34,27 +34,27 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
-await send('Browser.grantPermissions', {
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
+await send({ method: 'Browser.grantPermissions', params: {
   origin: new URL(url).origin,
   permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite']
-}).catch(() => {});
+} }).catch(() => {});
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
-  const r = await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true });
+  const r = await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } });
   return r?.exceptionDetails ? 'EXC ' + r.exceptionDetails.text : r.result?.value;
 };
 
 let bad = 0;
-const check = (name, ok, detail = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(50)} ${detail}`);
 };
 
-await send('Emulation.setDeviceMetricsOverride', { width: 1180, height: 900, deviceScaleFactor: 1, mobile: false });
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: { width: 1180, height: 900, deviceScaleFactor: 1, mobile: false } });
 await asTablet(send);
-await send('Page.navigate', { url });
+await send({ method: 'Page.navigate', params: { url } });
 await wait(7000);
 await assertPad(ev);
 
@@ -64,7 +64,7 @@ await assertPad(ev);
 // exercise written from an exam question (questioncheck.mjs tests that half). Inside a
 // chapter it still mirrors the workbook: a group per rung, the rung's own pips, and the
 // chapter's way out at the end.
-check('the picker is on the pad', (await ev(`document.querySelectorAll('.question .topic select').length >= 2`)) === true);
+check({ name: 'the picker is on the pad', ok: (await ev(`document.querySelectorAll('.question .topic select').length >= 2`)) === true });
 const shape = JSON.parse(
   await ev(`(() => {
     const [chapter, s] = document.querySelectorAll('.question .topic select');
@@ -83,30 +83,30 @@ const shape = JSON.parse(
     });
   })()`)
 );
-check('the workbook’s ten chapters, and nothing else', shape.chapters === 10, `${shape.chapters} chapters`);
-check('a group per rung inside the chapter', shape.groups === 3, `${shape.groups} groups in ${shape.chapter}`);
-check('every rung says which rung it is', shape.rungHeads === 3, `${shape.rungHeads} rung headings`);
+check({ name: 'the workbook’s ten chapters, and nothing else', ok: shape.chapters === 10, detail: `${shape.chapters} chapters` });
+check({ name: 'a group per rung inside the chapter', ok: shape.groups === 3, detail: `${shape.groups} groups in ${shape.chapter}` });
+check({ name: 'every rung says which rung it is', ok: shape.rungHeads === 3, detail: `${shape.rungHeads} rung headings` });
 // the workbook marks the rungs with 1, 2 and 3 lit pips; the picker has to agree
-check('the pips count up with the rung, as in the workbook',
-  JSON.stringify(shape.pipsOn) === '[1,2,3]', shape.pipsOn.join(','));
-check('one way out, at the end of the chapter', shape.wayOut === 1 && shape.lastIsWayOut === true);
-check('a row says which exercise it is', /^תרגיל \d+$/.test(shape.firstRow), shape.firstRow);
+check({ name: 'the pips count up with the rung, as in the workbook',
+  ok: JSON.stringify(shape.pipsOn) === '[1,2,3]', detail: shape.pipsOn.join(',') });
+check({ name: 'one way out, at the end of the chapter', ok: shape.wayOut === 1 && shape.lastIsWayOut === true });
+check({ name: 'a row says which exercise it is', ok: /^תרגיל \d+$/.test(shape.firstRow), detail: shape.firstRow });
 
 const btn = `[...document.querySelectorAll('button')].find((b) => b.textContent.includes('שקלוד יבדוק'))`;
 // Desktop only, and that is the point of the button: it hands the drawing to a
 // conversation through a Chrome extension, and the Android wrapper has no extension to
 // hand it to. Asserted here on the pad so the gate is tested and not just relied on.
-check('the finish button is NOT on the tablet', (await ev(`!!${btn}`)) === false);
+check({ name: 'the finish button is NOT on the tablet', ok: (await ev(`!!${btn}`)) === false });
 
 // draw something, so the board is not blank
 const rect = JSON.parse(await ev('JSON.stringify(document.querySelector("canvas").getBoundingClientRect())'));
 const y = rect.top + rect.height * 0.4;
 const x0 = rect.left + rect.width * 0.2;
-await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 });
+await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 } });
 for (let i = 1; i <= 12; i++) {
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + i * 26, y: y + Math.sin(i) * 10, button: 'left', buttons: 1 });
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mouseMoved', x: x0 + i * 26, y: y + Math.sin(i) * 10, button: 'left', buttons: 1 } });
 }
-await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x0 + 312, y, button: 'left', buttons: 0, clickCount: 1 });
+await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mouseReleased', x: x0 + 312, y, button: 'left', buttons: 0, clickCount: 1 } });
 await wait(2500);
 
 // Now do what the person does: written on the tablet, finish on the desktop. The role
@@ -116,7 +116,7 @@ await ev(
   `[...document.querySelectorAll('.roles .btn')].find((b) => b.textContent.trim() === 'תצוגה')?.click()`
 );
 await wait(1200);
-check('and it IS on the desktop', (await ev(`!!${btn}`)) === true);
+check({ name: 'and it IS on the desktop', ok: (await ev(`!!${btn}`)) === true });
 
 // ---- 1: with an extension listening -----------------------------------------
 // A block that is NOT the default and an exercise inside it, so a payload built from the
@@ -133,7 +133,7 @@ const picked = await ev(`(() => {
     r(s.value);
   }, 300));
 })()`);
-check('a block and an exercise can be picked at once', picked === '07:3.1', String(picked));
+check({ name: 'a block and an exercise can be picked at once', ok: picked === '07:3.1', detail: String(picked) });
 await wait(500);
 
 await ev(`(() => {
@@ -149,30 +149,30 @@ const got = await ev(`(() => {
   if (!c) return null;
   return { topic: c.topic, png: c.image.startsWith('data:image/png;base64,'), bytes: c.image.length, prompt: c.prompt };
 })()`);
-check('a payload is posted for the extension', !!got);
-check('it carries a real PNG', got?.png === true, `${Math.round((got?.bytes ?? 0) / 1024)} kb data URL`);
-check('the label carries the block and the exercise',
-  got?.topic?.includes('נגזרת') && got?.topic?.includes('תרגיל 1'),
-  JSON.stringify(got?.topic));
+check({ name: 'a payload is posted for the extension', ok: !!got });
+check({ name: 'it carries a real PNG', ok: got?.png === true, detail: `${Math.round((got?.bytes ?? 0) / 1024)} kb data URL` });
+check({ name: 'the label carries the block and the exercise',
+  ok: got?.topic?.includes('נגזרת') && got?.topic?.includes('תרגיל 1'),
+  detail: JSON.stringify(got?.topic) });
 // the criteria the workbook wrote for block 07, verbatim
-check(
-  "the prompt carries that block's own criteria",
-  String(got?.prompt).includes('ההשוואה לאפס של המונה בלבד מנומקת'),
-  String(got?.prompt).length + ' chars'
-);
-check('and it does not still ask for pasted text', !String(got?.prompt).includes('כאן מדביקים'));
+check({
+  name: "the prompt carries that block's own criteria",
+  ok: String(got?.prompt).includes('ההשוואה לאפס של המונה בלבד מנומקת'),
+  detail: String(got?.prompt).length + ' chars'
+});
+check({ name: 'and it does not still ask for pasted text', ok: !String(got?.prompt).includes('כאן מדביקים') });
 
 // Naming the exercise is the other half of "check me against the right thing". The
 // slot is filled at click time, so an unfilled one would ship the literal token to
 // Claude — worse than the topic-only prompt it replaced, because it reads as a bug.
 const prompt = String(got?.prompt ?? '');
-check(
-  'the exercise slot was filled in',
-  !prompt.includes('{{EXERCISE}}'),
-  prompt.includes('{{EXERCISE}}') ? 'the raw token went out' : ''
-);
+check({
+  name: 'the exercise slot was filled in',
+  ok: !prompt.includes('{{EXERCISE}}'),
+  detail: prompt.includes('{{EXERCISE}}') ? 'the raw token went out' : ''
+});
 const named = prompt.split('\n').find((l) => l.startsWith('התרגיל')) ?? '';
-check('and the prompt says which exercise it is', named.length > 0, named.slice(0, 58));
+check({ name: 'and the prompt says which exercise it is', ok: named.length > 0, detail: named.slice(0, 58) });
 
 // ---- 2: with no extension ---------------------------------------------------
 await ev(`(() => {
@@ -182,13 +182,13 @@ await ev(`(() => {
 })()`);
 await ev(`${btn}.click(), 1`);
 await wait(2500);
-check('nothing is posted when no extension is present', (await ev(`!!window.__caught`)) === false);
+check({ name: 'nothing is posted when no extension is present', ok: (await ev(`!!window.__caught`)) === false });
 const clip = await ev(`navigator.clipboard.readText().catch(() => '')`);
-check(
-  'the prompt reaches the clipboard instead',
-  String(clip).includes('בוחן בגרות') || String(clip).includes('35571'),
-  String(clip).slice(0, 40).replace(/\n/g, ' ')
-);
+check({
+  name: 'the prompt reaches the clipboard instead',
+  ok: String(clip).includes('בוחן בגרות') || String(clip).includes('35571'),
+  detail: String(clip).slice(0, 40).replace(/\n/g, ' ')
+});
 
 console.log(bad ? `\n${bad} FAILED` : '\nall checks passed');
 ws.close();

@@ -20,12 +20,12 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r, j) => {
     const i = ++id;
     pending.set(i, r);
-    setTimeout(() => j(new Error('CDP timeout: ' + m)), 20000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => j(new Error('CDP timeout: ' + method)), 20000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -35,17 +35,17 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) =>
-  (await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true }))
+  (await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } }))
     .result?.value;
 
 let bad = 0;
-const check = (n, ok, d = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
-  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(52)} ${d}`);
+  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(52)} ${detail}`);
 };
 
 /** Seconds of transition on an element and on a pseudo-element of it. */
@@ -62,26 +62,26 @@ const durations = () =>
   })()`);
 
 async function run(reduce) {
-  await send('Emulation.setEmulatedMedia', {
+  await send({ method: 'Emulation.setEmulatedMedia', params: {
     features: [{ name: 'prefers-reduced-motion', value: reduce ? 'reduce' : 'no-preference' }]
-  });
-  await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-  await send('Page.navigate', { url: 'about:blank' });
+  } });
+  await send({ method: 'Emulation.setTouchEmulationEnabled', params: { enabled: true, maxTouchPoints: 5 } });
+  await send({ method: 'Page.navigate', params: { url: 'about:blank' } });
   await wait(300);
-  await send('Page.navigate', { url });
+  await send({ method: 'Page.navigate', params: { url } });
   await wait(7000);
 
   const d = JSON.parse(await durations());
   const label = reduce ? 'reduced motion' : 'full motion';
 
   if (reduce) {
-    check(`${label}: the dialog does not animate`, d.dialog <= 0.005, `${d.dialog}s`);
-    check(`${label}: nor does the backdrop`, d.backdrop <= 0.005, `${d.backdrop}s`);
-    check(`${label}: nor does the picker`, d.picker <= 0.005, `${d.picker}s`);
+    check({ name: `${label}: the dialog does not animate`, ok: d.dialog <= 0.005, detail: `${d.dialog}s` });
+    check({ name: `${label}: nor does the backdrop`, ok: d.backdrop <= 0.005, detail: `${d.backdrop}s` });
+    check({ name: `${label}: nor does the picker`, ok: d.picker <= 0.005, detail: `${d.picker}s` });
   } else {
-    check(`${label}: the dialog animates`, d.dialog >= 0.05, `${d.dialog}s`);
-    check(`${label}: so does the backdrop`, d.backdrop >= 0.05, `${d.backdrop}s`);
-    check(`${label}: so does the picker`, d.picker >= 0.05, `${d.picker}s`);
+    check({ name: `${label}: the dialog animates`, ok: d.dialog >= 0.05, detail: `${d.dialog}s` });
+    check({ name: `${label}: so does the backdrop`, ok: d.backdrop >= 0.05, detail: `${d.backdrop}s` });
+    check({ name: `${label}: so does the picker`, ok: d.picker >= 0.05, detail: `${d.picker}s` });
 
     // and it really runs: caught part-way, the box is not yet at rest
     await ev(
@@ -95,12 +95,12 @@ async function run(reduce) {
         return JSON.stringify({ open: d.open, opacity: parseFloat(s.opacity), t: s.transform });
       })()`)
     );
-    check('it is open before it has arrived', mid.open === true);
-    check(
-      'and caught mid-flight, not already at rest',
-      mid.opacity < 0.98 || (mid.t !== 'none' && mid.t !== 'matrix(1, 0, 0, 1, 0, 0)'),
-      `opacity ${mid.opacity}, transform ${mid.t}`
-    );
+    check({ name: 'it is open before it has arrived', ok: mid.open === true });
+    check({
+      name: 'and caught mid-flight, not already at rest',
+      ok: mid.opacity < 0.98 || (mid.t !== 'none' && mid.t !== 'matrix(1, 0, 0, 1, 0, 0)'),
+      detail: `opacity ${mid.opacity}, transform ${mid.t}`
+    });
     await wait(600);
     const rest = JSON.parse(
       await ev(`(() => {
@@ -108,11 +108,11 @@ async function run(reduce) {
         return JSON.stringify({ opacity: parseFloat(s.opacity), t: s.transform });
       })()`)
     );
-    check(
-      'and it settles fully open',
-      rest.opacity === 1 && (rest.t === 'none' || rest.t === 'matrix(1, 0, 0, 1, 0, 0)'),
-      `opacity ${rest.opacity}`
-    );
+    check({
+      name: 'and it settles fully open',
+      ok: rest.opacity === 1 && (rest.t === 'none' || rest.t === 'matrix(1, 0, 0, 1, 0, 0)'),
+      detail: `opacity ${rest.opacity}`
+    });
     await ev(`document.querySelector('dialog.ask[open] [data-ask="cancel"]')?.click()`);
     await wait(600);
   }
@@ -121,13 +121,13 @@ async function run(reduce) {
   const swap = await stepAndLook(1);
   const back = await stepAndLook(-1);
   if (reduce) {
-    check(`${label}: a new question has no scanline`, swap.line === 'none', swap.line);
-    check(`${label}: and takes no time`, swap.longest <= 0.005, `${swap.longest}ms`);
+    check({ name: `${label}: a new question has no scanline`, ok: swap.line === 'none', detail: swap.line });
+    check({ name: `${label}: and takes no time`, ok: swap.longest <= 0.005, detail: `${swap.longest}ms` });
   } else {
-    check(`${label}: a new question sweeps in`, swap.names.includes('qResolveFwd'), swap.names.join(','));
-    check('behind a scanline', swap.names.includes('qScan') && swap.line !== 'none', swap.line);
-    check('an earlier one sweeps the other way', back.dir === 'back' && back.names.includes('qResolveBack'), back.dir);
-    check('inside the skin’s 200ms', swap.longest > 0 && swap.longest <= 200, `${swap.longest}ms`);
+    check({ name: `${label}: a new question sweeps in`, ok: swap.names.includes('qResolveFwd'), detail: swap.names.join(',') });
+    check({ name: 'behind a scanline', ok: swap.names.includes('qScan') && swap.line !== 'none', detail: swap.line });
+    check({ name: 'an earlier one sweeps the other way', ok: back.dir === 'back' && back.names.includes('qResolveBack'), detail: back.dir });
+    check({ name: 'inside the skin’s 200ms', ok: swap.longest > 0 && swap.longest <= 200, detail: `${swap.longest}ms` });
   }
   await wait(500);
   const rest = JSON.parse(
@@ -141,8 +141,8 @@ async function run(reduce) {
       });
     })()`)
   );
-  check(`${label}: the question ends at rest`, rest.running === 0 && rest.clip === 'none', `clip ${rest.clip}`);
-  check('with the line gone', reduce || rest.line === '0', `opacity ${rest.line}`);
+  check({ name: `${label}: the question ends at rest`, ok: rest.running === 0 && rest.clip === 'none', detail: `clip ${rest.clip}` });
+  check({ name: 'with the line gone', ok: reduce || rest.line === '0', detail: `opacity ${rest.line}` });
 
   // the card's height follows: a one-line warm-up, then a long exam-level exercise
   const grow = JSON.parse(
@@ -173,14 +173,14 @@ async function run(reduce) {
     })()`)
   );
   const moved = Math.abs(grow.to - grow.from) > 4;
-  check(`${label}: the two questions differ in height`, moved, `${grow.from}px -> ${grow.to}px`);
+  check({ name: `${label}: the two questions differ in height`, ok: moved, detail: `${grow.from}px -> ${grow.to}px` });
   if (reduce) {
-    check(`${label}: and the card jumps straight there`, grow.duration === null || grow.duration <= 0.005, `${grow.duration}`);
+    check({ name: `${label}: and the card jumps straight there`, ok: grow.duration === null || grow.duration <= 0.005, detail: `${grow.duration}` });
   } else {
-    check(`${label}: the card's height animates`, grow.duration === 200, `${grow.duration}ms`);
-    check('caught between the two heights', grow.mid > Math.min(grow.from, grow.to) && grow.mid < Math.max(grow.from, grow.to), `${Math.round(grow.mid)}px`);
+    check({ name: `${label}: the card's height animates`, ok: grow.duration === 200, detail: `${grow.duration}ms` });
+    check({ name: 'caught between the two heights', ok: grow.mid > Math.min(grow.from, grow.to) && grow.mid < Math.max(grow.from, grow.to), detail: `${Math.round(grow.mid)}px` });
   }
-  check(`${label}: and lands un-clipped`, grow.after === 0 && grow.overflow === 'visible', grow.overflow);
+  check({ name: `${label}: and lands un-clipped`, ok: grow.after === 0 && grow.overflow === 'visible', detail: grow.overflow });
 }
 
 /** Press next (1) or previous (-1) and read the animations on the card that replaced it. */

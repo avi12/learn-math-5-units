@@ -25,12 +25,12 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r, j) => {
     const i = ++id;
     pending.set(i, r);
-    setTimeout(() => j(new Error('CDP timeout: ' + m)), 30000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => j(new Error('CDP timeout: ' + method)), 30000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -40,21 +40,21 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
-  const r = await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true });
+  const r = await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } });
   return r?.exceptionDetails ? 'EXC ' + r.exceptionDetails.text : r.result?.value;
 };
 let bad = 0;
-const check = (name, ok, detail = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(56)} ${detail}`);
 };
 
 /** Set a select the way a person does: value, then the event Svelte listens to. */
-const setSelect = (nth, value) =>
+const setSelect = ({ nth, value }) =>
   ev(`(() => {
     const s = document.querySelectorAll('.question .topic select')[${nth}];
     if (!s) return 'no select';
@@ -157,57 +157,57 @@ const videos = () =>
   })()`).then(JSON.parse);
 
 const room = freshRoom();
-await send('Emulation.setDeviceMetricsOverride', { width: 1180, height: 1000, deviceScaleFactor: 1, mobile: false });
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: { width: 1180, height: 1000, deviceScaleFactor: 1, mobile: false } });
 
 // The sideways scan clicks through every exercise, and every pick is written to the room.
 // Hundreds of writes in seconds are still queued when the page reloads as the tablet, so
 // the room ends on a stale pick. The scans therefore run in rooms of their own.
-await send('Page.navigate', { url: roomUrl(url, freshRoom()) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room: freshRoom() }) } });
 await wait(7000);
 const sd = await sideways();
-check('desktop: no exercise scrolls sideways', sd.bad.length === 0 && sd.seen >= 94,
-  `${sd.seen} exercises${sd.bad.length ? ' — ' + sd.bad.slice(0, 4).join('; ') : ''}`);
+check({ name: 'desktop: no exercise scrolls sideways', ok: sd.bad.length === 0 && sd.seen >= 94,
+  detail: `${sd.seen} exercises${sd.bad.length ? ' — ' + sd.bad.slice(0, 4).join('; ') : ''}` });
 
-await send('Page.navigate', { url: roomUrl(url, freshRoom()) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room: freshRoom() }) } });
 await wait(7000);
 const vd = await videos();
-check('desktop: every exercise names how-to-solve videos', vd.seen >= 94 && vd.empty.length === 0,
-  `${vd.seen} exercises, ${vd.links} links${vd.empty.length ? ' — none on ' + vd.empty.slice(0, 4).join(', ') : ''}`);
-check('each link is a real watch URL, with title, channel and length',
-  vd.strange.length === 0, vd.strange.slice(0, 3).join('; '));
-check('the links follow the question, not the chapter', vd.distinct >= 80, `${vd.distinct} distinct sets`);
-check('and none of them widens the page', vd.wide.length === 0, vd.wide.slice(0, 3).join('; '));
+check({ name: 'desktop: every exercise names how-to-solve videos', ok: vd.seen >= 94 && vd.empty.length === 0,
+  detail: `${vd.seen} exercises, ${vd.links} links${vd.empty.length ? ' — none on ' + vd.empty.slice(0, 4).join(', ') : ''}` });
+check({ name: 'each link is a real watch URL, with title, channel and length',
+  ok: vd.strange.length === 0, detail: vd.strange.slice(0, 3).join('; ') });
+check({ name: 'the links follow the question, not the chapter', ok: vd.distinct >= 80, detail: `${vd.distinct} distinct sets` });
+check({ name: 'and none of them widens the page', ok: vd.wide.length === 0, detail: vd.wide.slice(0, 3).join('; ') });
 
-await send('Page.navigate', { url: roomUrl(url, room) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room }) } });
 await wait(7000);
 
 // ---- the desktop -------------------------------------------------------------
 const c0 = await card();
-check('one question card', c0.cards === 1, `${c0.cards}`);
-check('it shows a question', (c0.text ?? '').length > 10, (c0.text ?? '').slice(0, 40));
+check({ name: 'one question card', ok: c0.cards === 1, detail: `${c0.cards}` });
+check({ name: 'it shows a question', ok: (c0.text ?? '').length > 10, detail: (c0.text ?? '').slice(0, 40) });
 
 const chapters = JSON.parse(await ev(`JSON.stringify([...document.querySelectorAll('.question .topic select')[0].options].map((o) => o.value))`));
-check('the workbook’s ten chapters, and nothing else', chapters.length === 10 && chapters.every((c) => /^\d\d$/.test(c)), chapters.join(','));
+check({ name: 'the workbook’s ten chapters, and nothing else', ok: chapters.length === 10 && chapters.every((c) => /^\d\d$/.test(c)), detail: chapters.join(',') });
 
 // block 07 carries its workbook exercises, addressed by rung and number, and nothing else
-check('choose chapter 07', (await setSelect(0, '07')) === 'ok');
+check({ name: 'choose chapter 07', ok: (await setSelect({ nth: 0, value: '07' })) === 'ok' });
 await wait(400);
 const rows07 = JSON.parse(await ev(`JSON.stringify([...document.querySelectorAll('.question .topic select')[1].options].map((o) => o.value))`));
-check('chapter 07 holds its workbook exercises', rows07.includes('07:3.1') && rows07.length === 10, `${rows07.length} rows`);
-check('and no exercise written from an exam question', rows07.every((v) => /^07:(\d\.\d+)?$/.test(v)), rows07.join(','));
+check({ name: 'chapter 07 holds its workbook exercises', ok: rows07.includes('07:3.1') && rows07.length === 10, detail: `${rows07.length} rows` });
+check({ name: 'and no exercise written from an exam question', ok: rows07.every((v) => /^07:(\d\.\d+)?$/.test(v)), detail: rows07.join(',') });
 const c1 = await card();
-check('changing the chapter moves the pick into it', c1.pick?.startsWith('07:'), c1.pick);
+check({ name: 'changing the chapter moves the pick into it', ok: c1.pick?.startsWith('07:'), detail: c1.pick });
 
 // a bagrut-level one, with sections
 const target = '07:3.2';
-check('choose a bagrut-level exercise', (await setSelect(1, target)) === 'ok', target);
+check({ name: 'choose a bagrut-level exercise', ok: (await setSelect({ nth: 1, value: target })) === 'ok', detail: target });
 await wait(500);
 const c2 = await card();
-check('the card shows that question', c2.meta?.includes('מדרגה 3') && c2.text !== c1.text, c2.meta);
-check('and does not name an exam paper', !/שאלון|בהשראת/.test(`${c2.meta} ${c2.text}`));
-check('its maths is rendered, not raw TeX', c2.maths > 0 && !c2.rawTex, `${c2.maths} formulas`);
+check({ name: 'the card shows that question', ok: c2.meta?.includes('מדרגה 3') && c2.text !== c1.text, detail: c2.meta });
+check({ name: 'and does not name an exam paper', ok: !/שאלון|בהשראת/.test(`${c2.meta} ${c2.text}`) });
+check({ name: 'its maths is rendered, not raw TeX', ok: c2.maths > 0 && !c2.rawTex, detail: `${c2.maths} formulas` });
 if (shots) {
-  const png = await send('Page.captureScreenshot', { format: 'png' });
+  const png = await send({ method: 'Page.captureScreenshot', params: { format: 'png' } });
   writeFileSync(`${shots}/q-board.png`, Buffer.from(png.data, 'base64'));
 }
 
@@ -216,16 +216,16 @@ const before = (await card()).pick;
 await ev(`[...document.querySelectorAll('.question .steps .btn')][1].click()`);
 await wait(300);
 const after = (await card()).pick;
-check('next moves to another exercise', after && after !== before, `${before} -> ${after}`);
+check({ name: 'next moves to another exercise', ok: after && after !== before, detail: `${before} -> ${after}` });
 await ev(`[...document.querySelectorAll('.question .steps .btn')][0].click()`);
 await wait(300);
-check('previous comes back', (await card()).pick === before, (await card()).pick);
+check({ name: 'previous comes back', ok: (await card()).pick === before, detail: (await card()).pick });
 
 
 // the finish button marks against the question's own criteria
-await setSelect(0, '07');
+await setSelect({ nth: 0, value: '07' });
 await wait(300);
-await setSelect(1, target);
+await setSelect({ nth: 1, value: target });
 await wait(300);
 await ev(`(() => {
   document.documentElement.dataset.aviMathCheck = 'ready';
@@ -233,56 +233,56 @@ await ev(`(() => {
 })()`);
 await ev(catchFromPage(PadMessage.CHECK));
 const btn = `[...document.querySelectorAll('.question button')].find((b) => b.textContent.includes('שקלוד יבדוק'))`;
-check('the finish button is in the card on the desktop', (await ev(`!!${btn}`)) === true);
+check({ name: 'the finish button is in the card on the desktop', ok: (await ev(`!!${btn}`)) === true });
 await ev(`${btn}.click(), 1`);
 for (let i = 0; i < 40 && !(await ev(`!!window.__caught`)); i++) {await wait(250);}
 const prompt = String(await ev(`window.__caught?.prompt ?? ''`));
-check('a prompt went out', prompt.length > 500, `${prompt.length} chars`);
-check('no slot left unfilled', !/\{\{[A-Z]+\}\}/.test(prompt));
-check('it names the exercise', prompt.includes('מדרגה 3') && prompt.includes('תרגיל 2'));
-check("it carries chapter 07's criteria", prompt.includes('ההשוואה לאפס של המונה בלבד מנומקת'));
+check({ name: 'a prompt went out', ok: prompt.length > 500, detail: `${prompt.length} chars` });
+check({ name: 'no slot left unfilled', ok: !/\{\{[A-Z]+\}\}/.test(prompt) });
+check({ name: 'it names the exercise', ok: prompt.includes('מדרגה 3') && prompt.includes('תרגיל 2') });
+check({ name: "it carries chapter 07's criteria", ok: prompt.includes('ההשוואה לאפס של המונה בלבד מנומקת') });
 
 // A device still on an exercise that was removed (an exam-question one, 17.09.2026) opens
 // on its chapter's first exercise — not on "not from the workbook", which would send Claude
 // to mark a question nobody chose. In a room of its own, so the tablet below is unaffected.
 await ev(`localStorage.setItem('avi-math-pick', '07:35571_2022_1_q6.bagrut'), 1`);
-await send('Page.navigate', { url: roomUrl(url, freshRoom()) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room: freshRoom() }) } });
 await wait(7000);
 const c3 = await card();
-check('a removed exercise gives way to its chapter’s first', c3.pick === '07:1.1' && c3.maths > 0, c3.pick);
+check({ name: 'a removed exercise gives way to its chapter’s first', ok: c3.pick === '07:1.1' && c3.maths > 0, detail: c3.pick });
 
 // ---- the tablet ----------------------------------------------------------------
 await asTablet(send);
-await send('Emulation.setDeviceMetricsOverride', { width: 1200, height: 800, deviceScaleFactor: 1, mobile: false });
-await send('Page.navigate', { url: roomUrl(url, room) });
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: { width: 1200, height: 800, deviceScaleFactor: 1, mobile: false } });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room }) } });
 await wait(7000);
 const t0 = await card();
-check('the tablet shows the card too', t0.cards === 1 && (t0.text ?? '').length > 10);
-check('on the same question the desktop chose', t0.pick === target, t0.pick);
-check('no finish button on the tablet', (await ev(`!!${btn}`)) === false);
+check({ name: 'the tablet shows the card too', ok: t0.cards === 1 && (t0.text ?? '').length > 10 });
+check({ name: 'on the same question the desktop chose', ok: t0.pick === target, detail: t0.pick });
+check({ name: 'no finish button on the tablet', ok: (await ev(`!!${btn}`)) === false });
 // "אבל רק בדסקטופ" — and the tablet's card is folded to 17svh, so a link row there would
 // be taking the board's pixels for something you would not follow mid-stroke anyway.
-check('no video links on the tablet',
-  (await ev(`document.querySelectorAll('.question .qvids a').length`)) === 0);
+check({ name: 'no video links on the tablet',
+  ok: (await ev(`document.querySelectorAll('.question .qvids a').length`)) === 0 });
 const board = JSON.parse(await ev(`JSON.stringify(document.querySelector('canvas').getBoundingClientRect())`));
-check('the board still gets most of the screen', board.height > 800 * 0.4, `${Math.round(board.height)}px of 800`);
+check({ name: 'the board still gets most of the screen', ok: board.height > 800 * 0.4, detail: `${Math.round(board.height)}px of 800` });
 if (shots) {
-  const png = await send('Page.captureScreenshot', { format: 'png' });
+  const png = await send({ method: 'Page.captureScreenshot', params: { format: 'png' } });
   writeFileSync(`${shots}/q-pad.png`, Buffer.from(png.data, 'base64'));
 }
 // the longest chapter name; the closed control stays one line
-check('choose chapter 01 on the tablet', (await setSelect(0, '01')) === 'ok');
+check({ name: 'choose chapter 01 on the tablet', ok: (await setSelect({ nth: 0, value: '01' })) === 'ok' });
 await wait(600);
 const board01 = JSON.parse(await ev(`JSON.stringify(document.querySelector('canvas').getBoundingClientRect())`));
 const selH = await ev(`Math.round(document.querySelectorAll('.question .topic select')[0].getBoundingClientRect().height)`);
-check('its name stays on one line', selH < 50, `${selH}px tall`);
-check('and the board keeps its room', board01.height > 800 * 0.4, `${Math.round(board01.height)}px of 800`);
+check({ name: 'its name stays on one line', ok: selH < 50, detail: `${selH}px tall` });
+check({ name: 'and the board keeps its room', ok: board01.height > 800 * 0.4, detail: `${Math.round(board01.height)}px of 800` });
 
-await send('Page.navigate', { url: roomUrl(url, freshRoom()) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room: freshRoom() }) } });
 await wait(7000);
 const st = await sideways();
-check('tablet: no exercise scrolls sideways', st.bad.length === 0 && st.seen >= 94,
-  `${st.seen} exercises${st.bad.length ? ' — ' + st.bad.slice(0, 4).join('; ') : ''}`);
+check({ name: 'tablet: no exercise scrolls sideways', ok: st.bad.length === 0 && st.seen >= 94,
+  detail: `${st.seen} exercises${st.bad.length ? ' — ' + st.bad.slice(0, 4).join('; ') : ''}` });
 
 console.log(bad ? `\n${bad} FAILED` : '\none question at a time, on both devices');
 ws.close();

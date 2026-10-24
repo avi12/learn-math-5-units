@@ -27,14 +27,14 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r, j) => {
     const i = ++id;
     pending.set(i, r);
     // a CDP call that never answers looks exactly like a slow one; without this the
     // whole run just stops and says nothing
-    setTimeout(() => j(new Error(`CDP timeout: ${m}`)), 20000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => j(new Error(`CDP timeout: ${method}`)), 20000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -44,29 +44,29 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
-  const r = await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true });
+  const r = await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } });
   if (r?.exceptionDetails) {throw new Error(r.exceptionDetails.text + ' :: ' + x);}
   return r.result?.value;
 };
 
 let bad = 0;
-function check(name, ok, detail = '') {
+function check({ name, ok, detail = '' }) {
   if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(52)} ${detail}`);
 }
 
 // A tablet held sideways: the shape the old letterbox was worst on.
-await send('Emulation.setDeviceMetricsOverride', {
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: {
   width: 1180,
   height: 820,
   deviceScaleFactor: 1,
   mobile: false
-});
+} });
 // Touch emulation is ON here, via asTablet() below: it is what makes the app's own role
 // detection put this tab on the writing board. Two comments used to sit here saying that
 // touch emulation makes CDP mouse events "silently swallowed" and that the board just
@@ -74,10 +74,10 @@ await send('Emulation.setDeviceMetricsOverride', {
 // as pointerType 'mouse' and still draws, with touch emulation on, at dsf 1 and 2 alike.
 // The two-finger pan is still driven as PointerEvents from inside the page, because the
 // handler listens to PointerEvents and that is the code path worth exercising.
-await send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: dir }).catch(() => {});
+await send({ method: 'Page.setDownloadBehavior', params: { behavior: 'allow', downloadPath: dir } }).catch(() => {});
 
 await asTablet(send);
-await send('Page.navigate', { url: roomUrl(url, room) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room }) } });
 await wait(6000);
 await assertPad(ev);
 
@@ -87,34 +87,34 @@ const rect = JSON.parse(await box());
 // ---- 1 & 2: pinned to the viewport, and filling it ------------------------
 const scrollH = await ev(`document.documentElement.scrollHeight`);
 const innerH = await ev(`innerHeight`);
-check('the page does not scroll', scrollH <= innerH + 2, `scrollHeight ${scrollH} vs ${innerH}`);
-check('the board ends above the fold', rect.bottom <= innerH + 1, `bottom ${Math.round(rect.bottom)}`);
-check(
-  'the board is taller than the old 66% cap',
-  rect.height > innerH * 0.42,
-  `${Math.round(rect.height)}px of ${innerH}`
-);
+check({ name: 'the page does not scroll', ok: scrollH <= innerH + 2, detail: `scrollHeight ${scrollH} vs ${innerH}` });
+check({ name: 'the board ends above the fold', ok: rect.bottom <= innerH + 1, detail: `bottom ${Math.round(rect.bottom)}` });
+check({
+  name: 'the board is taller than the old 66% cap',
+  ok: rect.height > innerH * 0.42,
+  detail: `${Math.round(rect.height)}px of ${innerH}`
+});
 
 // ---- draw ------------------------------------------------------------------
 // Real CDP input, not PointerEvents dispatched from inside the page: down() calls
 // setPointerCapture, and that throws NotFoundError for a pointerId the browser has no
 // record of — a synthetic pointerdown therefore never gets as far as drawing anything.
-async function strokeAt(yFrac, tag) {
+async function strokeAt({ yFrac, tag }) {
   const y = rect.top + rect.height * yFrac;
   const x0 = rect.left + rect.width * 0.15;
   const x1 = rect.left + rect.width * 0.55;
   const was = await ink();
-  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 });
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 } });
   for (let i = 1; i <= 12; i++) {
-    await send('Input.dispatchMouseEvent', {
+    await send({ method: 'Input.dispatchMouseEvent', params: {
       type: 'mouseMoved',
       x: x0 + ((x1 - x0) * i) / 12,
       y: y + Math.sin(i) * 12,
       button: 'left',
       buttons: 1
-    });
+    } });
   }
-  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x1, y, button: 'left', buttons: 0, clickCount: 1 });
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mouseReleased', x: x1, y, button: 'left', buttons: 0, clickCount: 1 } });
   // A committed stroke leaves the board until Firestore echoes it back, so the canvas is
   // genuinely blank for a moment after every release. Wait for ink rather than a clock.
   // Wait for THIS stroke, not for any ink at all: the board already carries the earlier
@@ -126,7 +126,7 @@ async function strokeAt(yFrac, tag) {
 }
 
 /** Ink pixels in a horizontal band of the visible board, top and bottom as fractions. */
-const ink = async (from = 0, to = 1) =>
+const ink = async ({ from = 0, to = 1 } = {}) =>
   await ev(`(() => {
     const c = document.querySelector('canvas');
     const y0 = Math.round(c.height * ${from});
@@ -137,8 +137,8 @@ const ink = async (from = 0, to = 1) =>
     return n;
   })()`);
 
-await strokeAt(0.08, 'stroke 1');
-await strokeAt(0.92, 'stroke 2');
+await strokeAt({ yFrac: 0.08, tag: 'stroke 1' });
+await strokeAt({ yFrac: 0.92, tag: 'stroke 2' });
 
 // Poll, don't sample once. The ink counted above is the WET stroke, drawn the instant the
 // pen lifts, while the rail follows the committed strokes, which arrive with the Firestore
@@ -149,13 +149,13 @@ for (let i = 0; i < 24 && !railBefore; i++) {
   railBefore = await ev(`!!document.querySelector('.rail')`);
   if (!railBefore) {await wait(250);}
 }
-check('a rail appears once there is somewhere to go', railBefore);
+check({ name: 'a rail appears once there is somewhere to go', ok: railBefore });
 
 // ---- 3: wheel down, write, come back --------------------------------------
 // Ink in the top band is the only honest witness that the board moved: stroke 1 is up
 // there, so if the strip scrolled it has to leave.
-const topBefore = await ink(0, 0.25);
-check('stroke 1 is at the top to begin with', topBefore > 100, `${topBefore} ink pixels`);
+const topBefore = await ink({ from: 0, to: 0.25 });
+check({ name: 'stroke 1 is at the top to begin with', ok: topBefore > 100, detail: `${topBefore} ink pixels` });
 
 // a real WheelEvent on the canvas: CDP's own mouseWheel does not survive touch emulation
 // (the same dispatch is reused as `wheelDown()` further down, once the strip is being built)
@@ -163,15 +163,15 @@ await ev(
   `document.querySelector('canvas').dispatchEvent(new WheelEvent('wheel', {deltaY: 400, bubbles: true, cancelable: true})), 1`
 );
 await wait(400);
-const topAfter = await ink(0, 0.25);
-check('the wheel moves down the strip', topAfter < topBefore / 2, `${topBefore} -> ${topAfter} ink pixels`);
+const topAfter = await ink({ from: 0, to: 0.25 });
+check({ name: 'the wheel moves down the strip', ok: topAfter < topBefore / 2, detail: `${topBefore} -> ${topAfter} ink pixels` });
 
-await strokeAt(0.75, 'stroke 3, below the first screen');
+await strokeAt({ yFrac: 0.75, tag: 'stroke 3, below the first screen' });
 
 // Two fingers drag the strip back up, dispatched inside the page. CDP touch input never
 // reaches the document in this headless build — measured, n=0 events — and the handler
 // only cares about PointerEvents, so this drives the real code path either way.
-async function pan(fromY, toY) {
+async function pan({ fromY, toY }) {
   return await ev(`(() => {
     const c = document.querySelector('canvas');
     const x1 = ${rect.left + rect.width * 0.4}, x2 = ${rect.left + rect.width * 0.6};
@@ -192,15 +192,15 @@ async function pan(fromY, toY) {
     return 1;
   })()`);
 }
-await pan(rect.top + rect.height * 0.25, rect.top + rect.height * 0.9);
+await pan({ fromY: rect.top + rect.height * 0.25, toY: rect.top + rect.height * 0.9 });
 await wait(400);
 
-const inkTop = await ink(0, 0.25);
-check(
-  'two fingers pan back, and stroke 1 is where it was left',
-  inkTop > topBefore / 2,
-  `${inkTop} ink pixels back at the top (was ${topBefore})`
-);
+const inkTop = await ink({ from: 0, to: 0.25 });
+check({
+  name: 'two fingers pan back, and stroke 1 is where it was left',
+  ok: inkTop > topBefore / 2,
+  detail: `${inkTop} ink pixels back at the top (was ${topBefore})`
+});
 
 // ---- 4: the export grows with the strip ------------------------------------
 // `exportCanvas` is a component export no script can reach, so the bitmap is measured
@@ -235,7 +235,7 @@ const wheelDown = () =>
 for (let r = 1; r <= 3; r++) {
   await wheelDown();
   await wait(300);
-  await strokeAt(0.85, `stroke ${r + 3}, extending the strip`);
+  await strokeAt({ yFrac: 0.85, tag: `stroke ${r + 3}, extending the strip` });
 }
 
 // The clipboard is where the export lands, and the clipboard is the point: this button
@@ -247,9 +247,9 @@ for (let r = 1; r <= 3; r++) {
 // document and headless has none. Measured on Chrome 152: the write succeeds, the toast
 // says "הועתק ללוח", and no file is written. The note is out of date; this reads the
 // bitmap instead.
-await send('Browser.grantPermissions', {
+await send({ method: 'Browser.grantPermissions', params: {
   permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite']
-}).catch(() => {});
+} }).catch(() => {});
 
 // "העתק כתמונה" is desktop-only since 12.09.2026 (the paste happens in a conversation, and
 // the conversation is on the desktop), and this script writes as the tablet. So it does what
@@ -267,7 +267,7 @@ const clicked = await ev(`(() => {
   btn.click();
   return 'clicked';
 })()`);
-check('the export button is there', clicked === 'clicked', String(clicked));
+check({ name: 'the export button is there', ok: clicked === 'clicked', detail: String(clicked) });
 
 await wait(1500);
 const shot = JSON.parse(
@@ -284,16 +284,16 @@ const shot = JSON.parse(
   })()`)) || '{"error":"nothing came back"}'
 );
 
-check('the copy put a PNG on the clipboard', !shot.error && shot.bytes > 0,
-  shot.error ?? `${shot.bytes} bytes`);
+check({ name: 'the copy put a PNG on the clipboard', ok: !shot.error && shot.bytes > 0,
+  detail: shot.error ?? `${shot.bytes} bytes` });
 
 if (!shot.error) {
-  check('the export is a real bitmap', shot.w > 0 && shot.h > 0, `${shot.w}x${shot.h}`);
-  check(
-    'the export is taller than one page',
-    shot.h > shot.w * PAGE + 1,
-    `${shot.w}x${shot.h} — one page would be ${shot.w}x${Math.round(shot.w * PAGE)}`
-  );
+  check({ name: 'the export is a real bitmap', ok: shot.w > 0 && shot.h > 0, detail: `${shot.w}x${shot.h}` });
+  check({
+    name: 'the export is taller than one page',
+    ok: shot.h > shot.w * PAGE + 1,
+    detail: `${shot.w}x${shot.h} — one page would be ${shot.w}x${Math.round(shot.w * PAGE)}`
+  });
 }
 
 

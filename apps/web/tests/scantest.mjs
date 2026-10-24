@@ -15,12 +15,12 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r, j) => {
     const i = ++id;
     pending.set(i, r);
-    setTimeout(() => j(new Error('CDP timeout: ' + m)), 25000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => j(new Error('CDP timeout: ' + method)), 25000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -30,29 +30,29 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
-  const r = await send('Runtime.evaluate', { expression: x, returnByValue: true });
+  const r = await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true } });
   return r?.exceptionDetails ? 'EXC ' + r.exceptionDetails.text : r.result?.value;
 };
 
 let bad = 0;
-const check = (name, ok, detail = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(44)} ${detail}`);
 };
 
-await send('Emulation.setDeviceMetricsOverride', { width: 1180, height: 820, deviceScaleFactor: 1, mobile: false });
-await send('Page.navigate', { url });
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: { width: 1180, height: 820, deviceScaleFactor: 1, mobile: false } });
+await send({ method: 'Page.navigate', params: { url } });
 await wait(6000);
 
 const before = await ev(`new URL(location.href).searchParams.get('room')`);
-check('the pad starts in some other room', before !== want, `${before}`);
+check({ name: 'the pad starts in some other room', ok: before !== want, detail: `${before}` });
 
 const button = `[...document.querySelectorAll('button')].find((b) => b.textContent.includes('סרוק QR'))`;
-check('the scan button is on the pad', (await ev(`!!${button}`)) === true);
+check({ name: 'the scan button is on the pad', ok: (await ev(`!!${button}`)) === true });
 
 // Poll from the moment of the click rather than sleeping first: a fake camera holding a
 // single sharp frame decodes on the first look, so the overlay can be open and gone
@@ -72,8 +72,8 @@ for (let i = 0; i < 40; i++) {
   }
   await wait(100);
 }
-check('the camera overlay opens', size !== 'none', size === 'none' ? 'never seen' : 'seen');
-check('the camera is running', /^[1-9]\d*x[1-9]\d*$/.test(String(size)), String(size));
+check({ name: 'the camera overlay opens', ok: size !== 'none', detail: size === 'none' ? 'never seen' : 'seen' });
+check({ name: 'the camera is running', ok: /^[1-9]\d*x[1-9]\d*$/.test(String(size)), detail: String(size) });
 
 // the decode and the navigation that follows
 let after = before;
@@ -85,8 +85,8 @@ for (let i = 0; i < 30; i++) {
     break;
   }
 }
-check('the code is read and the room joined', after === want, `${before} -> ${after}`);
-check('the overlay closed itself', (await ev(`!!document.querySelector('.scanner')`)) === false);
+check({ name: 'the code is read and the room joined', ok: after === want, detail: `${before} -> ${after}` });
+check({ name: 'the overlay closed itself', ok: (await ev(`!!document.querySelector('.scanner')`)) === false });
 
 console.log(bad ? `\n${bad} FAILED` : '\nall checks passed');
 ws.close();

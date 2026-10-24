@@ -31,7 +31,7 @@ export const catchFromPage = (type) => `(() => {
 
 /** Send `type` with `data` to the page, as the extension would; resolves to the page's
  *  answer, JSON-encoded so it survives `returnByValue`. */
-export const askPage = (type, data) => `new Promise((resolve) => {
+export const askPage = ({ type, data }) => `new Promise((resolve) => {
   const id = Math.floor(Math.random() * 1e9);
   addEventListener('message', function heard(e) {
     const d = e.data;

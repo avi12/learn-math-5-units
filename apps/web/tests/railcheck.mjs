@@ -36,12 +36,12 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r, j) => {
     const i = ++id;
     pending.set(i, r);
-    setTimeout(() => j(new Error(`CDP timeout: ${m}`)), 20000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => j(new Error(`CDP timeout: ${method}`)), 20000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -51,29 +51,29 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) => {
-  const r = await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true });
+  const r = await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } });
   if (r?.exceptionDetails) {throw new Error(r.exceptionDetails.text + ' :: ' + x);}
   return r.result?.value;
 };
 let bad = 0;
-const check = (name, ok, detail = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(54)} ${detail}`);
 };
 
-await send('Emulation.setDeviceMetricsOverride', {
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: {
   width: 1180,
   height: 820,
   deviceScaleFactor: 1,
   mobile: false
-});
+} });
 await asTablet(send);
-await send('Page.navigate', { url: roomUrl(url, room) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room }) } });
 await wait(6000);
 await assertPad(ev);
 
@@ -97,16 +97,16 @@ async function strokeAt(yFrac) {
   const x0 = rect.left + rect.width * 0.15;
   const x1 = rect.left + rect.width * 0.55;
   const was = await ink();
-  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 });
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 } });
   for (let i = 1; i <= 8; i++)
-    {await send('Input.dispatchMouseEvent', {
+    {await send({ method: 'Input.dispatchMouseEvent', params: {
       type: 'mouseMoved',
       x: x0 + ((x1 - x0) * i) / 8,
       y,
       button: 'left',
       buttons: 1
-    });}
-  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x1, y, button: 'left', buttons: 0, clickCount: 1 });
+    } });}
+  await send({ method: 'Input.dispatchMouseEvent', params: { type: 'mouseReleased', x: x1, y, button: 'left', buttons: 0, clickCount: 1 } });
   for (let i = 0; i < 40 && (await ink()) <= was; i++) {await wait(250);}
 }
 
@@ -162,12 +162,12 @@ for (let r = 1; r <= 16; r++) {
 // so a wide, short window is a much smaller slice of the same strip. Sixteen rounds and
 // this reshape put the view under a tenth of the strip, which is where a thumb floored at
 // 12% is taller than the room left under it.
-await send('Emulation.setDeviceMetricsOverride', {
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: {
   width: 1400,
   height: 520,
   deviceScaleFactor: 1,
   mobile: false
-});
+} });
 await wait(600);
 for (let i = 0; i < 4; i++) {
   await wheelDown();
@@ -186,32 +186,32 @@ console.log(
 // share of the strip on screen — the height the grip would have had with no floor under
 // it. Under 12% and the floor is the thing deciding the height, which is the only state
 // in which any of this could ever have gone wrong.
-check(
-  'the strip got long enough for the floor to bind',
-  1 - g.at < 0.115,
-  `on screen ${((1 - g.at) * 100).toFixed(1)}% of the strip, grip drawn at ${(frac * 100).toFixed(1)}%`
-);
+check({
+  name: 'the strip got long enough for the floor to bind',
+  ok: 1 - g.at < 0.115,
+  detail: `on screen ${((1 - g.at) * 100).toFixed(1)}% of the strip, grip drawn at ${(frac * 100).toFixed(1)}%`
+});
 
-check(
-  'the thumb stays inside the rail',
-  spill <= 0.5,
-  `worst overhang ${spill.toFixed(1)}px past the rail's bottom`
-);
-check(
-  'the thumb stays inside the board',
-  g.thumb.bottom <= g.board.bottom + 0.5,
-  `thumb ends at ${g.thumb.bottom.toFixed(0)}, board at ${g.board.bottom.toFixed(0)}`
-);
-check(
-  'the thumb is still big enough to land a nib on',
-  frac >= 0.12 - 0.002,
-  `${g.thumb.height.toFixed(0)}px, ${(frac * 100).toFixed(1)}% of the rail`
-);
-check('the thumb is not sitting above the rail', g.thumb.top >= g.rail.top - 0.5);
+check({
+  name: 'the thumb stays inside the rail',
+  ok: spill <= 0.5,
+  detail: `worst overhang ${spill.toFixed(1)}px past the rail's bottom`
+});
+check({
+  name: 'the thumb stays inside the board',
+  ok: g.thumb.bottom <= g.board.bottom + 0.5,
+  detail: `thumb ends at ${g.thumb.bottom.toFixed(0)}, board at ${g.board.bottom.toFixed(0)}`
+});
+check({
+  name: 'the thumb is still big enough to land a nib on',
+  ok: frac >= 0.12 - 0.002,
+  detail: `${g.thumb.height.toFixed(0)}px, ${(frac * 100).toFixed(1)}% of the rail`
+});
+check({ name: 'the thumb is not sitting above the rail', ok: g.thumb.top >= g.rail.top - 0.5 });
 
 // The corner Avi photographed, so a fix can be looked at and not only asserted.
 if (shot) {
-  const png = await send('Page.captureScreenshot', {
+  const png = await send({ method: 'Page.captureScreenshot', params: {
     format: 'png',
     clip: {
       x: Math.max(0, g.rail.left - 36),
@@ -220,30 +220,30 @@ if (shot) {
       height: 130,
       scale: 3
     }
-  });
+  } });
   writeFileSync(shot, Buffer.from(png.data, 'base64'));
   console.log(`      wrote ${shot}`);
 }
-check(
-  'at the end of the strip it sits flush with the rail',
-  Math.abs(g.thumb.bottom - g.rail.bottom) <= 0.5,
-  `${(g.thumb.bottom - g.rail.bottom).toFixed(1)}px`
-);
+check({
+  name: 'at the end of the strip it sits flush with the rail',
+  ok: Math.abs(g.thumb.bottom - g.rail.bottom) <= 0.5,
+  detail: `${(g.thumb.bottom - g.rail.bottom).toFixed(1)}px`
+});
 
 // ---- painted, not greyed ---------------------------------------------------
 const rgb = (hex) => {
   const h = hex.replace('#', '');
   return `rgb(${parseInt(h.slice(0, 2), 16)}, ${parseInt(h.slice(2, 4), 16)}, ${parseInt(h.slice(4, 6), 16)})`;
 };
-check('nothing filters the thumb', g.filter === 'none', g.filter);
-check('the thumb is painted in --primary', g.bg === rgb(g.primary), `${g.bg} vs ${g.primary}`);
+check({ name: 'nothing filters the thumb', ok: g.filter === 'none', detail: g.filter });
+check({ name: 'the thumb is painted in --primary', ok: g.bg === rgb(g.primary), detail: `${g.bg} vs ${g.primary}` });
 
-await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
+await send({ method: 'Emulation.setEmulatedMedia', params: { features: [{ name: 'prefers-color-scheme', value: 'dark' }] } });
 await wait(300);
 const d = await geom();
-check('nothing filters it on the dark palette', d.filter === 'none', d.filter);
-check('and it is cyan there, not grey', d.bg === rgb(d.primary), `${d.bg} vs ${d.primary}`);
-await send('Emulation.setEmulatedMedia', { features: [] });
+check({ name: 'nothing filters it on the dark palette', ok: d.filter === 'none', detail: d.filter });
+check({ name: 'and it is cyan there, not grey', ok: d.bg === rgb(d.primary), detail: `${d.bg} vs ${d.primary}` });
+await send({ method: 'Emulation.setEmulatedMedia', params: { features: [] } });
 
 // leave nothing behind in the database
 await ev(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'נקה')?.click()`);

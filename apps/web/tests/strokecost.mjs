@@ -15,22 +15,22 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
-  new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method: m, params: p })); });
+const send = ({ method, params = {} }) =>
+  new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
   if (m.id && pending.has(m.id)) { pending.get(m.id)(m.result); pending.delete(m.id); }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
 const ev = async (x) =>
-  (await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true })).result?.value;
+  (await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } })).result?.value;
 
-await send('Emulation.setDeviceMetricsOverride', { width: 1180, height: 900, deviceScaleFactor: 2, mobile: true });
-await send('Page.navigate', { url });
+await send({ method: 'Emulation.setDeviceMetricsOverride', params: { width: 1180, height: 900, deviceScaleFactor: 2, mobile: true } });
+await send({ method: 'Page.navigate', params: { url } });
 await new Promise((r) => setTimeout(r, 6000));
-if (Number(rate) > 1) {await send('Emulation.setCPUThrottlingRate', { rate: Number(rate) });}
+if (Number(rate) > 1) {await send({ method: 'Emulation.setCPUThrottlingRate', params: { rate: Number(rate) } });}
 
 const out = await ev(`(() => {
   const c = document.querySelector('canvas');

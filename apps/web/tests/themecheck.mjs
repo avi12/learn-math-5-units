@@ -28,12 +28,12 @@ const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
-const send = (m, p = {}) =>
+const send = ({ method, params = {} }) =>
   new Promise((r, j) => {
     const i = ++id;
     pending.set(i, r);
-    setTimeout(() => j(new Error('CDP timeout: ' + m)), 20000);
-    ws.send(JSON.stringify({ id: i, method: m, params: p }));
+    setTimeout(() => j(new Error('CDP timeout: ' + method)), 20000);
+    ws.send(JSON.stringify({ id: i, method, params }));
   });
 ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
@@ -43,21 +43,21 @@ ws.onmessage = (e) => {
   }
 };
 await new Promise((r) => (ws.onopen = r));
-await send('Page.enable');
-await send('Runtime.enable');
+await send({ method: 'Page.enable' });
+await send({ method: 'Runtime.enable' });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const ev = async (x) =>
-  (await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true }))
+  (await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } }))
     .result?.value;
 
 let bad = 0;
-const check = (n, ok, d = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
-  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(50)} ${d}`);
+  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(50)} ${detail}`);
 };
 
 const theme = (v) =>
-  send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: v }] });
+  send({ method: 'Emulation.setEmulatedMedia', params: { features: [{ name: 'prefers-color-scheme', value: v }] } });
 
 /** The ink actually on the canvas, and the ink this theme says to write with.
  *
@@ -91,13 +91,13 @@ const hex = (s) => {
   const n = parseInt(m[1], 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
-const far = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
+const far = ({ drawn, want }) => Math.max(...drawn.map((v, i) => Math.abs(v - want[i])));
 
 await theme('dark');
 await asTablet(send);
-await send('Page.navigate', { url: 'about:blank' });
+await send({ method: 'Page.navigate', params: { url: 'about:blank' } });
 await wait(300);
-await send('Page.navigate', { url: roomUrl(url, room) });
+await send({ method: 'Page.navigate', params: { url: roomUrl({ url, room }) } });
 await wait(6000);
 await assertPad(ev);
 
@@ -107,25 +107,25 @@ const rect = JSON.parse(
 );
 const y = rect.top + rect.height * 0.4;
 const x0 = rect.left + rect.width * 0.2;
-await send('Input.dispatchMouseEvent', {
+await send({ method: 'Input.dispatchMouseEvent', params: {
   type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1
-});
+} });
 for (let i = 1; i <= 10; i++)
-  {await send('Input.dispatchMouseEvent', {
+  {await send({ method: 'Input.dispatchMouseEvent', params: {
     type: 'mouseMoved', x: x0 + i * 28, y: y + (i % 2 ? 6 : -6), button: 'left', buttons: 1
-  });}
-await send('Input.dispatchMouseEvent', {
+  } });}
+await send({ method: 'Input.dispatchMouseEvent', params: {
   type: 'mouseReleased', x: x0 + 280, y, button: 'left', buttons: 0, clickCount: 1
-});
+} });
 await wait(1500);
 
 const before = JSON.parse(await sample());
-check('dark: there is ink on the board', before.lit > 200, `${before.lit} px`);
-check(
-  'dark: and it is the dark theme’s ink',
-  before.drawn && hex(before.want) && far(before.drawn, hex(before.want)) <= 12,
-  `drew rgb(${before.drawn}) want ${before.want}`
-);
+check({ name: 'dark: there is ink on the board', ok: before.lit > 200, detail: `${before.lit} px` });
+check({
+  name: 'dark: and it is the dark theme’s ink',
+  ok: before.drawn && hex(before.want) && far({ drawn: before.drawn, want: hex(before.want) }) <= 12,
+  detail: `drew rgb(${before.drawn}) want ${before.want}`
+});
 
 // The switch, and nothing else. No scroll, no click, no resize — those all move the
 // cache key on their own and would hide exactly the bug this is here for.
@@ -133,29 +133,29 @@ await theme('light');
 await wait(900);
 
 const after = JSON.parse(await sample());
-check('light: the ink is still there', after.lit > 200, `${after.lit} px`);
-check(
-  'light: and it repainted in the light theme’s ink',
-  after.drawn && hex(after.want) && far(after.drawn, hex(after.want)) <= 12,
-  `drew rgb(${after.drawn}) want ${after.want}`
-);
+check({ name: 'light: the ink is still there', ok: after.lit > 200, detail: `${after.lit} px` });
+check({
+  name: 'light: and it repainted in the light theme’s ink',
+  ok: after.drawn && hex(after.want) && far({ drawn: after.drawn, want: hex(after.want) }) <= 12,
+  detail: `drew rgb(${after.drawn}) want ${after.want}`
+});
 // The failure this reproduces, stated as its own line: stale ink is ink that has become
 // the background it sits on, which is why it read as an empty board.
-check(
-  'light: and it is not the colour of the surface it sits on',
-  after.drawn && hex(after.surface) && far(after.drawn, hex(after.surface)) > 40,
-  `drew rgb(${after.drawn}) on ${after.surface}`
-);
+check({
+  name: 'light: and it is not the colour of the surface it sits on',
+  ok: after.drawn && hex(after.surface) && far({ drawn: after.drawn, want: hex(after.surface) }) > 40,
+  detail: `drew rgb(${after.drawn}) on ${after.surface}`
+});
 
 // Back again, because a cache that is fixed in one direction is not fixed.
 await theme('dark');
 await wait(900);
 const back = JSON.parse(await sample());
-check(
-  'dark again: it follows the switch back',
-  back.drawn && hex(back.want) && far(back.drawn, hex(back.want)) <= 12,
-  `drew rgb(${back.drawn}) want ${back.want}`
-);
+check({
+  name: 'dark again: it follows the switch back',
+  ok: back.drawn && hex(back.want) && far({ drawn: back.drawn, want: hex(back.want) }) <= 12,
+  detail: `drew rgb(${back.drawn}) want ${back.want}`
+});
 
 // Leave the room as it was found. The dialog is the page's own, so this is a click and
 // then a wait for it to be open — a click at a button that is not there yet is the silent

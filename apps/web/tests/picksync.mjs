@@ -32,12 +32,12 @@ async function attach(wsUrl) {
   const ws = new WebSocket(wsUrl);
   let id = 0;
   const pending = new Map();
-  const send = (m, p = {}) =>
+  const send = ({ method, params = {} }) =>
     new Promise((res, rej) => {
       const i = ++id;
       pending.set(i, res);
-      setTimeout(() => rej(new Error('CDP timeout: ' + m)), 20000);
-      ws.send(JSON.stringify({ id: i, method: m, params: p, sessionId: undefined }));
+      setTimeout(() => rej(new Error('CDP timeout: ' + method)), 20000);
+      ws.send(JSON.stringify({ id: i, method, params, sessionId: undefined }));
     });
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
@@ -47,23 +47,23 @@ async function attach(wsUrl) {
     }
   };
   await new Promise((r) => (ws.onopen = r));
-  await send('Page.enable');
-  await send('Runtime.enable');
+  await send({ method: 'Page.enable' });
+  await send({ method: 'Runtime.enable' });
   const ev = async (x) =>
-    (await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true }))
+    (await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } }))
       .result?.value;
   return { ws, send, ev };
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let bad = 0;
-const check = (n, ok, d = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
-  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${n.padEnd(52)} ${d}`);
+  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(52)} ${detail}`);
 };
 
 const room = freshRoom();
-const target = roomUrl(url, room);
+const target = roomUrl({ url, room });
 
 // The first tab is whatever the browser already has open; the second is asked for.
 const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
@@ -77,8 +77,8 @@ const B = await attach(madeUrl.webSocketDebuggerUrl);
 
 // A is the tablet, B is the desktop mirror — the real pairing, not two of the same.
 await asTablet(A.send);
-await A.send('Page.navigate', { url: target });
-await B.send('Page.navigate', { url: target });
+await A.send({ method: 'Page.navigate', params: { url: target } });
+await B.send({ method: 'Page.navigate', params: { url: target } });
 await wait(9000);
 
 /** The picker's value, and the section beside it. Read off the DOM rather than out of a
@@ -91,8 +91,8 @@ const state = (p) =>
 
 /** Set the picker the way a person does — change the value and fire the event Svelte
  *  is bound to. Assigning `.value` alone updates nothing. */
-const setPick = (p, value) =>
-  p.ev(`(() => {
+const setPick = ({ page, value }) =>
+  page.ev(`(() => {
     const s = document.querySelectorAll('.question .topic select')[1];
     if (!s) return 'no select';
     const has = [...s.options].some((o) => o.value === ${JSON.stringify(value)});
@@ -112,31 +112,31 @@ const options = JSON.parse(
     [...document.querySelectorAll('.question .topic select')[1].options].map((o) => o.value).filter((v) => !v.endsWith(':'))
   )`)
 );
-check('the picker has options to choose from', options.length > 10, `${options.length}`);
+check({ name: 'the picker has options to choose from', ok: options.length > 10, detail: `${options.length}` });
 const [one, two] = [options[1], options[options.length - 2]];
 
 const a0 = JSON.parse(await state(A));
 const b0 = JSON.parse(await state(B));
-check('both devices start on the same exercise', a0.pick === b0.pick, `${a0.pick}`);
+check({ name: 'both devices start on the same exercise', ok: a0.pick === b0.pick, detail: `${a0.pick}` });
 
 // ---- tablet -> desktop -------------------------------------------------------
-check('setting the picker on the tablet', (await setPick(A, one)) === 'ok', one);
+check({ name: 'setting the picker on the tablet', ok: (await setPick({ page: A, value: one })) === 'ok', detail: one });
 await wait(3000);
 const b1 = JSON.parse(await state(B));
-check('the desktop followed', b1.pick === one, `desktop shows ${b1.pick}`);
+check({ name: 'the desktop followed', ok: b1.pick === one, detail: `desktop shows ${b1.pick}` });
 
 // ---- desktop -> tablet -------------------------------------------------------
-check('setting it back on the desktop', (await setPick(B, two)) === 'ok', two);
+check({ name: 'setting it back on the desktop', ok: (await setPick({ page: B, value: two })) === 'ok', detail: two });
 await wait(3000);
 const a2 = JSON.parse(await state(A));
-check('the tablet followed', a2.pick === two, `tablet shows ${a2.pick}`);
+check({ name: 'the tablet followed', ok: a2.pick === two, detail: `tablet shows ${a2.pick}` });
 
 // ---- and it settled, rather than bouncing ------------------------------------
 await wait(2500);
 const a3 = JSON.parse(await state(A));
 const b3 = JSON.parse(await state(B));
-check('no echo — it stayed where it was put', a3.pick === two && b3.pick === two,
-  `tablet ${a3.pick}, desktop ${b3.pick}`);
+check({ name: 'no echo — it stayed where it was put', ok: a3.pick === two && b3.pick === two,
+  detail: `tablet ${a3.pick}, desktop ${b3.pick}` });
 
 // ---- the section is its own field and must travel too ------------------------
 const withSections = JSON.parse(
@@ -153,7 +153,7 @@ const withSections = JSON.parse(
   })()`)
 );
 if (!withSections) {
-  check('an exercise with sections exists to test with', false);
+  check({ name: 'an exercise with sections exists to test with', ok: false });
 } else {
   await wait(2500);
   await A.ev(`(() => {
@@ -163,9 +163,9 @@ if (!withSections) {
   })()`);
   await wait(3000);
   const b4 = JSON.parse(await state(B));
-  check('the section letter crossed too', b4.section === withSections.letter,
-    `desktop section ${JSON.stringify(b4.section)}, wanted ${JSON.stringify(withSections.letter)}`);
-  check('and it landed on the same exercise', b4.pick === withSections.pick, b4.pick);
+  check({ name: 'the section letter crossed too', ok: b4.section === withSections.letter,
+    detail: `desktop section ${JSON.stringify(b4.section)}, wanted ${JSON.stringify(withSections.letter)}` });
+  check({ name: 'and it landed on the same exercise', ok: b4.pick === withSections.pick, detail: b4.pick });
 }
 
 A.ws.close();
