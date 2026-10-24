@@ -17,7 +17,11 @@ export const StorageKey = {
   SHOW_QUESTION: 'avi-math-showq',
   SHOW_CONNECT: 'avi-math-connect',
   SHOW_HOWTO: 'avi-math-howto',
-  RELEASE_TRIES: 'avi-math-release-tries'
+  RELEASE_TRIES: 'avi-math-release-tries',
+  /** which engine runs Gemini Live (lib/engine.ts) */
+  ENGINE: 'avi-math-engine',
+  /** the person's Gemini API key. This device's alone: never synced, sent or logged */
+  GEMINI_KEY: 'avi-math-gemini-key'
 } as const;
 export type StorageKey = (typeof StorageKey)[keyof typeof StorageKey];
 
@@ -37,6 +41,14 @@ export function writePreference({ key, value }: { key: string; value: string }):
     localStorage.setItem(key, value);
   } catch {
     // the setting just does not persist; the board works the same
+  }
+}
+
+export function forgetPreference(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // nothing stored, or nothing that can be: either way it is gone
   }
 }
 
