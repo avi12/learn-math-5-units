@@ -32,9 +32,9 @@ export interface CheckPayload {
  * The second button beside "שקלוד יבדוק". Claude marks the work when it is done; Gemini
  * Live helps while it is being done. The extension opens the Gemini web client in a
  * window of its own, briefs it as a private tutor, and from then on Gemini pulls a
- * picture of the board about once a second — and every picture is drawn here, by the
- * pad, on request (`frame`): the question, the whole board, and where the pen is
- * hovering. Nothing about the real screen is ever shared. */
+ * picture of the board every second — and every picture is drawn here, by the pad, on
+ * request (`frame`): the question, and the whole board or, while the pen is on it, the
+ * board close up around the pen. Nothing about the real screen is ever shared. */
 
 export const LiveAction = {
   /** open Gemini, brief it, go live — or bring an open session to the front */

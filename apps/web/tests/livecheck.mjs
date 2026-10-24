@@ -202,6 +202,16 @@ await pen('mouseMoved', boxA.x + boxA.w * 0.6, boxA.y - 40, 0);
 await wait(1500);
 const after = await violet();
 say('and goes away when the pen leaves', after <= before + 5, `${during} -> ${after} px`);
+// While the pen is there the picture is a close-up around it; a moment after it goes,
+// the whole board is back (frame.ts `FOCUS_LINGER_MS`). Kept beside the first, for eyes.
+await wait(2500);
+const whole = await ask();
+say('the pen gone a while, the picture shows the whole board again', !!whole && whole.base64 !== p2.f?.base64);
+if (whole && out) {
+  const wholeOut = out.replace(/(\.\w+)?$/, '-board$1');
+  writeFileSync(wholeOut, Buffer.from(whole.base64, 'base64'));
+  console.log(`      picture kept at ${wholeOut}`);
+}
 
 // ---- notes and state, desktop to tablet ----
 console.log('--- what Gemini writes, on both devices ---');

@@ -13,6 +13,12 @@
  *   - the WHOLE board, top to bottom, laid out in as many columns as make it largest —
  *     a strip three screens long is unreadable as one tall image and readable as two
  *     side by side. Columns run right to left, as the page reads;
+ *   - or, while the pen is on the board or over it, a close-up of the board around the
+ *     nib instead (`closeUp`). Avi: "keeps checking the canvas once a sec and in
+ *     particular where I point the pen at" (23.10.2026). Live reads its pictures at a low
+ *     resolution, so handwriting in a board of columns is a blur to it; the same lesson
+ *     as interview-prep's crop to the lines around the cursor. The whole board comes
+ *     back a moment after the pen goes;
  *   - what was written in the last few seconds, behind a highlighter, so a still taken
  *     once a second still says where the work just moved;
  *   - where the pen is hovering (directlink.ts carries it from the tablet), in the mark
@@ -28,7 +34,7 @@ import temmlCss from 'temml/dist/Temml-Latin-Modern.css?raw';
 import { blobToBase64 } from './deliver';
 import type { Hover } from './directlink';
 import mathFontUrl from './fonts/latinmodernmath.woff2?url';
-import { boxOf, drawPenMark, exportSpan, palette, render, type Stroke } from './ink';
+import { boxOf, drawPenMark, exportSpan, nibOf, palette, render, type Stroke } from './ink';
 
 /** What the board hands over for one picture — see `scene()` in Surface.svelte. */
 export interface Scene {
@@ -83,6 +89,13 @@ const SPOT_DIM = 0.55;
 /** The lit circle's radius, normalised to the board's width: about a line of handwriting
  *  either side of the nib. */
 const SPOT_R = 0.07;
+/** How much of the board's width the close-up shows: a few words either side of the nib,
+ *  drawn about twice as large as the whole board ever is. */
+const ZOOM_W = 0.6;
+/** How long the close-up outlasts the pen. Between a stroke and the next hover there is a
+ *  moment with neither, and the picture must not flip to the whole board and back in it. */
+const FOCUS_LINGER_MS = 3000;
+const ZOOM_LABEL = 'מקרוב: סביב העט · כל הלוח חוזר כשהעט מתרחק';
 const QUALITY = 0.82;
 /** A face every Windows desktop has, with Hebrew — see the header for why not the page's. */
 const FACE = '"Segoe UI", Arial, sans-serif';
@@ -211,11 +224,17 @@ interface Layout {
   each: number;
   /** where each column starts, normalised */
   tops: number[];
+  /** where a column starts across the board, and how much of its width it shows,
+   *  normalised: all of it in the whole board, a window of it in the close-up */
+  left: number;
+  across: number;
+  /** what is written over each column; nothing over the whole board in one column */
+  labels: string[];
 }
 
 /** The column count that draws the board largest in a `bw`×`bh` box. */
 function layout(span: number, bw: number, bh: number): Layout {
-  let best: Layout = { k: 1, s: 0, each: span, tops: [0] };
+  let best: Layout = { k: 1, s: 0, each: span, tops: [0], left: 0, across: 1, labels: [] };
   for (let k = 1; k <= MAX_COLS; k++) {
     const each = k === 1 ? span : span / k + OVERLAP;
     const colW = (bw - (k - 1) * GAP) / k;
@@ -223,10 +242,44 @@ function layout(span: number, bw: number, bh: number): Layout {
     if (s > best.s * 1.02) {
       // evenly spaced so the last column ends exactly at the bottom of the board
       const tops = Array.from({ length: k }, (_, i) => (k === 1 ? 0 : (i * (span - each)) / (k - 1)));
-      best = { k, s, each, tops };
+      const labels = k > 1 ? tops.map((_, i) => `טור ${i + 1} מתוך ${k}`) : [];
+      best = { k, s, each, tops, left: 0, across: 1, labels };
     }
   }
   return best;
+}
+
+/** The board around `at`, `ZOOM_W` of its width, filling a `bw`×`bh` box. The window
+ *  stays on the board: near an edge the nib is off centre rather than the view empty. */
+function closeUp({ at, span, bw, bh }: { at: { x: number; y: number }; span: number; bw: number; bh: number }): Layout {
+  const s = bw / ZOOM_W;
+  const each = (bh - LABEL) / s;
+  const clamp = ({ v, max }: { v: number; max: number }) => Math.min(Math.max(v, 0), Math.max(max, 0));
+  return {
+    k: 1,
+    s,
+    each,
+    tops: [clamp({ v: at.y - each / 2, max: span - each })],
+    left: clamp({ v: at.x - ZOOM_W / 2, max: 1 - ZOOM_W }),
+    across: ZOOM_W,
+    labels: [ZOOM_LABEL]
+  };
+}
+
+/** Where the pen was last seen, and when — see `FOCUS_LINGER_MS`. */
+let lastFocus: { x: number; y: number; seen: number } | null = null;
+
+/** Where the pen is: hovering, or the nib of the stroke in hand — and for a moment after
+ *  it goes, where it was. Null once it has been gone a while: the whole board, then. */
+function focusOf(scene: Scene): { x: number; y: number } | null {
+  const now = performance.now();
+  const nib = scene.hover ?? (scene.wet ? nibOf(scene.wet) : undefined);
+  if (nib) {
+    lastFocus = { x: nib.x, y: nib.y, seen: now };
+    return nib;
+  }
+
+  return lastFocus && now - lastFocus.seen < FOCUS_LINGER_MS ? lastFocus : null;
 }
 
 /** The column a board point is drawn in: the one it sits most comfortably inside. */
@@ -303,7 +356,8 @@ export async function drawFrame(scene: Scene, q: Question): Promise<Frame | null
 
   drawLegend(ctx, c, px, PAD + panelH + GAP);
 
-  // The board, all of it — down to the stroke in hand, or the pen hovering below the ink.
+  // The board, all of it — down to the stroke in hand, or the pen hovering below the ink;
+  // or the part of it around the pen.
   const wetBox = scene.wet ? boxOf(scene.wet) : null;
   const span = Math.max(
     exportSpan(Math.max(scene.bottom, wetBox?.y1 ?? 0)),
@@ -312,15 +366,17 @@ export async function drawFrame(scene: Scene, q: Question): Promise<Frame | null
   const bx = PAD;
   const bw = px - GAP - PAD;
   const bh = H - 2 * PAD;
-  const l = layout(span, bw, bh);
-  const colW = l.s;
+  const at = focusOf(scene);
+  const l = at ? closeUp({ at, span, bw, bh }) : layout(span, bw, bh);
+  const colW = l.s * l.across;
   const colH = l.each * l.s;
-  const colY = PAD + (l.k > 1 ? LABEL : 0);
+  const colY = PAD + (l.labels.length ? LABEL : 0);
   /** a column's left edge: column 0 sits against the panel, the rest follow leftwards */
   const colX = (i: number) => bx + bw - (i + 1) * colW - i * GAP;
 
+  // the board's whole width at this scale; a column shows `across` of it, from `left`
   const sheet = document.createElement('canvas');
-  sheet.width = Math.ceil(colW);
+  sheet.width = Math.ceil(l.s);
   sheet.height = Math.ceil(colH);
   const sctx = sheet.getContext('2d');
   if (!sctx) {
@@ -348,7 +404,7 @@ export async function drawFrame(scene: Scene, q: Question): Promise<Frame | null
       }
 
       ctx.fillRect(
-        x + (b.x0 - RECENT_PAD) * l.s,
+        x + (b.x0 - RECENT_PAD - l.left) * l.s,
         colY + (b.y0 - RECENT_PAD - top) * l.s,
         (b.x1 - b.x0 + 2 * RECENT_PAD) * l.s,
         (b.y1 - b.y0 + 2 * RECENT_PAD) * l.s
@@ -356,14 +412,15 @@ export async function drawFrame(scene: Scene, q: Question): Promise<Frame | null
     }
     ctx.restore();
     render(sctx, scene.strokes, scene.wet, l.s, sheet.height, undefined, top);
-    ctx.drawImage(sheet, x, colY);
+    ctx.drawImage(sheet, l.left * l.s, 0, colW, colH, x, colY, colW, colH);
     ctx.strokeStyle = c.border;
     ctx.lineWidth = 2;
     ctx.strokeRect(x + 1, colY + 1, colW - 2, colH - 2);
-    if (l.k > 1) {
+    const label = l.labels[i];
+    if (label) {
       ctx.fillStyle = c.muted;
       ctx.font = `600 17px ${FACE}`;
-      ctx.fillText(`טור ${i + 1} מתוך ${l.k}`, x + colW / 2, PAD + LABEL / 2);
+      ctx.fillText(label, x + colW / 2, PAD + LABEL / 2);
     }
   }
 
@@ -375,7 +432,7 @@ export async function drawFrame(scene: Scene, q: Question): Promise<Frame | null
 
   if (scene.hover) {
     const i = columnOf(scene.hover.y, l);
-    const hx = colX(i) + scene.hover.x * l.s;
+    const hx = colX(i) + (scene.hover.x - l.left) * l.s;
     const hy = colY + (scene.hover.y - l.tops[i]) * l.s;
     // every column, less the circle round the nib (even-odd: the circle is a hole)
     ctx.save();

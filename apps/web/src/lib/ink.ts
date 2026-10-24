@@ -261,6 +261,11 @@ function pointsOf(s: Stroke): Pt[] {
   return pts;
 }
 
+/** Where the nib is on a stroke still being written: its last point. */
+export function nibOf(s: Stroke): Pt | undefined {
+  return pointsOf(s).at(-1);
+}
+
 export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number): void {
   const pts = pointsOf(s);
   if (!pts.length) {return;}
