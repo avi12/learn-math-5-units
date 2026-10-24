@@ -15,7 +15,8 @@
   import { Role } from './device';
   import { pickOf, type Choice } from './pick.svelte';
   import LiveEngine from './LiveEngine.svelte';
-  import { isRunning, live, liveLabel } from './live.svelte';
+  import LiveStatus from './LiveStatus.svelte';
+  import { isRunning, live } from './live.svelte';
   import { StorageKey, readFlag, writeFlag } from './preferences';
   import iconFold from './icons/IconFold.svg?raw';
   import iconInspect from './icons/IconInspect.svg?raw';
@@ -55,7 +56,9 @@
      new question comes later in ORDER, against it when it comes earlier — so "הבא" and
      "הקודם" feel like moving through one list. Set in a pre-effect, i.e. before the keyed
      block re-renders with the new question. */
-  let swapDir = $state<'fwd' | 'back'>('fwd');
+  const SwapDir = { FWD: 'fwd', BACK: 'back' } as const;
+  type SwapDir = (typeof SwapDir)[keyof typeof SwapDir];
+  let swapDir = $state<SwapDir>(SwapDir.FWD);
   let swapAt = untrack(() => choice.at);
   /** The box the keyed question sits in. It outlives every swap, so it is what can go
    *  from the old question's height to the new one's. */
@@ -68,7 +71,7 @@
       return;
     }
 
-    swapDir = at < swapAt ? 'back' : 'fwd';
+    swapDir = at < swapAt ? SwapDir.BACK : SwapDir.FWD;
     swapAt = at;
     swapFrom = untrack(() => qbox?.offsetHeight ?? 0);
   });
@@ -253,7 +256,7 @@
          sits between. -->
     <div class="qfoot">
       {#if liveOn || live.detail}
-        <span class="lstate" role="status">{liveLabel()}</span>
+        <LiveStatus role="status" />
       {/if}
       <button class="btn big" data-active={liveOn} onclick={onlive}>
         {@html iconLive}{liveOn ? 'סיום השיעור' : 'מורה פרטי — ג׳מיני לייב'}
@@ -626,13 +629,6 @@
     margin-block-start: 12px;
   }
 
-  .lstate {
-    margin-inline-end: auto;
-    color: var(--fg-muted);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    letter-spacing: 0.06em;
-  }
   /* The exercise picker's skill tree. The picker itself (the popup, the rows, the
      checked fill) is shared and lives in controls.css; the tree is this card's alone. */
   @supports (appearance: base-select) {

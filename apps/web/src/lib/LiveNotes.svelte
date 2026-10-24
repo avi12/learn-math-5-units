@@ -16,9 +16,9 @@
      by the exercises' own code (lib/tex.ts) — loaded only when the first note arrives,
      since that is the one time this page converts TeX in the browser. Temml is a quarter
      of a bundle, and a session that never asks for a formula should not pay for it. */
-  import IconClose from './icons/IconClose.svg?raw';
-  import IconLive from './icons/IconLive.svg?raw';
-  import { dismissNote, dropNote, isRunning, leaving, live, liveLabel, NOTES_MAX } from './live.svelte';
+  import iconClose from './icons/IconClose.svg?raw';
+  import { dismissNote, dropNote, isRunning, leaving, live, NOTES_MAX } from './live.svelte';
+  import LiveStatus from './LiveStatus.svelte';
 
   /** On the tablet: the session's state shows here (the desktop has it already, next to
    *  the button that started it), and no notes. */
@@ -65,7 +65,7 @@
 {#if running || ready.length}
   <section class="card notes" class:pad={onPad} aria-live="polite">
     {#if running}
-      <p class="lstate" data-state={live.state} data-blind={live.blind || undefined}>{@html IconLive}{liveLabel()}</p>
+      <LiveStatus hasIcon />
     {/if}
     {#each ready as n, i (n.id)}
       {@const goes = i >= NOTES_MAX || leaving.has(n.id)}
@@ -82,7 +82,7 @@
         <h3>{n.title}</h3>
         <div class="nbody">{@html shown[n.id]}</div>
         <button class="btn close" onclick={() => dismissNote(n.id)} aria-label="סגור את הפתק">
-          {@html IconClose}
+          {@html iconClose}
         </button>
       </article>
     {/each}
@@ -151,36 +151,6 @@
     }
   }
 
-  .lstate {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin: 0;
-    color: var(--fg-muted);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    letter-spacing: 0.06em;
-
-    & :global(svg) {
-      width: 16px;
-      height: 16px;
-    }
-
-    &[data-state="live"] :global(svg) {
-      color: var(--cat-3);
-      animation: live-pulse 1600ms var(--ease-emph) infinite;
-
-      @media (prefers-reduced-motion: reduce) {
-        animation: none;
-      }
-    }
-
-    &[data-blind] :global(svg) {
-      color: var(--warn);
-      animation: none;
-    }
-  }
-
   .note {
     position: relative;
     flex: none;
@@ -246,11 +216,5 @@
     inset-block-start: 6px;
     inset-inline-end: 6px;
     padding: 4px;
-  }
-
-  @keyframes live-pulse {
-    50% {
-      opacity: 35%;
-    }
   }
 </style>
