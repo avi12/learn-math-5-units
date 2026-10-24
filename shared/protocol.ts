@@ -36,16 +36,6 @@ export interface CheckPayload {
  * request (`frame`): the question, and the whole board or, while the pen is on it, the
  * board close up around the pen. Nothing about the real screen is ever shared. */
 
-export const LiveAction = {
-  /** open Gemini, brief it, go live — or bring an open session to the front */
-  START: 'start',
-  /** the exercise changed under a running session: a new name for the shared tab and a
-   *  new note request. Not a new brief — that would pause Live (live_prompt_text). */
-  RETARGET: 'retarget',
-  STOP: 'stop'
-} as const;
-export type LiveAction = (typeof LiveAction)[keyof typeof LiveAction];
-
 /** One session's life, in order. `IDLE` is the pad's own word for "none"; the extension
  *  never sends it, it sends `ENDED`. */
 export const LiveState = {
@@ -68,15 +58,18 @@ export const LiveState = {
 } as const;
 export type LiveState = (typeof LiveState)[keyof typeof LiveState];
 
-export interface LiveRequest {
-  action: LiveAction;
-  /** the tutor's brief, criteria and exercise included (START) */
-  prompt?: string;
-  /** a human label for the exercise, for the Gemini window's shared-tab chip (START,
-   *  RETARGET) */
-  title?: string;
-  /** how a note is asked for, for this exercise (START, RETARGET) */
+/** The exercise a session is aimed at. */
+export interface LiveTarget {
+  /** a human label for the exercise, for the Gemini window's shared-tab chip */
+  title: string;
+  /** how a note is asked for, for this exercise; none, and the session writes no notes */
   notes?: NoteRequest;
+}
+
+/** What a session starts with: its exercise, and the brief. */
+export interface LiveStart extends LiveTarget {
+  /** the tutor's brief, criteria and exercise included */
+  prompt: string;
 }
 
 /** How Gemini is asked to write something down, all of it worded in the workbook
@@ -120,7 +113,9 @@ export interface Frame {
 /** The messages between the pad page and the extension. */
 export const PadMessage = {
   CHECK: 'check',
-  LIVE: 'live',
+  LIVE_START: 'liveStart',
+  LIVE_RETARGET: 'liveRetarget',
+  LIVE_STOP: 'liveStop',
   FRAME: 'frame',
   LIVE_STATUS: 'liveStatus',
   LIVE_NOTE: 'liveNote'
@@ -131,8 +126,15 @@ export type PadMessage = (typeof PadMessage)[keyof typeof PadMessage];
 export interface PadProtocolMap {
   /** pad → extension: here is a board and a prompt, for Claude */
   [PadMessage.CHECK](data: CheckPayload): void;
-  /** pad → extension: start, re-aim, or end the Gemini session */
-  [PadMessage.LIVE](data: LiveRequest): void;
+  /** pad → extension: open Gemini, brief it, go live — or bring an open session to the
+   *  front */
+  [PadMessage.LIVE_START](data: LiveStart): void;
+  /** pad → extension: the exercise changed under a running session — a new name for the
+   *  shared tab and a new note request. Not a new brief: that would pause Live
+   *  (live_prompt_text) */
+  [PadMessage.LIVE_RETARGET](data: LiveTarget): void;
+  /** pad → extension: end the session */
+  [PadMessage.LIVE_STOP](): void;
   /** extension → pad: Gemini wants a picture of the board */
   [PadMessage.FRAME](): Frame | null;
   /** extension → pad: how the session is doing */
@@ -142,6 +144,6 @@ export interface PadProtocolMap {
 }
 
 /** The window messenger's namespace; the version is the wire's. */
-export const PAD_NAMESPACE = 'avi-math@1';
+export const PAD_NAMESPACE = 'avi-math@2';
 
 export const padMessenger = defineWindowMessaging<PadProtocolMap>({ namespace: PAD_NAMESPACE });

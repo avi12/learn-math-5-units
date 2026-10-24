@@ -15,7 +15,8 @@ import {
   padMessenger,
   type Frame,
   type LiveNote,
-  type LiveRequest
+  type LiveStart,
+  type LiveTarget
 } from '@learn-math/shared/protocol';
 import { SvelteSet } from 'svelte/reactivity';
 
@@ -101,9 +102,19 @@ export function dropNote(id: string): void {
   live.notes = live.notes.filter((n) => n.id !== id);
 }
 
-/** Ask the extension for something. Fire and forget: what happens arrives as a status. */
-export function requestLive(req: LiveRequest): void {
-  void padMessenger.sendMessage(PadMessage.LIVE, req, location.origin).catch(() => {});
+/* Asking the extension for a session, a new aim, an end. Fire and forget: what happens
+   arrives as a status. */
+
+export function startLive(start: LiveStart): void {
+  void padMessenger.sendMessage(PadMessage.LIVE_START, start, location.origin).catch(() => {});
+}
+
+export function retargetLive(target: LiveTarget): void {
+  void padMessenger.sendMessage(PadMessage.LIVE_RETARGET, target, location.origin).catch(() => {});
+}
+
+export function stopLive(): void {
+  void padMessenger.sendMessage(PadMessage.LIVE_STOP, undefined, location.origin).catch(() => {});
 }
 
 /** Listen for the session, answer its picture requests with `draw`, and hand each new

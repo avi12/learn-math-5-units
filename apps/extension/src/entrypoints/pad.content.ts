@@ -48,16 +48,20 @@ export default defineContentScript({
         .sendMessage(ExtensionMessage.CHECK, { image: data.image, prompt: data.prompt, topic: String(data.topic ?? '') })
         .catch(() => {});
     });
-    padMessenger.onMessage(PadMessage.LIVE, ({ data }) => {
-      if (typeof data?.action !== 'string') {return;}
+    padMessenger.onMessage(PadMessage.LIVE_START, ({ data }) => {
+      if (typeof data?.prompt !== 'string' || typeof data.title !== 'string') {return;}
       void extensionMessenger
-        .sendMessage(ExtensionMessage.LIVE, {
-          action: data.action,
-          prompt: typeof data.prompt === 'string' ? data.prompt : undefined,
-          title: typeof data.title === 'string' ? data.title : undefined,
-          notes: noteRequestOf(data.notes)
-        })
+        .sendMessage(ExtensionMessage.LIVE_START, { prompt: data.prompt, title: data.title, notes: noteRequestOf(data.notes) })
         .catch(() => {});
+    });
+    padMessenger.onMessage(PadMessage.LIVE_RETARGET, ({ data }) => {
+      if (typeof data?.title !== 'string') {return;}
+      void extensionMessenger
+        .sendMessage(ExtensionMessage.LIVE_RETARGET, { title: data.title, notes: noteRequestOf(data.notes) })
+        .catch(() => {});
+    });
+    padMessenger.onMessage(PadMessage.LIVE_STOP, () => {
+      void extensionMessenger.sendMessage(ExtensionMessage.LIVE_STOP).catch(() => {});
     });
 
     // Worker → page.

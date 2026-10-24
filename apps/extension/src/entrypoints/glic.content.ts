@@ -2,9 +2,8 @@ import {
   BridgeMessage,
   bridgeMessenger,
   BridgeCall,
-  BridgeUp,
+  BridgeReport,
   within,
-  type BridgeReport,
   Direction,
   GlicState,
   BridgeFailure,
@@ -203,8 +202,9 @@ export default defineContentScript({
 
     /* ---- the channel to the relay -------------------------------------------- */
 
-    const report = (r: BridgeReport): void => {
-      void bridgeMessenger.sendMessage(BridgeMessage.REPORT, r).catch(() => {});
+    /** Up to the relay, and on to the worker. Nothing waits on a report. */
+    const report = (sent: Promise<void>): void => {
+      void sent.catch(() => {});
     };
 
     let active = false;
@@ -227,7 +227,7 @@ export default defineContentScript({
       }
 
       lastState = s;
-      report({ kind: BridgeUp.STATE, state: s });
+      report(bridgeMessenger.sendMessage(BridgeReport.STATE, s));
     };
 
     const pageText = (): string => document.body?.innerText ?? '';
@@ -254,7 +254,7 @@ export default defineContentScript({
       location.hostname === 'accounts.google.com' || (SIGN_IN.test(pageText()) && !findButton(Button.GO_LIVE));
 
     const reportStartFailure = (fallback: string): void =>
-      report({ kind: BridgeUp.ERROR, message: isSignedOut() ? BridgeFailure.SIGNED_OUT : fallback });
+      report(bridgeMessenger.sendMessage(BridgeReport.ERROR, isSignedOut() ? BridgeFailure.SIGNED_OUT : fallback));
 
     /* ---- pictures, fetched from the pad through the relay ------------------- */
 
@@ -399,7 +399,7 @@ export default defineContentScript({
           .then(() => client.initialize(host))
           .then(() => {
             booted = true;
-            report({ kind: BridgeUp.BOOTED });
+            report(bridgeMessenger.sendMessage(BridgeReport.BOOTED));
             setTimeout(() => {
               if (client.notifyPanelWillOpen) {
                 notify((s) => client.notifyPanelWillOpen?.(s), PANEL_STATE);
@@ -455,7 +455,7 @@ export default defineContentScript({
       }
 
       relayed[index] = trimmed;
-      report({ kind: BridgeUp.TRANSCRIPT, text: trimmed, direction, index });
+      report(bridgeMessenger.sendMessage(BridgeReport.TRANSCRIPT, { direction, text: trimmed, index }));
     };
 
     const open = (direction: Direction): number => utterances.push({ direction, text: '' }) - 1;
@@ -538,7 +538,7 @@ export default defineContentScript({
 
       if (content[ContentField.GENERATION_COMPLETE] != null || content[ContentField.INTERRUPTED] != null) {
         if (openAssistant >= 0 && active) {
-          report({ kind: BridgeUp.TURN_END, index: openAssistant });
+          report(bridgeMessenger.sendMessage(BridgeReport.TURN_END, openAssistant));
         }
         openAssistant = -1;
       }
@@ -736,7 +736,7 @@ export default defineContentScript({
       }
 
       brokeReported = true;
-      report({ kind: BridgeUp.ERROR, message: BridgeFailure.LIVE_BROKE });
+      report(bridgeMessenger.sendMessage(BridgeReport.ERROR, BridgeFailure.LIVE_BROKE));
     };
 
     /** The error screen's button carries its words as text, not always as a label. */
@@ -827,7 +827,7 @@ export default defineContentScript({
           clearInterval(startTimer);
           lastLive = Date.now();
           brokeReported = false;
-          report({ kind: BridgeUp.READY });
+          report(bridgeMessenger.sendMessage(BridgeReport.READY));
           setState(GlicState.LISTENING);
           monitorTimer ??= setInterval(monitorTick, MONITOR_POLL_MS);
           shareTimer ??= setInterval(share, SHARE_MS);
@@ -1011,8 +1011,8 @@ export default defineContentScript({
       return text;
     };
 
-    const ask = async (prompt: unknown): Promise<string> => {
-      if (typeof prompt !== 'string' || !prompt) {
+    const ask = async (prompt: string): Promise<string> => {
+      if (!prompt) {
         return '';
       }
 
@@ -1036,14 +1036,6 @@ export default defineContentScript({
         body: new URLSearchParams({ 'f.req': fReq, at })
       });
       return res.ok ? answerOf(await res.text()) : '';
-    };
-
-    const calls: Record<BridgeCall, (arg?: unknown) => unknown> = {
-      [BridgeCall.START]: start,
-      [BridgeCall.STOP]: stop,
-      [BridgeCall.BEGIN_TEXT]: beginText,
-      [BridgeCall.SUBMIT]: submitAndRead,
-      [BridgeCall.ASK]: ask
     };
 
     /* ---- the relay's side ---------------------------------------------------- */
@@ -1084,15 +1076,19 @@ export default defineContentScript({
 
         clearInterval(unavailable);
         unavailableReported = true;
-        report({ kind: BridgeUp.ERROR, message: BridgeFailure.UNAVAILABLE });
+        report(bridgeMessenger.sendMessage(BridgeReport.ERROR, BridgeFailure.UNAVAILABLE));
       }, UNAVAILABLE_POLL_MS);
     };
 
     bridgeMessenger.onMessage(BridgeMessage.ACTIVATE, ({ data }) => activate(data.title, data.url || location.origin));
-    bridgeMessenger.onMessage(BridgeMessage.CALL, async ({ data }) => {
-      const run = calls[data.name];
-      return run ? await Promise.resolve(run(data.arg)).catch(() => null) : null;
-    });
+
+    // The worker's calls. One that throws answers null, as one that never answers does.
+    const answer = <T>(run: () => T | Promise<T>): Promise<T | null> => Promise.resolve().then(run).catch(() => null);
+    bridgeMessenger.onMessage(BridgeCall.START, () => answer(start));
+    bridgeMessenger.onMessage(BridgeCall.STOP, () => answer(stop));
+    bridgeMessenger.onMessage(BridgeCall.BEGIN_TEXT, () => answer(beginText));
+    bridgeMessenger.onMessage(BridgeCall.SUBMIT, () => answer(submitAndRead));
+    bridgeMessenger.onMessage(BridgeCall.ASK, ({ data }) => answer(() => ask(data)));
 
     // the relay may have come up first, and know already whether this tab is a session's
     void bridgeMessenger

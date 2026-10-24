@@ -8,8 +8,9 @@ import type {
   CheckPayload,
   Frame,
   LiveNote,
-  LiveRequest,
-  LiveStatus
+  LiveStart,
+  LiveStatus,
+  LiveTarget
 } from '@learn-math/shared/protocol';
 import { defineExtensionMessaging } from '@webext-core/messaging';
 import { defineCustomEventMessaging } from '@webext-core/messaging/page';
@@ -55,43 +56,68 @@ export interface Activation {
   url: string;
 }
 
-/** What the bridge reports. */
-export const BridgeUp = {
+/* The bridge's own messages travel two hops, bridge ↔ relay ↔ worker, under the same
+ * name on both: the relay only carries them. So they are named and typed once, here, and
+ * both channels' protocol maps take them in. */
+
+/** What the bridge reports, as it happens. */
+export const BridgeReport = {
   /** Gemini adopted our host */
-  BOOTED: 'booted',
+  BOOTED: 'bridgeBooted',
   /** Live is on: Gemini is listening */
-  READY: 'ready',
-  STATE: 'state',
-  ERROR: 'error',
+  READY: 'bridgeReady',
+  STATE: 'bridgeState',
+  ERROR: 'bridgeError',
   /** a line of what was said */
-  TRANSCRIPT: 'transcript',
+  TRANSCRIPT: 'bridgeTranscript',
   /** Gemini finished (or was cut off in) what it was saying */
-  TURN_END: 'turn-end'
+  TURN_END: 'bridgeTurnEnd'
 } as const;
-export type BridgeUp = (typeof BridgeUp)[keyof typeof BridgeUp];
+export type BridgeReport = (typeof BridgeReport)[keyof typeof BridgeReport];
 
-export type BridgeReport =
-  | { kind: typeof BridgeUp.BOOTED }
-  | { kind: typeof BridgeUp.READY }
-  | { kind: typeof BridgeUp.STATE; state: GlicState }
-  | { kind: typeof BridgeUp.ERROR; message: string }
-  | { kind: typeof BridgeUp.TRANSCRIPT; direction: Direction; text: string; index: number }
-  | { kind: typeof BridgeUp.TURN_END; index: number };
+/** One line of what was said, as the Live wire carries it. `index` is the utterance's
+ *  place in the conversation; a line grows, and is sent again, under the same index. */
+export interface TranscriptLine {
+  direction: Direction;
+  text: string;
+  index: number;
+}
 
-/** The calls the bridge answers. */
+export interface BridgeReportProtocolMap {
+  [BridgeReport.BOOTED](): void;
+  [BridgeReport.READY](): void;
+  [BridgeReport.STATE](state: GlicState): void;
+  /** a `BridgeFailure`, or words for the pad */
+  [BridgeReport.ERROR](message: string): void;
+  [BridgeReport.TRANSCRIPT](line: TranscriptLine): void;
+  /** the index of the utterance that ended */
+  [BridgeReport.TURN_END](index: number): void;
+}
+
+/** What the worker asks the bridge to do. Each answers null when the page did not, in
+ *  time (the relay's deadline) or at all. */
 export const BridgeCall = {
   /** go Live (or resume it) */
-  START: 'start',
-  STOP: 'stop',
+  START: 'bridgeStart',
+  STOP: 'bridgeStop',
   /** leave Live for the text box, emptied and focused, ready to be typed into */
-  BEGIN_TEXT: 'beginText',
-  /** send what was typed, wait for the answer, return it as a `TextReply` */
-  SUBMIT: 'submitAndRead',
-  /** ask Gemini `arg` in a conversation of its own, beside Live, and return the answer's
-   *  text — the page's own signed-in text endpoint, so Live is never paused for it */
-  ASK: 'ask'
+  BEGIN_TEXT: 'bridgeBeginText',
+  /** send what was typed, wait for the answer, return it */
+  SUBMIT: 'bridgeSubmit',
+  /** ask Gemini in a conversation of its own, beside Live, and return the answer's text —
+   *  the page's own signed-in text endpoint, so Live is never paused for it */
+  ASK: 'bridgeAsk'
 } as const;
 export type BridgeCall = (typeof BridgeCall)[keyof typeof BridgeCall];
+
+export interface BridgeCallProtocolMap {
+  [BridgeCall.START](): boolean | null;
+  [BridgeCall.STOP](): boolean | null;
+  /** whether the text box was found */
+  [BridgeCall.BEGIN_TEXT](): boolean | null;
+  [BridgeCall.SUBMIT](): TextReply | null;
+  [BridgeCall.ASK](prompt: string): string | null;
+}
 
 /** What a text turn came back with. `code` is the last code block, character for
  *  character; `text` is everything, as the page shows it. */
@@ -108,8 +134,8 @@ export type GlicState = (typeof GlicState)[keyof typeof GlicState];
 export const Direction = { USER: 'user', ASSISTANT: 'assistant' } as const;
 export type Direction = (typeof Direction)[keyof typeof Direction];
 
-/** The failures the bridge reports in ERROR that mean "sign in", not "broken". Any other
- *  ERROR message is already words for the pad. */
+/** The failures the bridge reports in `BridgeReport.ERROR` that mean "sign in" or
+ *  "broken". Any other ERROR message is already words for the pad. */
 export const BridgeFailure = {
   SIGNED_OUT: 'signed-out',
   UNAVAILABLE: 'unavailable',
@@ -125,27 +151,32 @@ export type BridgeFailure = (typeof BridgeFailure)[keyof typeof BridgeFailure];
 export const ExtensionMessage = {
   CHECK: 'check',
   TAKE: 'take',
-  LIVE: 'live',
+  LIVE_START: 'liveStart',
+  LIVE_RETARGET: 'liveRetarget',
+  LIVE_STOP: 'liveStop',
   PAD_HELLO: 'padHello',
   FRAME: 'frame',
   LIVE_STATUS: 'liveStatus',
   LIVE_NOTE: 'liveNote',
   GLIC_HELLO: 'glicHello',
   GLIC_CAPTURE: 'glicCapture',
-  GLIC_REPORT: 'glicReport',
-  GLIC_CALL: 'glicCall',
   GLIC_RETITLE: 'glicRetitle'
 } as const;
 export type ExtensionMessage = (typeof ExtensionMessage)[keyof typeof ExtensionMessage];
 
-/** Worker ↔ content scripts (the pad's, the Claude tab's, the Gemini relay). */
-export interface ExtensionProtocolMap {
+/** Worker ↔ content scripts (the pad's, the Claude tab's, the Gemini relay) — and the
+ *  bridge's reports and calls, which the relay carries on to the worker and back. */
+export interface ExtensionProtocolMap extends BridgeReportProtocolMap, BridgeCallProtocolMap {
   /** pad → worker: open Claude with this board */
   [ExtensionMessage.CHECK](data: CheckPayload): void;
   /** Claude tab → worker: what was I opened for? */
   [ExtensionMessage.TAKE](): PendingCheck | null;
-  /** pad → worker: start, re-aim, or end the session */
-  [ExtensionMessage.LIVE](data: LiveRequest): void;
+  /** pad → worker: open a session, or bring the open one to the front */
+  [ExtensionMessage.LIVE_START](data: LiveStart): void;
+  /** pad → worker: the exercise changed under the running session */
+  [ExtensionMessage.LIVE_RETARGET](data: LiveTarget): void;
+  /** pad → worker: end the session */
+  [ExtensionMessage.LIVE_STOP](): void;
   /** pad → worker: "this page just loaded; is a session already running for it?" */
   [ExtensionMessage.PAD_HELLO](): LiveStatus | null;
   /** worker → pad: a picture for Gemini */
@@ -158,10 +189,6 @@ export interface ExtensionProtocolMap {
   [ExtensionMessage.GLIC_HELLO](): GlicHello;
   /** relay → worker: Gemini wants a picture */
   [ExtensionMessage.GLIC_CAPTURE](): Frame | null;
-  /** relay → worker: something the bridge reported */
-  [ExtensionMessage.GLIC_REPORT](data: BridgeReport): void;
-  /** worker → relay: run one of the bridge's calls and answer with its result */
-  [ExtensionMessage.GLIC_CALL](data: { name: BridgeCall; arg?: unknown }): unknown;
   /** worker → relay: the exercise changed; name the shared tab after the new one */
   [ExtensionMessage.GLIC_RETITLE](data: Activation): void;
 }
@@ -172,25 +199,19 @@ export const extensionMessenger = defineExtensionMessaging<ExtensionProtocolMap>
 export const BridgeMessage = {
   PRESENT: 'present',
   CAPTURE: 'capture',
-  REPORT: 'report',
-  ACTIVATE: 'activate',
-  CALL: 'call'
+  ACTIVATE: 'activate'
 } as const;
 export type BridgeMessage = (typeof BridgeMessage)[keyof typeof BridgeMessage];
 
 /** Bridge (the Gemini page's world) ↔ relay (the extension's world), in the one document
- *  the two worlds share. */
-export interface BridgeProtocolMap {
+ *  the two worlds share: the bridge's reports go up it, its calls come down. */
+export interface BridgeProtocolMap extends BridgeReportProtocolMap, BridgeCallProtocolMap {
   /** bridge → relay: installed; is this tab a session's? */
   [BridgeMessage.PRESENT](): Activation | null;
   /** bridge → relay: Gemini wants a picture */
   [BridgeMessage.CAPTURE](): Frame | null;
-  /** bridge → relay: for the worker */
-  [BridgeMessage.REPORT](data: BridgeReport): void;
   /** relay → bridge: this tab is a session's — the first time; after that, a new name */
   [BridgeMessage.ACTIVATE](data: Activation): void;
-  /** relay → bridge: run a call */
-  [BridgeMessage.CALL](data: { name: BridgeCall; arg?: unknown }): unknown;
 }
 
 export const bridgeMessenger = defineCustomEventMessaging<BridgeProtocolMap>({ namespace: 'avi-math-glic@1' });

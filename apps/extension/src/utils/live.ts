@@ -28,23 +28,23 @@
  * MV3 kills this worker whenever it likes, so the session lives in `storage.session` and
  * every handler starts by reading it. Pictures every second keep it awake during Live. */
 import {
-  LiveAction,
   LiveState,
   type LiveNote,
-  type LiveRequest,
+  type LiveStart,
+  type LiveStatus,
+  type LiveTarget,
   type NoteRequest
 } from '@learn-math/shared/protocol';
 import {
   BridgeCall,
   BridgeFailure,
-  BridgeUp,
+  BridgeReport,
   Direction,
   ExtensionMessage,
   extensionMessenger,
   GLIC_URL,
   GlicState,
-  type BridgeReport,
-  type TextReply
+  type TranscriptLine
 } from './protocol';
 
 interface Session {
@@ -87,21 +87,22 @@ async function store(s: Session | null): Promise<void> {
 }
 
 /** Tell the pad tab, and remember it for a pad that reloads. */
-async function tell(s: Session, state: LiveState, detail = ''): Promise<void> {
-  s.state = state;
-  s.detail = detail;
-  await store(s);
-  await extensionMessenger.sendMessage(ExtensionMessage.LIVE_STATUS, { state, detail }, s.pad).catch(() => {});
+async function tell({ session, state, detail = '' }: LiveStatus & { session: Session }): Promise<void> {
+  session.state = state;
+  session.detail = detail;
+  await store(session);
+  await extensionMessenger.sendMessage(ExtensionMessage.LIVE_STATUS, { state, detail }, session.pad).catch(() => {});
 }
 
-function call<T>(s: Session, name: BridgeCall, arg?: unknown): Promise<T | null> {
-  return extensionMessenger.sendMessage(ExtensionMessage.GLIC_CALL, { name, arg }, s.glicTab).catch(() => null) as Promise<T | null>;
+/** A call's answer, or null when the Gemini tab is not there to give one. */
+function orNull<T>(answer: Promise<T>): Promise<T | null> {
+  return answer.catch(() => null);
 }
 
 /** Type `text` into the focused box of `tabId`, one trusted key at a time. Newlines are
  *  spaces: Enter in that box sends. Attaching shows Chrome's "debugging this browser"
  *  bar for the few seconds it takes; it goes away on detach. */
-async function type(tabId: number, text: string): Promise<void> {
+async function type({ tabId, text }: { tabId: number; text: string }): Promise<void> {
   const target = { tabId };
   await chrome.debugger.attach(target, '1.3');
   try {
@@ -123,26 +124,26 @@ async function type(tabId: number, text: string): Promise<void> {
  *  time: a second waits for the first, so a brief and a note never type into each other. */
 let turn: Promise<unknown> = Promise.resolve();
 
-function textTurn(prompt: string, during: LiveState): Promise<TextReply | null> {
+function textTurn({ prompt, during }: { prompt: string; during: LiveState }) {
   const run = turn.then(async () => {
     const s = await load();
     if (!s) {
       return null;
     }
 
-    await tell(s, during);
+    await tell({ session: s, state: during });
     try {
-      if (!(await call<boolean>(s, BridgeCall.BEGIN_TEXT))) {
+      if (!(await orNull(extensionMessenger.sendMessage(BridgeCall.BEGIN_TEXT, undefined, s.glicTab)))) {
         throw new Error('לא נמצאה תיבת הטקסט של ג׳מיני');
       }
 
-      await type(s.glicTab, prompt);
-      return await call<TextReply>(s, BridgeCall.SUBMIT);
+      await type({ tabId: s.glicTab, text: prompt });
+      return await orNull(extensionMessenger.sendMessage(BridgeCall.SUBMIT, undefined, s.glicTab));
     } catch (e) {
-      await tell(s, LiveState.FAILED, e instanceof Error ? e.message : String(e));
+      await tell({ session: s, state: LiveState.FAILED, detail: e instanceof Error ? e.message : String(e) });
       return null;
     } finally {
-      await call(s, BridgeCall.START);
+      await orNull(extensionMessenger.sendMessage(BridgeCall.START, undefined, s.glicTab));
     }
   });
   turn = run.catch(() => {});
@@ -158,7 +159,7 @@ async function brief(): Promise<void> {
   const text = s.brief;
   s.brief = '';
   await store(s);
-  await textTurn(text, LiveState.BRIEFING);
+  await textTurn({ prompt: text, during: LiveState.BRIEFING });
 }
 
 /** How Gemini's text stands in for a part it rendered instead — an app's action card, a
@@ -192,16 +193,16 @@ function noteOf(answer: string): LiveNote | null {
   };
 }
 
-async function writeNote(heardText: string, saidText: string): Promise<void> {
+async function writeNote({ heardText, saidText }: { heardText: string; saidText: string }): Promise<void> {
   const s = await load();
   const n = s?.notes;
   if (!s || !n) {
     return;
   }
 
-  await tell(s, LiveState.WRITING);
+  await tell({ session: s, state: LiveState.WRITING });
   const prompt = n.template.replace(n.heard, heardText).replace(n.said, saidText);
-  const answer = (await call<string>(s, BridgeCall.ASK, prompt))?.trim() ?? '';
+  const answer = (await orNull(extensionMessenger.sendMessage(BridgeCall.ASK, prompt, s.glicTab)))?.trim() ?? '';
   // "nothing to write" is an answer, and the right one for a cue said in passing
   const none = answer.replace(/["'.״]/g, '').trim() === n.none;
   const note = answer && !none ? noteOf(answer) : null;
@@ -217,7 +218,11 @@ async function writeNote(heardText: string, saidText: string): Promise<void> {
   // Live never stopped, so it is still what it was before the note.
   if (now.state === LiveState.WRITING) {
     const failed = !note && !none;
-    await tell(now, failed ? LiveState.FAILED : LiveState.LIVE, failed ? 'הפתק לא נכתב — בקש שוב' : '');
+    await tell({
+      session: now,
+      state: failed ? LiveState.FAILED : LiveState.LIVE,
+      detail: failed ? 'הפתק לא נכתב — בקש שוב' : ''
+    });
   }
 }
 
@@ -243,10 +248,10 @@ function release(): void {
   const [h, said] = [lastHeard, saying];
   armed = -1;
   saying = '';
-  void writeNote(h, said);
+  void writeNote({ heardText: h, saidText: said });
 }
 
-function heard(s: Session, direction: Direction, text: string, index: number): void {
+function heard({ session, direction, text, index }: TranscriptLine & { session: Session }): void {
   if (direction === Direction.USER) {
     lastHeard = text;
     return;
@@ -257,7 +262,7 @@ function heard(s: Session, direction: Direction, text: string, index: number): v
     return;
   }
 
-  if (!s.notes?.cue || !new RegExp(s.notes.cue).test(text)) {
+  if (!session.notes?.cue || !new RegExp(session.notes.cue).test(text)) {
     return;
   }
 
@@ -275,7 +280,7 @@ function turnEnded(index: number): void {
 
 /* ---- the session's edges --------------------------------------------------- */
 
-async function open(pad: chrome.tabs.Tab, req: LiveRequest): Promise<void> {
+async function open({ pad, start }: { pad: chrome.tabs.Tab; start: LiveStart }): Promise<void> {
   const running = await load();
   if (running) {
     const alive = await chrome.windows.get(running.glicWindow).catch(() => null);
@@ -303,17 +308,17 @@ async function open(pad: chrome.tabs.Tab, req: LiveRequest): Promise<void> {
     pad: pad.id,
     glicTab: tab,
     glicWindow: win.id,
-    title: req.title ?? '',
+    title: start.title,
     url: pad.url ? new URL(pad.url).origin : '',
-    brief: req.prompt ?? '',
-    briefing: req.prompt ?? '',
+    brief: start.prompt,
+    briefing: start.prompt,
     restarts: [],
-    notes: req.notes ?? null,
+    notes: start.notes ?? null,
     booted: false,
     state: LiveState.OPENING,
     detail: ''
   };
-  await tell(s, LiveState.OPENING);
+  await tell({ session: s, state: LiveState.OPENING });
 }
 
 /** Live broke and did not come back: reload the Gemini window. The bridge and the relay
@@ -325,7 +330,7 @@ async function restart(s: Session): Promise<void> {
   const now = Date.now();
   s.restarts = (s.restarts ?? []).filter((t) => now - t < RESTART_WINDOW_MS);
   if (s.restarts.length >= MAX_RESTARTS) {
-    await tell(s, LiveState.FAILED, 'ג׳מיני נופל שוב ושוב — סגור את החלון שלו והתחל שיעור חדש');
+    await tell({ session: s, state: LiveState.FAILED, detail: 'ג׳מיני נופל שוב ושוב — סגור את החלון שלו והתחל שיעור חדש' });
     return;
   }
 
@@ -335,7 +340,7 @@ async function restart(s: Session): Promise<void> {
   armed = -1;
   saying = '';
   clearTimeout(fallback);
-  await tell(s, LiveState.RECONNECTING);
+  await tell({ session: s, state: LiveState.RECONNECTING });
   await chrome.tabs.reload(s.glicTab).catch(() => {});
 }
 
@@ -359,49 +364,55 @@ async function stop(): Promise<void> {
     return;
   }
 
-  await call(s, BridgeCall.STOP);
+  await orNull(extensionMessenger.sendMessage(BridgeCall.STOP, undefined, s.glicTab));
   await end();
   await chrome.windows.remove(s.glicWindow).catch(() => {});
 }
 
-async function fromBridge(s: Session, m: BridgeReport): Promise<void> {
-  switch (m.kind) {
-    case BridgeUp.BOOTED:
-      s.booted = true;
-      await store(s);
-      // Not awaited: the brief is a text turn of half a minute, and the bridge does not
-      // wait on an answer to this report.
-      void (s.brief ? brief() : call(s, BridgeCall.START));
-      return;
-    case BridgeUp.READY:
-      await tell(s, LiveState.LIVE);
-      return;
-    case BridgeUp.STATE:
-      // The brief's text turn and a note in progress have their own state.
-      if (s.state === LiveState.BRIEFING || s.state === LiveState.WRITING) {
-        return;
-      }
-      if (m.state === GlicState.LISTENING) {
-        await tell(s, LiveState.LIVE);
-      } else if (m.state === GlicState.RESUMING) {
-        await tell(s, LiveState.PAUSED);
-      }
-      return;
-    case BridgeUp.TRANSCRIPT:
-      heard(s, m.direction, m.text, m.index);
-      return;
-    case BridgeUp.TURN_END:
-      turnEnded(m.index);
-      return;
-    case BridgeUp.ERROR:
-      if (m.message === BridgeFailure.LIVE_BROKE) {
-        await restart(s);
-      } else if (m.message === BridgeFailure.SIGNED_OUT || m.message === BridgeFailure.UNAVAILABLE) {
-        await chrome.windows.update(s.glicWindow, { focused: true }).catch(() => {});
-        await tell(s, LiveState.FAILED, 'צריך להתחבר לגוגל בחלון של ג׳מיני, ואז ללחוץ שוב');
-      } else {
-        await tell(s, LiveState.FAILED, m.message || 'ג׳מיני לא עלה');
-      }
+/** The exercise changed under the session: a new name for the shared tab, and a new note
+ *  request. Live is left alone (step 4 above). */
+async function retarget({ pad, target }: { pad: number; target: LiveTarget }): Promise<void> {
+  const s = await load();
+  if (!s || s.pad !== pad) {
+    return;
+  }
+
+  s.title = target.title;
+  s.notes = target.notes ?? s.notes;
+  await store(s);
+  await extensionMessenger.sendMessage(ExtensionMessage.GLIC_RETITLE, { title: s.title, url: s.url }, s.glicTab).catch(() => {});
+}
+
+/* ---- what the bridge reports ------------------------------------------------ */
+
+async function booted(s: Session): Promise<void> {
+  s.booted = true;
+  await store(s);
+  // Not awaited: the brief is a text turn of half a minute, and the bridge does not
+  // wait on an answer to this report.
+  void (s.brief ? brief() : orNull(extensionMessenger.sendMessage(BridgeCall.START, undefined, s.glicTab)));
+}
+
+async function stateChanged({ session: s, state }: { session: Session; state: GlicState }): Promise<void> {
+  // The brief's text turn and a note in progress have their own state.
+  if (s.state === LiveState.BRIEFING || s.state === LiveState.WRITING) {
+    return;
+  }
+  if (state === GlicState.LISTENING) {
+    await tell({ session: s, state: LiveState.LIVE });
+  } else if (state === GlicState.RESUMING) {
+    await tell({ session: s, state: LiveState.PAUSED });
+  }
+}
+
+async function failed({ session: s, message }: { session: Session; message: string }): Promise<void> {
+  if (message === BridgeFailure.LIVE_BROKE) {
+    await restart(s);
+  } else if (message === BridgeFailure.SIGNED_OUT || message === BridgeFailure.UNAVAILABLE) {
+    await chrome.windows.update(s.glicWindow, { focused: true }).catch(() => {});
+    await tell({ session: s, state: LiveState.FAILED, detail: 'צריך להתחבר לגוגל בחלון של ג׳מיני, ואז ללחוץ שוב' });
+  } else {
+    await tell({ session: s, state: LiveState.FAILED, detail: message || 'ג׳מיני לא עלה' });
   }
 }
 
@@ -413,26 +424,19 @@ export function installLive(): void {
   };
 
   // From the pad.
-  extensionMessenger.onMessage(ExtensionMessage.LIVE, ({ data: req, sender: { tab } }) => {
-    if (!tab?.id) {
-      return;
+  extensionMessenger.onMessage(ExtensionMessage.LIVE_START, ({ data, sender: { tab } }) => {
+    if (tab?.id) {
+      void open({ pad: tab, start: data });
     }
-
-    if (req.action === LiveAction.START) {
-      void open(tab, req);
-    } else if (req.action === LiveAction.STOP) {
+  });
+  extensionMessenger.onMessage(ExtensionMessage.LIVE_RETARGET, ({ data, sender: { tab } }) => {
+    if (tab?.id) {
+      void retarget({ pad: tab.id, target: data });
+    }
+  });
+  extensionMessenger.onMessage(ExtensionMessage.LIVE_STOP, ({ sender: { tab } }) => {
+    if (tab?.id) {
       void stop();
-    } else if (req.action === LiveAction.RETARGET) {
-      void load().then(async (s) => {
-        if (!s || s.pad !== tab.id) {
-          return;
-        }
-
-        s.title = req.title ?? s.title;
-        s.notes = req.notes ?? s.notes;
-        await store(s);
-        await extensionMessenger.sendMessage(ExtensionMessage.GLIC_RETITLE, { title: s.title, url: s.url }, s.glicTab).catch(() => {});
-      });
     }
   });
 
@@ -452,12 +456,21 @@ export function installLive(): void {
     return s ? extensionMessenger.sendMessage(ExtensionMessage.FRAME, undefined, s.pad).catch(() => null) : null;
   });
 
-  extensionMessenger.onMessage(ExtensionMessage.GLIC_REPORT, async ({ data, sender: { tab } }) => {
-    const s = await glicSession(tab);
-    if (s) {
-      await fromBridge(s, data);
-    }
-  });
+  /** A report's handler, run only when the Gemini tab that sent it is the session's. */
+  const fromGlic =
+    <T>(handle: (report: { session: Session; data: T }) => unknown) =>
+    async ({ data, sender: { tab } }: { data: T; sender: { tab?: chrome.tabs.Tab } }) => {
+      const session = await glicSession(tab);
+      if (session) {
+        await handle({ session, data });
+      }
+    };
+  extensionMessenger.onMessage(BridgeReport.BOOTED, fromGlic(({ session }) => booted(session)));
+  extensionMessenger.onMessage(BridgeReport.READY, fromGlic(({ session }) => tell({ session, state: LiveState.LIVE })));
+  extensionMessenger.onMessage(BridgeReport.STATE, fromGlic(({ session, data: state }) => stateChanged({ session, state })));
+  extensionMessenger.onMessage(BridgeReport.ERROR, fromGlic(({ session, data: message }) => failed({ session, message })));
+  extensionMessenger.onMessage(BridgeReport.TRANSCRIPT, fromGlic(({ session, data: line }) => heard({ session, ...line })));
+  extensionMessenger.onMessage(BridgeReport.TURN_END, fromGlic(({ data: index }) => turnEnded(index)));
 
   // Closing the Gemini window is ending the session; so is closing the pad.
   chrome.windows.onRemoved.addListener((id) => {

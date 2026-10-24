@@ -1,4 +1,14 @@
-import { BridgeMessage, bridgeMessenger, ExtensionMessage, extensionMessenger, GLIC_URL, within, type Activation } from '../utils/protocol';
+import {
+  BridgeCall,
+  BridgeMessage,
+  bridgeMessenger,
+  BridgeReport,
+  ExtensionMessage,
+  extensionMessenger,
+  GLIC_URL,
+  within,
+  type Activation
+} from '../utils/protocol';
 
 /** Beside the bridge, in the Gemini tab: carry its reports to the worker and the worker's
  *  calls and pictures back down.
@@ -34,9 +44,25 @@ export default defineContentScript({
     // it is installed, and this tells it once the worker has answered.
     bridgeMessenger.onMessage(BridgeMessage.PRESENT, () => activation);
     bridgeMessenger.onMessage(BridgeMessage.CAPTURE, () => extensionMessenger.sendMessage(ExtensionMessage.GLIC_CAPTURE).catch(() => null));
-    bridgeMessenger.onMessage(BridgeMessage.REPORT, ({ data }) => {
-      void extensionMessenger.sendMessage(ExtensionMessage.GLIC_REPORT, data).catch(() => {});
-    });
+
+    // The bridge's reports, up to the worker: nothing waits on them.
+    const up = (sent: Promise<void>): void => {
+      void sent.catch(() => {});
+    };
+    bridgeMessenger.onMessage(BridgeReport.BOOTED, () => up(extensionMessenger.sendMessage(BridgeReport.BOOTED)));
+    bridgeMessenger.onMessage(BridgeReport.READY, () => up(extensionMessenger.sendMessage(BridgeReport.READY)));
+    bridgeMessenger.onMessage(BridgeReport.STATE, ({ data }) => up(extensionMessenger.sendMessage(BridgeReport.STATE, data)));
+    bridgeMessenger.onMessage(BridgeReport.ERROR, ({ data }) => up(extensionMessenger.sendMessage(BridgeReport.ERROR, data)));
+    bridgeMessenger.onMessage(BridgeReport.TRANSCRIPT, ({ data }) => up(extensionMessenger.sendMessage(BridgeReport.TRANSCRIPT, data)));
+    bridgeMessenger.onMessage(BridgeReport.TURN_END, ({ data }) => up(extensionMessenger.sendMessage(BridgeReport.TURN_END, data)));
+
+    // The worker's calls, down to the bridge, each answered by a deadline.
+    const down = <T>(answer: Promise<T>) => within(CALL_TIMEOUT_MS, answer, null);
+    extensionMessenger.onMessage(BridgeCall.START, () => down(bridgeMessenger.sendMessage(BridgeCall.START)));
+    extensionMessenger.onMessage(BridgeCall.STOP, () => down(bridgeMessenger.sendMessage(BridgeCall.STOP)));
+    extensionMessenger.onMessage(BridgeCall.BEGIN_TEXT, () => down(bridgeMessenger.sendMessage(BridgeCall.BEGIN_TEXT)));
+    extensionMessenger.onMessage(BridgeCall.SUBMIT, () => down(bridgeMessenger.sendMessage(BridgeCall.SUBMIT)));
+    extensionMessenger.onMessage(BridgeCall.ASK, ({ data }) => down(bridgeMessenger.sendMessage(BridgeCall.ASK, data)));
 
     // a new exercise: the activation again, which the bridge takes as a new name only
     extensionMessenger.onMessage(ExtensionMessage.GLIC_RETITLE, ({ data }) => {
@@ -44,9 +70,6 @@ export default defineContentScript({
         activate(data);
       }
     });
-    extensionMessenger.onMessage(ExtensionMessage.GLIC_CALL, ({ data }) =>
-      within(CALL_TIMEOUT_MS, bridgeMessenger.sendMessage(BridgeMessage.CALL, data), null)
-    );
 
     const hello = await extensionMessenger.sendMessage(ExtensionMessage.GLIC_HELLO).catch(() => null);
     if (hello?.mine) {

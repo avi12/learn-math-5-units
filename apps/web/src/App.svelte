@@ -10,7 +10,7 @@
    *    LiveNotes      what Gemini Live wrote down, and how the session is doing
    *  — and this file only wires them together. */
   import { onMount, untrack } from 'svelte';
-  import { LiveAction, LiveState } from '@learn-math/shared/protocol';
+  import { LiveState } from '@learn-math/shared/protocol';
   import Ask from './lib/Ask.svelte';
   import ConnectCards from './lib/ConnectCards.svelte';
   import CopyTools from './lib/CopyTools.svelte';
@@ -23,7 +23,7 @@
   import { checkLabel, extensionPresent, liveBrief, noteRequest, sendForCheck } from './lib/check';
   import { LinkMessage, LinkState, Side, decodeHover, encodeHover, openLink, type Hover, type Link } from './lib/directlink';
   import { drawFrame, type Question } from './lib/frame';
-  import { clearNotes, installLive, isRunning, live, requestLive } from './lib/live.svelte';
+  import { clearNotes, installLive, isRunning, live, retargetLive, startLive, stopLive } from './lib/live.svelte';
   import { Role, initialRole } from './lib/device';
   import { ActionKind, History } from './lib/history.svelte';
   import { ASPECT, GRID_SCALE, gridCell, PEN_SIZE, Tool } from './lib/ink';
@@ -176,7 +176,7 @@
     }
 
     told = next.notes.template;
-    requestLive({ action: LiveAction.RETARGET, ...next });
+    retargetLive(next);
   });
 
   /** The question Gemini's notes were written for. Another question — picked here, or on
@@ -192,7 +192,7 @@
 
   function toggleLive() {
     if (isRunning(live.state)) {
-      requestLive({ action: LiveAction.STOP });
+      stopLive();
       return;
     }
 
@@ -206,11 +206,7 @@
     const next = exercise();
     told = next.notes.template;
     live.state = LiveState.OPENING;
-    requestLive({
-      action: LiveAction.START,
-      prompt: liveBrief(choice.topic, choice.exercise, choice.section || null),
-      ...next
-    });
+    startLive({ prompt: liveBrief(choice.topic, choice.exercise, choice.section || null), ...next });
   }
 
   onMount(() => {
