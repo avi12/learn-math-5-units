@@ -8,9 +8,9 @@
    *    RoomJoin       the tablet's ways into the desktop's room
    *    ConnectCards   the desktop's code and link for the tablet
    *    LiveNotes      what Gemini Live wrote down, and how the session is doing
-   *  — and this file only wires them together. */
-  import { onMount, untrack } from 'svelte';
-  import { LiveState } from '@learn-math/shared/protocol';
+   *  — and this file only wires them together. The Gemini Live lesson's own wiring (the
+   *  picture, the exercise it follows, the start/stop) is lib/lesson.svelte.ts. */
+  import { onMount } from 'svelte';
   import Ask from './lib/Ask.svelte';
   import ConnectCards from './lib/ConnectCards.svelte';
   import CopyTools from './lib/CopyTools.svelte';
@@ -20,10 +20,10 @@
   import SeqReel from './lib/SeqReel.svelte';
   import RoomJoin from './lib/RoomJoin.svelte';
   import Surface, { type SurfaceApi } from './lib/Surface.svelte';
-  import { checkLabel, liveBrief, noteRequest, sendForCheck } from './lib/check';
+  import { sendForCheck } from './lib/check';
   import { LinkMessage, LinkState, Side, decodeHover, encodeHover, openLink, type Hover, type Link } from './lib/directlink';
-  import { drawFrame, type Question } from './lib/frame';
-  import { canStart, clearNotes, installLive, isRunning, live, retargetLive, startLive, stopLive } from './lib/live.svelte';
+  import { lesson } from './lib/lesson.svelte';
+  import { live } from './lib/live.svelte';
   import { Role, initialRole } from './lib/device';
   import { ActionKind, History } from './lib/history.svelte';
   import { ASPECT, GRID_SCALE, gridCell, PEN_SIZE, Tool } from './lib/ink';
@@ -139,79 +139,7 @@
     }
   });
 
-  /** The question as Gemini's picture shows it, with the newest note under it. */
-  function question(): Question {
-    return {
-      meta: checkLabel(choice),
-      html: choice.exercise?.html ?? 'התרגיל אינו מהחוברת: השאלה כתובה על הלוח.',
-      note: live.notes[0]
-    };
-  }
-
-  onMount(() =>
-    installLive({
-      async draw() {
-        const board = surface?.scene();
-        return board ? drawFrame({ scene: board, question: question() }) : null;
-      }
-    })
-  );
-
-  /** What the extension needs to know about the exercise: its name, for the shared tab,
-   *  and how to ask for a note about it. */
-  function exercise() {
-    return {
-      title: checkLabel(choice),
-      notes: noteRequest(choice)
-    };
-  }
-
-  /** The exercise last told to the session, so a change can be told apart from a session
-   *  that is merely changing state. */
-  let told = '';
-
-  // A new exercise mid-session is NOT briefed again: that would be a text turn, and a
-  // text turn inside Live left it listening and silent (Avi, 14.10.2026). Gemini sees the
-  // new question in its picture, and the brief says to follow it; this only renames the
-  // shared tab and re-aims the note request.
-  $effect(() => {
-    const next = exercise();
-    if (!isRunning(live.state) || !told || next.notes.template === told) {
-      return;
-    }
-
-    told = next.notes.template;
-    retargetLive(next);
-  });
-
-  /** The question Gemini's notes were written for. Another question — picked here, or on
-   *  the tablet and synced through the room — folds them all away; another section of
-   *  the same one does not, since its formulas still hold. */
-  let notesFor = choice.pick;
-  $effect(() => {
-    if (choice.pick !== notesFor) {
-      notesFor = choice.pick;
-      untrack(clearNotes);
-    }
-  });
-
-  function toggleLive() {
-    if (isRunning(live.state)) {
-      stopLive();
-      return;
-    }
-
-    // On the key with no key yet, the question card opens the key field instead; the
-    // subscription is only offered where the extension is (lib/engine.ts `readEngine`).
-    if (!canStart()) {
-      return;
-    }
-
-    const next = exercise();
-    told = next.notes.template;
-    live.state = LiveState.OPENING;
-    startLive({ prompt: liveBrief(choice), ...next });
-  }
+  const { toggle: toggleLive } = lesson({ choice, scene: () => surface?.scene() });
 
   onMount(() => {
     // Inside the wrapper no code is ever shown (see the chip below), so it is not made.

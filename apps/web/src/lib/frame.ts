@@ -100,6 +100,14 @@ const QUALITY = 0.82;
 /** A face every Windows desktop has, with Hebrew — see the header for why not the page's. */
 const FACE = '"Segoe UI", Arial, sans-serif';
 
+/** Every label in the picture is the one face, semibold; only the size changes. */
+function labelFont(px: number): string {
+  return `600 ${px}px ${FACE}`;
+}
+
+/** A heading line in the question panel: the exercise's meta, and the note's title. */
+const PANEL_HEAD = `font:600 15px/1.45 ${FACE}`;
+
 /** The resolved colours of the current theme. */
 function colours() {
   const cs = getComputedStyle(document.documentElement);
@@ -115,6 +123,8 @@ function colours() {
     mono: t({ name: '--font-mono', or: 'monospace' })
   };
 }
+
+type Theme = ReturnType<typeof colours>;
 
 /* ---- the question panel ------------------------------------------------- */
 
@@ -134,7 +144,7 @@ function mathFont(): Promise<string> {
 function panelElement({ question: q, noteHtml, theme: c, height }: {
   question: Question;
   noteHtml: string;
-  theme: ReturnType<typeof colours>;
+  theme: Theme;
   height: number;
 }): HTMLElement {
   const box = document.createElement('div');
@@ -145,7 +155,7 @@ function panelElement({ question: q, noteHtml, theme: c, height }: {
   const meta = document.createElement('div');
   meta.textContent = q.meta;
   meta.style.cssText =
-    `font:600 15px/1.45 ${FACE};color:${c.muted};padding-bottom:8px;margin-bottom:12px;` +
+    `${PANEL_HEAD};color:${c.muted};padding-bottom:8px;margin-bottom:12px;` +
     `border-bottom:2px solid ${c.border}`;
   const text = document.createElement('div');
   text.innerHTML = q.html;
@@ -156,7 +166,7 @@ function panelElement({ question: q, noteHtml, theme: c, height }: {
     note.style.cssText = `margin-top:14px;padding-top:10px;border-top:2px solid ${c.border}`;
     const head = document.createElement('div');
     head.textContent = `על הלוח: ${q.note.title}`;
-    head.style.cssText = `font:600 15px/1.45 ${FACE};color:${c.muted};margin-bottom:4px`;
+    head.style.cssText = `${PANEL_HEAD};color:${c.muted};margin-bottom:4px`;
     const body = document.createElement('div');
     body.innerHTML = noteHtml;
     // full-size fractions, as the notes card sets them (LiveNotes.svelte, `math-style`)
@@ -305,7 +315,7 @@ function columnOf({ y, layout: l }: { y: number; layout: Layout }): number {
 
 function drawLegend({ ctx, theme: c, x, y }: {
   ctx: CanvasRenderingContext2D;
-  theme: ReturnType<typeof colours>;
+  theme: Theme;
   x: number;
   y: number;
 }): void {
@@ -319,7 +329,7 @@ function drawLegend({ ctx, theme: c, x, y }: {
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = c.muted;
-  ctx.font = `600 14px ${FACE}`;
+  ctx.font = labelFont(14);
   ctx.fillText('מקרא', x + PANEL - 20, y + 20);
   const right = x + PANEL - 20;
   const row1 = y + 54;
@@ -327,7 +337,7 @@ function drawLegend({ ctx, theme: c, x, y }: {
 
   drawPenMark({ ctx, cx: right - 16, cy: row1, r: 11 });
   ctx.fillStyle = c.fg;
-  ctx.font = `600 18px ${FACE}`;
+  ctx.font = labelFont(18);
   ctx.fillText('העט מצביע כאן — האזור המואר', right - 46, row1);
 
   ctx.fillStyle = c.recent;
@@ -431,14 +441,14 @@ export async function drawFrame({ scene, question: q }: { scene: Scene; question
     const label = l.labels[i];
     if (label) {
       ctx.fillStyle = c.muted;
-      ctx.font = `600 17px ${FACE}`;
+      ctx.font = labelFont(17);
       ctx.fillText(label, x + colW / 2, PAD + LABEL / 2);
     }
   }
 
   if (!scene.strokes.length && !scene.wet) {
     ctx.fillStyle = c.muted;
-    ctx.font = `600 26px ${FACE}`;
+    ctx.font = labelFont(26);
     ctx.fillText('הלוח עוד ריק', colX(0) + colW / 2, colY + Math.min(colH, bh) / 2);
   }
 
