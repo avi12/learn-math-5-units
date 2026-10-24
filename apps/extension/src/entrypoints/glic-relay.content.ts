@@ -57,7 +57,7 @@ export default defineContentScript({
     bridgeMessenger.onMessage(BridgeReport.TURN_END, ({ data }) => up(extensionMessenger.sendMessage(BridgeReport.TURN_END, data)));
 
     // The worker's calls, down to the bridge, each answered by a deadline.
-    const down = <T>(answer: Promise<T>) => within(CALL_TIMEOUT_MS, answer, null);
+    const down = <T>(answer: Promise<T>) => within({ ms: CALL_TIMEOUT_MS, promise: answer, fallback: null });
     extensionMessenger.onMessage(BridgeCall.START, () => down(bridgeMessenger.sendMessage(BridgeCall.START)));
     extensionMessenger.onMessage(BridgeCall.STOP, () => down(bridgeMessenger.sendMessage(BridgeCall.STOP)));
     extensionMessenger.onMessage(BridgeCall.BEGIN_TEXT, () => down(bridgeMessenger.sendMessage(BridgeCall.BEGIN_TEXT)));

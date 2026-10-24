@@ -43,12 +43,12 @@ const attach = async (target) => {
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   let id = 0;
   const pending = new Map();
-  const send = (m, p = {}) =>
+  const send = ({ method, params = {} }) =>
     new Promise((r, j) => {
       const i = ++id;
       pending.set(i, r);
-      setTimeout(() => j(new Error('CDP timeout: ' + m)), 20000);
-      ws.send(JSON.stringify({ id: i, method: m, params: p }));
+      setTimeout(() => j(new Error('CDP timeout: ' + method)), 20000);
+      ws.send(JSON.stringify({ id: i, method, params }));
     });
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
@@ -58,12 +58,15 @@ const attach = async (target) => {
     }
   };
   await new Promise((r) => (ws.onopen = r));
-  await send('Runtime.enable');
+  await send({ method: 'Runtime.enable' });
   const ev = async (x) => {
-    const r = await send('Runtime.evaluate', {
-      expression: x,
-      returnByValue: true,
-      awaitPromise: true
+    const r = await send({
+      method: 'Runtime.evaluate',
+      params: {
+        expression: x,
+        returnByValue: true,
+        awaitPromise: true
+      }
     });
     if (r?.exceptionDetails) {return 'EXC: ' + r.exceptionDetails.text;}
     return r.result?.value;
@@ -75,7 +78,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const targets = async () => await (await fetch(`${base}/json/list`)).json();
 
 let bad = 0;
-const check = (name, ok, detail = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(46)} ${detail}`);
 };
@@ -92,19 +95,22 @@ if (!blank) {
   process.exit(1);
 }
 const page = await attach(blank);
-await page.send('Page.enable');
-await page.send('Page.navigate', {
-  // role=board, not pad: "סיימתי — שקלוד יבדוק" is desktop-only now, and this test is
-  // about the desktop half of the chain anyway — the extension only exists there.
-  url: `${padOrigin()}/?role=board&room=${room}`
+await page.send({ method: 'Page.enable' });
+await page.send({
+  method: 'Page.navigate',
+  params: {
+    // role=board, not pad: "סיימתי — שקלוד יבדוק" is desktop-only now, and this test is
+    // about the desktop half of the chain anyway — the extension only exists there.
+    url: `${padOrigin()}/?role=board&room=${room}`
+  }
 });
 await wait(9000);
 
 // 1. `document_start` is the whole point of pad.content.ts: the flag has to be there
 //    before the app renders, because the page's fallback needs the answer synchronously.
 const stamp = await page.ev(`document.documentElement.dataset.${PRESENCE_FLAG} ?? 'MISSING'`);
-check('the pad is stamped at document_start', stamp === PRESENCE_READY, String(stamp));
-check('so the page takes the extension path', stamp === PRESENCE_READY);
+check({ name: 'the pad is stamped at document_start', ok: stamp === PRESENCE_READY, detail: String(stamp) });
+check({ name: 'so the page takes the extension path', ok: stamp === PRESENCE_READY });
 
 // a board with nothing on it would still produce a payload, so put ink on it
 const rect = JSON.parse(
@@ -112,15 +118,18 @@ const rect = JSON.parse(
 );
 const y = rect.top + rect.height * 0.4;
 const x0 = rect.left + rect.width * 0.2;
-await page.send('Input.dispatchMouseEvent', {
-  type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1
+await page.send({
+  method: 'Input.dispatchMouseEvent',
+  params: { type: 'mousePressed', x: x0, y, button: 'left', buttons: 1, clickCount: 1 }
 });
 for (let i = 1; i <= 12; i++)
-  {await page.send('Input.dispatchMouseEvent', {
-    type: 'mouseMoved', x: x0 + i * 26, y: y + Math.sin(i) * 10, button: 'left', buttons: 1
+  {await page.send({
+    method: 'Input.dispatchMouseEvent',
+    params: { type: 'mouseMoved', x: x0 + i * 26, y: y + Math.sin(i) * 10, button: 'left', buttons: 1 }
   });}
-await page.send('Input.dispatchMouseEvent', {
-  type: 'mouseReleased', x: x0 + 312, y, button: 'left', buttons: 0, clickCount: 1
+await page.send({
+  method: 'Input.dispatchMouseEvent',
+  params: { type: 'mouseReleased', x: x0 + 312, y, button: 'left', buttons: 0, clickCount: 1 }
 });
 await wait(3000);
 
@@ -141,7 +150,7 @@ const clicked = await page.ev(`(() => {
   b.click();
   return 'clicked';
 })()`);
-check('the check button is there and was pressed', clicked === 'clicked', String(clicked));
+check({ name: 'the check button is there and was pressed', ok: clicked === 'clicked', detail: String(clicked) });
 
 // 2. the service worker heard it, parked the payload and opened Claude. Waiting for the
 //    tab rather than for a clock: an MV3 worker is started on demand and takes a moment.
@@ -150,13 +159,13 @@ for (let i = 0; i < 30 && opened.length <= before; i++) {
   await wait(500);
   opened = (await targets()).filter((t) => t.url.startsWith(CLAUDE));
 }
-check('the worker opened a Claude tab', opened.length > before, opened[0]?.url ?? 'none appeared');
+check({ name: 'the worker opened a Claude tab', ok: opened.length > before, detail: opened[0]?.url ?? 'none appeared' });
 
 // 3. ONE tab, not two. Avi reported a stray browser window appearing alongside Claude
 //    after a check, and the first thing to rule out was this end opening twice — two
 //    copies of the extension loaded at once would each hear the same postMessage. It
 //    does not, and now it cannot: the worker refuses a second open inside DEDUPE_MS.
-check('exactly one tab, not two', opened.length === before + 1, `${opened.length - before} opened`);
+check({ name: 'exactly one tab, not two', ok: opened.length === before + 1, detail: `${opened.length - before} opened` });
 
 // and a second click in the same breath is still one tab
 await page.ev(`(() => {
@@ -165,8 +174,11 @@ await page.ev(`(() => {
 })()`);
 await wait(4000);
 const after = (await targets()).filter((t) => t.url.startsWith(CLAUDE));
-check('a double click does not open a second', after.length === opened.length,
-  `${after.length - before} total`);
+check({
+  name: 'a double click does not open a second',
+  ok: after.length === opened.length,
+  detail: `${after.length - before} total`
+});
 
 page.ws.close();
 console.log(bad ? `\n${bad} FAILED` : '\nthe chain holds end to end');

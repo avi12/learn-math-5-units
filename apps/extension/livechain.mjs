@@ -58,7 +58,7 @@ async function connect(wsUrl) {
     }
   };
   await new Promise((r) => (ws.onopen = r));
-  const send = (method, params = {}) =>
+  const send = ({ method, params = {} }) =>
     new Promise((res, rej) => {
       const i = ++id;
       pending.set(i, res);
@@ -66,7 +66,7 @@ async function connect(wsUrl) {
       ws.send(JSON.stringify({ id: i, method, params }));
     });
   const ev = async (x) => {
-    const r = await send('Runtime.evaluate', { expression: x, returnByValue: true, awaitPromise: true });
+    const r = await send({ method: 'Runtime.evaluate', params: { expression: x, returnByValue: true, awaitPromise: true } });
     return r?.exceptionDetails ? 'EXC: ' + r.exceptionDetails.text : r?.result?.value;
   };
   return { ws, send, ev, on: (h) => handlers.push(h) };
@@ -75,13 +75,13 @@ async function connect(wsUrl) {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const targets = async () => (await fetch(`${base}/json/list`)).json();
 let bad = 0;
-const check = (name, ok, detail = '') => {
+const check = ({ name, ok, detail = '' }) => {
   if (!ok) {bad++;}
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(58)} ${detail}`.trimEnd());
 };
 
 /** Poll until `get` returns something truthy, or give up. */
-async function until(get, ms = 30000, every = 300) {
+async function until({ get, ms = 30000, every = 300 }) {
   const end = Date.now() + ms;
   for (;;) {
     const v = await get();
@@ -132,7 +132,7 @@ function downlink(url) {
 // ---- every gemini.google.com request is ours to answer ----
 const version = await (await fetch(`${base}/json/version`)).json();
 const browser = await connect(version.webSocketDebuggerUrl);
-await browser.send('Fetch.enable', { patterns: [{ urlPattern: `${GEMINI}*` }] });
+await browser.send({ method: 'Fetch.enable', params: { patterns: [{ urlPattern: `${GEMINI}*` }] } });
 let served = 0;
 /** the text requests asked beside Live, as their form bodies */
 const asked = [];
@@ -149,11 +149,14 @@ browser.on((m) => {
     live ? downlink(request.url) : text ? answer(asked.at(-1)?.get('f.req') ?? '') : STUB,
     'utf8'
   ).toString('base64');
-  void browser.send('Fetch.fulfillRequest', {
-    requestId,
-    responseCode: 200,
-    responseHeaders: [{ name: 'content-type', value: live || text ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8' }],
-    body
+  void browser.send({
+    method: 'Fetch.fulfillRequest',
+    params: {
+      requestId,
+      responseCode: 200,
+      responseHeaders: [{ name: 'content-type', value: live || text ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8' }],
+      body
+    }
   });
 });
 
@@ -166,68 +169,85 @@ if (!blank) {
 }
 
 const pad = await connect(blank.webSocketDebuggerUrl);
-await pad.send('Page.enable');
-await pad.send('Runtime.enable');
-await pad.send('Page.navigate', { url: `${padUrl}/?role=board&room=${room}` });
+await pad.send({ method: 'Page.enable' });
+await pad.send({ method: 'Runtime.enable' });
+await pad.send({ method: 'Page.navigate', params: { url: `${padUrl}/?role=board&room=${room}` } });
 await wait(8000);
-check('the pad is stamped by the extension', (await pad.ev(`document.documentElement.dataset.${PRESENCE_FLAG}`)) === PRESENCE_READY);
+check({ name: 'the pad is stamped by the extension', ok: (await pad.ev(`document.documentElement.dataset.${PRESENCE_FLAG}`)) === PRESENCE_READY });
 
 const press = (label) =>
   pad.ev(`(() => { const b = [...document.querySelectorAll('.qfoot button')].find((b) => b.textContent.includes(${JSON.stringify(label)}));
     if (!b) return 'no button'; b.click(); return 'clicked'; })()`);
 const pressed = Date.now();
-check('the Gemini Live button is there and was pressed', (await press('ג׳מיני לייב')) === 'clicked');
+check({ name: 'the Gemini Live button is there and was pressed', ok: (await press('ג׳מיני לייב')) === 'clicked' });
 
 // ---- the Gemini window ----
-const glicTarget = await until(async () => (await targets()).find((t) => t.url.startsWith(`${GEMINI}glic`)));
-check('the worker opened a Gemini window', !!glicTarget, glicTarget?.url ?? 'none');
+const glicTarget = await until({ get: async () => (await targets()).find((t) => t.url.startsWith(`${GEMINI}glic`)) });
+check({ name: 'the worker opened a Gemini window', ok: !!glicTarget, detail: glicTarget?.url ?? 'none' });
 if (!glicTarget) {
   process.exit(1);
 }
 
 const glic = await connect(glicTarget.webSocketDebuggerUrl);
-await glic.send('Runtime.enable');
+await glic.send({ method: 'Runtime.enable' });
 const log = () => glic.ev(`JSON.stringify(window.__log ?? [])`).then((s) => (s?.startsWith('[') ? JSON.parse(s) : []));
-check('the client adopted our host', !!(await until(async () => (await log()).includes('init'))));
+check({ name: 'the client adopted our host', ok: !!(await until({ get: async () => (await log()).includes('init') })) });
 
-const prompts = await until(async () => {
-  const p = await glic.ev(`JSON.stringify(window.__prompts ?? [])`);
-  const a = p?.startsWith('[') ? JSON.parse(p) : [];
-  return a.length ? a : null;
-}, 60000);
-check('the brief was typed with trusted keys and sent', !!prompts?.[0]?.includes('בוחן בגרות'),
-  prompts ? `${prompts[0].length} chars` : 'nothing submitted');
-check('…with the exercise in it', !!prompts?.[0]?.includes('התרגיל:'));
-check('…on one line, so Enter could not send it early', !!prompts && !prompts[0].includes('\n'));
+const prompts = await until({
+  async get() {
+    const p = await glic.ev(`JSON.stringify(window.__prompts ?? [])`);
+    const a = p?.startsWith('[') ? JSON.parse(p) : [];
+    return a.length ? a : null;
+  },
+  ms: 60000
+});
+check({
+  name: 'the brief was typed with trusted keys and sent',
+  ok: !!prompts?.[0]?.includes('בוחן בגרות'),
+  detail: prompts ? `${prompts[0].length} chars` : 'nothing submitted'
+});
+check({ name: '…with the exercise in it', ok: !!prompts?.[0]?.includes('התרגיל:') });
+check({ name: '…on one line, so Enter could not send it early', ok: !!prompts && !prompts[0].includes('\n') });
 
-check('then Live', !!(await until(async () => (await log()).includes('mode:live'))),
-  `${((Date.now() - pressed) / 1000).toFixed(1)}s from the button, brief included`);
+check({
+  name: 'then Live',
+  ok: !!(await until({ get: async () => (await log()).includes('mode:live') })),
+  detail: `${((Date.now() - pressed) / 1000).toFixed(1)}s from the button, brief included`
+});
 const flags = await glic.ev(`Object.values(window.default_BardChatUi).filter((f) => f.defaultValue === 86400 || f.defaultValue === 86400000).length`);
-check("Live's four timeouts were rewritten first", flags === 4, `${flags} of 4`);
+check({ name: "Live's four timeouts were rewritten first", ok: flags === 4, detail: `${flags} of 4` });
 
-const frames = await until(async () => {
-  const f = await glic.ev(`JSON.stringify(window.__frames)`);
-  const a = f?.startsWith('[') ? JSON.parse(f) : [];
-  return a.filter(Boolean).length >= 2 ? a : null;
-}, 20000);
+const frames = await until({
+  async get() {
+    const f = await glic.ev(`JSON.stringify(window.__frames)`);
+    const a = f?.startsWith('[') ? JSON.parse(f) : [];
+    return a.filter(Boolean).length >= 2 ? a : null;
+  },
+  ms: 20000
+});
 const shot = frames?.find(Boolean);
-check('Gemini is handed a picture a second, drawn by the pad', !!shot && shot[0] === 1600 && shot[1] === 900 && shot[2] > 20000,
-  shot ? `${shot[0]}x${shot[1]} ${shot[3]}, ${Math.round(shot[2] / 1024)} KB` : 'none');
+check({
+  name: 'Gemini is handed a picture a second, drawn by the pad',
+  ok: !!shot && shot[0] === 1600 && shot[1] === 900 && shot[2] > 20000,
+  detail: shot ? `${shot[0]}x${shot[1]} ${shot[3]}, ${Math.round(shot[2] / 1024)} KB` : 'none'
+});
 // The stand-in pulls a picture only for a shared tab it has not seen, as the real client
 // does — so the pictures keep coming only if the bridge keeps announcing new ones.
 const shown = async () => glic.ev(`window.__frames.filter(Boolean).length`);
 const shownBefore = await shown();
 await wait(5000);
 const shownSince = (await shown()) - shownBefore;
-check('…and keeps getting one, every second', shownSince >= 4, `${shownSince} in 5 s`);
+check({ name: '…and keeps getting one, every second', ok: shownSince >= 4, detail: `${shownSince} in 5 s` });
 const tab = JSON.parse((await glic.ev(`JSON.stringify(window.__tab ?? null)`)) || 'null');
-check('the shared tab is named for the exercise', !!tab?.title && tab.url === new URL(padUrl).origin, tab?.title ?? '');
+check({ name: 'the shared tab is named for the exercise', ok: !!tab?.title && tab.url === new URL(padUrl).origin, detail: tab?.title ?? '' });
 
-const status = await until(async () => {
-  const s = await pad.ev(`document.querySelector('.qfoot .lstate')?.textContent ?? ''`);
-  return s.includes('מקשיב') ? s : null;
+const status = await until({
+  async get() {
+    const s = await pad.ev(`document.querySelector('.qfoot .lstate')?.textContent ?? ''`);
+    return s.includes('מקשיב') ? s : null;
+  }
 });
-check('the pad says Gemini is listening', !!status, status ?? '');
+check({ name: 'the pad says Gemini is listening', ok: !!status, detail: status ?? '' });
 
 /** Was the stand-in ever put back into text mode after Live began? */
 const paused = async () => {
@@ -239,50 +259,66 @@ const paused = async () => {
 const titleBefore = tab?.title ?? '';
 await pad.ev(`(() => { const b = [...document.querySelectorAll('.steps button')].find((b) => b.textContent.includes('הבא'));
   b?.click(); return !!b; })()`);
-const renamed = await until(async () => {
-  const t = JSON.parse((await glic.ev(`JSON.stringify(window.__tab ?? null)`)) || 'null');
-  return t?.title && t.title !== titleBefore ? t.title : null;
-}, 15000);
-check('a new exercise renames the shared tab', !!renamed?.includes('תרגיל 2'), renamed ?? 'unchanged');
+const renamed = await until({
+  async get() {
+    const t = JSON.parse((await glic.ev(`JSON.stringify(window.__tab ?? null)`)) || 'null');
+    return t?.title && t.title !== titleBefore ? t.title : null;
+  },
+  ms: 15000
+});
+check({ name: 'a new exercise renames the shared tab', ok: !!renamed?.includes('תרגיל 2'), detail: renamed ?? 'unchanged' });
 await wait(5000);
 const typed = JSON.parse((await glic.ev(`JSON.stringify(window.__prompts ?? [])`)) || '[]');
-check('…and is not typed in as another brief', typed.length === 1, `${typed.length} text turns`);
-check('…so Live was never paused for it', !(await paused()));
+check({ name: '…and is not typed in as another brief', ok: typed.length === 1, detail: `${typed.length} text turns` });
+check({ name: '…so Live was never paused for it', ok: !(await paused()) });
 
 // ---- the cue, and the note ----
 await glic.ev(`window.__say('formula'), 1`);
-const note = await until(async () => {
-  const t = await pad.ev(`document.querySelector('.notes .note h3')?.textContent ?? ''`);
-  return t || null;
-}, 45000);
+const note = await until({
+  async get() {
+    const t = await pad.ev(`document.querySelector('.notes .note h3')?.textContent ?? ''`);
+    return t || null;
+  },
+  ms: 45000
+});
 const req = asked.at(-1);
 const fReq = req?.get('f.req') ?? '';
-check('the cue in Gemini\'s words asks for a note beside Live', req?.get('at') === 'AT_STAND_IN',
-  req ? 'signed with the page\'s own token' : 'nothing asked');
-check('…quoting both sides, Gemini\'s whole sentence included',
-  fReq.includes(EXCHANGES.formula.heard) && fReq.includes(EXCHANGES.formula.said));
-check('…for the exercise now on the board', fReq.includes('תרגיל 2'));
-check('its answer lands on the pad as a note, markdown stripped', note === 'נוסחת השורשים', note ?? 'none');
-check('typeset', (await pad.ev(`document.querySelectorAll('.notes .note math').length`)) >= 1);
-check('and Live was never paused for it', !(await paused()));
-const after = await until(async () => {
-  const s = await pad.ev(`document.querySelector('.qfoot .lstate')?.textContent ?? ''`);
-  return s.includes('מקשיב') ? s : null;
-}, 8000);
-check('the pad says Gemini is listening again', !!after, after ?? '');
+check({
+  name: 'the cue in Gemini\'s words asks for a note beside Live',
+  ok: req?.get('at') === 'AT_STAND_IN',
+  detail: req ? 'signed with the page\'s own token' : 'nothing asked'
+});
+check({
+  name: '…quoting both sides, Gemini\'s whole sentence included',
+  ok: fReq.includes(EXCHANGES.formula.heard) && fReq.includes(EXCHANGES.formula.said)
+});
+check({ name: '…for the exercise now on the board', ok: fReq.includes('תרגיל 2') });
+check({ name: 'its answer lands on the pad as a note, markdown stripped', ok: note === 'נוסחת השורשים', detail: note ?? 'none' });
+check({ name: 'typeset', ok: (await pad.ev(`document.querySelectorAll('.notes .note math').length`)) >= 1 });
+check({ name: 'and Live was never paused for it', ok: !(await paused()) });
+const after = await until({
+  async get() {
+    const s = await pad.ev(`document.querySelector('.qfoot .lstate')?.textContent ?? ''`);
+    return s.includes('מקשיב') ? s : null;
+  },
+  ms: 8000
+});
+check({ name: 'the pad says Gemini is listening again', ok: !!after, detail: after ?? '' });
 
 // ---- the cue said in passing, over a line of noise: no note ----
 const notesBefore = await pad.ev(`document.querySelectorAll('.notes .note').length`);
 const askedBefore = asked.length;
 await glic.ev(`window.__say('noise'), 1`);
-await until(async () => asked.length > askedBefore, 20000);
+await until({ get: async () => asked.length > askedBefore, ms: 20000 });
 await wait(3000);
-check('a cue said in passing still asks', asked.length > askedBefore);
-check('…but "nothing to write" puts nothing on the board',
-  (await pad.ev(`document.querySelectorAll('.notes .note').length`)) === notesBefore,
-  `${notesBefore} note(s) before and after`);
+check({ name: 'a cue said in passing still asks', ok: asked.length > askedBefore });
+check({
+  name: '…but "nothing to write" puts nothing on the board',
+  ok: (await pad.ev(`document.querySelectorAll('.notes .note').length`)) === notesBefore,
+  detail: `${notesBefore} note(s) before and after`
+});
 const calm = await pad.ev(`document.querySelector('.qfoot .lstate')?.textContent ?? ''`);
-check('…and is not reported as a failure', calm.includes('מקשיב'), calm);
+check({ name: '…and is not reported as a failure', ok: calm.includes('מקשיב'), detail: calm });
 
 // ---- Live breaks mid-session: "Something went wrong", and "Try again" does not help ----
 const lstate = () => pad.ev(`document.querySelector('.qfoot .lstate')?.textContent ?? ''`);
@@ -293,38 +329,54 @@ await pad.ev(`(() => {
   new MutationObserver(() => window.__states.push(el.textContent)).observe(el, { childList: true, characterData: true, subtree: true });
   return 1; })()`);
 await glic.ev(`window.__break(), 1`);
-check('Live broken: its own "Try again" is tried first',
-  !!(await until(async () => (await log()).includes('try-again'), 12000)));
-const reconnecting = await until(async () => {
-  const seen = JSON.parse(await pad.ev(`JSON.stringify(window.__states)`));
-  return seen.find((t) => t.includes('מתחבר מחדש')) ?? null;
-}, 30000);
-check('…and when that does not bring it back, the pad says it is reconnecting', !!reconnecting, reconnecting ?? '');
-const rebriefed = await until(async () => {
-  const l = await log();
-  const p = await glic.ev(`JSON.stringify(window.__prompts ?? [])`);
-  const a = p?.startsWith('[') ? JSON.parse(p) : [];
-  return !l.includes('try-again') && l.includes('mode:live') && a.length === 1 ? a : null;
-}, 60000);
-check('the Gemini window is reloaded, briefed as a new conversation, and back in Live',
-  !!rebriefed?.[0]?.includes('בוחן בגרות'));
-const relistening = await until(async () => ((await lstate()).includes('מקשיב') ? lstate() : null), 15000);
-check('the pad says Gemini is listening again', !!relistening, relistening ?? '');
-const reframes = await until(async () => {
-  const f = await glic.ev(`JSON.stringify(window.__frames)`);
-  return f?.startsWith('[') && JSON.parse(f).filter(Boolean).length ? f : null;
-}, 15000);
-check('and Gemini sees the board again', !!reframes);
+check({
+  name: 'Live broken: its own "Try again" is tried first',
+  ok: !!(await until({ get: async () => (await log()).includes('try-again'), ms: 12000 }))
+});
+const reconnecting = await until({
+  async get() {
+    const seen = JSON.parse(await pad.ev(`JSON.stringify(window.__states)`));
+    return seen.find((t) => t.includes('מתחבר מחדש')) ?? null;
+  },
+  ms: 30000
+});
+check({ name: '…and when that does not bring it back, the pad says it is reconnecting', ok: !!reconnecting, detail: reconnecting ?? '' });
+const rebriefed = await until({
+  async get() {
+    const l = await log();
+    const p = await glic.ev(`JSON.stringify(window.__prompts ?? [])`);
+    const a = p?.startsWith('[') ? JSON.parse(p) : [];
+    return !l.includes('try-again') && l.includes('mode:live') && a.length === 1 ? a : null;
+  },
+  ms: 60000
+});
+check({
+  name: 'the Gemini window is reloaded, briefed as a new conversation, and back in Live',
+  ok: !!rebriefed?.[0]?.includes('בוחן בגרות')
+});
+const relistening = await until({ get: async () => ((await lstate()).includes('מקשיב') ? lstate() : null), ms: 15000 });
+check({ name: 'the pad says Gemini is listening again', ok: !!relistening, detail: relistening ?? '' });
+const reframes = await until({
+  async get() {
+    const f = await glic.ev(`JSON.stringify(window.__frames)`);
+    return f?.startsWith('[') && JSON.parse(f).filter(Boolean).length ? f : null;
+  },
+  ms: 15000
+});
+check({ name: 'and Gemini sees the board again', ok: !!reframes });
 
 // ---- the end ----
-check('the end button is offered', (await press('סיום השיעור')) === 'clicked');
-const gone = await until(async () => !(await targets()).some((t) => t.url.startsWith(GEMINI)), 10000);
-check('…and closes the Gemini window', !!gone);
-const ended = await until(async () => {
-  const s = await pad.ev(`[...document.querySelectorAll('.qfoot button')].map((b) => b.textContent).join('|')`);
-  return s.includes('ג׳מיני לייב') ? s : null;
-}, 5000);
-check('the pad is back to a start button', !!ended);
+check({ name: 'the end button is offered', ok: (await press('סיום השיעור')) === 'clicked' });
+const gone = await until({ get: async () => !(await targets()).some((t) => t.url.startsWith(GEMINI)), ms: 10000 });
+check({ name: '…and closes the Gemini window', ok: !!gone });
+const ended = await until({
+  async get() {
+    const s = await pad.ev(`[...document.querySelectorAll('.qfoot button')].map((b) => b.textContent).join('|')`);
+    return s.includes('ג׳מיני לייב') ? s : null;
+  },
+  ms: 5000
+});
+check({ name: 'the pad is back to a start button', ok: !!ended });
 
 console.log(`\n(${served} requests to gemini.google.com answered here)`);
 console.log(bad ? `${bad} FAILED` : 'the Live chain holds end to end');

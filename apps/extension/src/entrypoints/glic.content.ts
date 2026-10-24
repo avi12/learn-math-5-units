@@ -4,6 +4,7 @@ import {
   BridgeCall,
   BridgeReport,
   within,
+  type Activation,
   Direction,
   GlicState,
   BridgeFailure,
@@ -269,11 +270,11 @@ export default defineContentScript({
     };
 
     const captureFrame = async (): Promise<ReturnType<typeof decodeFrame>> =>
-      active ? decodeFrame(await within(FRAME_TIMEOUT_MS, bridgeMessenger.sendMessage(BridgeMessage.CAPTURE), null)) : null;
+      active ? decodeFrame(await within({ ms: FRAME_TIMEOUT_MS, promise: bridgeMessenger.sendMessage(BridgeMessage.CAPTURE), fallback: null })) : null;
 
     /* ---- the host the client is handed -------------------------------------- */
 
-    const notify = (subscriber: Subscriber, value: unknown): void => {
+    const notify = ({ subscriber, value }: { subscriber: Subscriber; value: unknown }): void => {
       try {
         subscriber(value);
       } catch {
@@ -283,7 +284,7 @@ export default defineContentScript({
 
     const observable = (value: unknown) => ({
       subscribe(change: Subscriber) {
-        notify(change, value);
+        notify({ subscriber: change, value });
         return { unsubscribe() {} };
       }
     });
@@ -297,14 +298,14 @@ export default defineContentScript({
     const focusedTabObservable = () => ({
       subscribe(change: Subscriber) {
         focusedTabSubscribers.add(change);
-        notify(change, focusedTabState());
+        notify({ subscriber: change, value: focusedTabState() });
         return { unsubscribe: () => focusedTabSubscribers.delete(change) };
       }
     });
 
     const announceFocusedTab = (): void => {
       for (const subscriber of focusedTabSubscribers) {
-        notify(subscriber, focusedTabState());
+        notify({ subscriber, value: focusedTabState() });
       }
     };
 
@@ -402,7 +403,7 @@ export default defineContentScript({
             report(bridgeMessenger.sendMessage(BridgeReport.BOOTED));
             setTimeout(() => {
               if (client.notifyPanelWillOpen) {
-                notify((s) => client.notifyPanelWillOpen?.(s), PANEL_STATE);
+                notify({ subscriber: (s) => client.notifyPanelWillOpen?.(s), value: PANEL_STATE });
               }
             }, 0);
           });
@@ -422,7 +423,7 @@ export default defineContentScript({
       }
 
       for (const handler of bootstrapHandlers) {
-        notify(handler as Subscriber, bootstrapEvent());
+        notify({ subscriber: handler as Subscriber, value: bootstrapEvent() });
       }
     };
 
@@ -857,7 +858,7 @@ export default defineContentScript({
 
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-    const waitFor = async <T>(predicate: () => T | null | undefined, ms: number): Promise<T | null> => {
+    const waitFor = async <T>({ predicate, ms }: { predicate: () => T | null | undefined; ms: number }): Promise<T | null> => {
       const deadline = Date.now() + ms;
       while (Date.now() < deadline) {
         const v = predicate();
@@ -903,7 +904,7 @@ export default defineContentScript({
       clearInterval(shareTimer);
       shareTimer = undefined;
       clickButton(Button.TEXT_MODE);
-      const box = await waitFor(editor, TEXT_READY_MS);
+      const box = await waitFor({ predicate: editor, ms: TEXT_READY_MS });
       if (!box) {
         return false;
       }
@@ -952,7 +953,7 @@ export default defineContentScript({
        listening and silent on the real page (Avi, 14.10.2026). */
 
     /** One string value out of a page's `WIZ_global_data`, decoded as the JSON it is. */
-    const wizValue = (html: string, key: string): string => {
+    const wizValue = ({ html, key }: { html: string; key: string }): string => {
       const m = new RegExp(`"${key}":"((?:\\\\.|[^"\\\\])*)"`).exec(html);
       if (!m) {
         return '';
@@ -973,7 +974,11 @@ export default defineContentScript({
       }
 
       const html = await (await fetch('/app', { credentials: 'include' })).text();
-      return { bl: wizValue(html, WizKey.BL), sid: wizValue(html, WizKey.SID), at: wizValue(html, WizKey.AT) };
+      return {
+        bl: wizValue({ html, key: WizKey.BL }),
+        sid: wizValue({ html, key: WizKey.SID }),
+        at: wizValue({ html, key: WizKey.AT })
+      };
     };
 
     /** The answer's text from a StreamGenerate body: `)]}'`, then byte counts and JSON
@@ -1042,7 +1047,7 @@ export default defineContentScript({
 
     /** The first activation takes the page over; a later one only renames the shared tab
      *  (a new exercise), and the client hears the new name at once. */
-    const activate = (title: string, url: string): void => {
+    const activate = ({ title, url }: Activation): void => {
       focusedTab = { ...focusedTab, title, url };
       announceFocusedTab();
       if (activated) {
@@ -1080,7 +1085,7 @@ export default defineContentScript({
       }, UNAVAILABLE_POLL_MS);
     };
 
-    bridgeMessenger.onMessage(BridgeMessage.ACTIVATE, ({ data }) => activate(data.title, data.url || location.origin));
+    bridgeMessenger.onMessage(BridgeMessage.ACTIVATE, ({ data }) => activate({ title: data.title, url: data.url || location.origin }));
 
     // The worker's calls. One that throws answers null, as one that never answers does.
     const answer = <T>(run: () => T | Promise<T>): Promise<T | null> => Promise.resolve().then(run).catch(() => null);
@@ -1093,7 +1098,7 @@ export default defineContentScript({
     // the relay may have come up first, and know already whether this tab is a session's
     void bridgeMessenger
       .sendMessage(BridgeMessage.PRESENT)
-      .then((a) => a && activate(a.title, a.url || location.origin))
+      .then((a) => a && activate({ title: a.title, url: a.url || location.origin }))
       .catch(() => {});
   }
 });

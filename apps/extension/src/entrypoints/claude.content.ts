@@ -16,7 +16,7 @@ import { ExtensionMessage, extensionMessenger } from '../utils/protocol';
 /** ProseMirror listens for real clipboard events, so a paste is the honest way in:
  *  it exercises the editor's own image and text handling instead of writing into its
  *  DOM behind its back, which it would overwrite on the next keystroke. */
-function pasteInto(target: HTMLElement, { file, text }: { file?: File; text?: string }) {
+function pasteInto({ target, file, text }: { target: HTMLElement; file?: File; text?: string }) {
   const dt = new DataTransfer();
   if (file) {dt.items.add(file);}
   if (text) {dt.setData('text/plain', text);}
@@ -35,7 +35,7 @@ function pasteInto(target: HTMLElement, { file, text }: { file?: File; text?: st
  *  true but says nothing. An empty body decodes to an empty File instead, and the paste
  *  that follows returns false, which is the case the "one of the two did not paste"
  *  banner already covers. */
-function dataUrlToFile(dataUrl: string, name: string): File {
+function dataUrlToFile({ dataUrl, name }: { dataUrl: string; name: string }): File {
   const comma = dataUrl.indexOf(',');
   const head = comma === -1 ? dataUrl : dataUrl.slice(0, comma);
   const body = comma === -1 ? '' : dataUrl.slice(comma + 1);
@@ -73,7 +73,7 @@ function composer(timeoutMs = 15000): Promise<HTMLElement | null> {
 const Tone = { OK: 'ok', BAD: 'bad' } as const;
 type Tone = (typeof Tone)[keyof typeof Tone];
 
-function banner(text: string, tone: Tone) {
+function banner({ text, tone }: { text: string; tone: Tone }) {
   const el = document.createElement('div');
   el.textContent = text;
   Object.assign(el.style, {
@@ -108,25 +108,25 @@ async function run() {
       .writeText(job.prompt)
       .then(() => true)
       .catch(() => false);
-    banner(
-      copied
+    banner({
+      text: copied
         ? 'לא מצאתי את תיבת ההודעה. הפרומפט הועתק — הדבק ידנית.'
         : 'לא מצאתי את תיבת ההודעה, וההעתקה נדחתה. חזור ללוח ולחץ שוב.',
-      Tone.BAD
-    );
+      tone: Tone.BAD
+    });
     return;
   }
 
   // Image first: it becomes an attachment, and the text then lands in an empty box.
-  const image = pasteInto(box, { file: dataUrlToFile(job.image, 'board.png') });
+  const image = pasteInto({ target: box, file: dataUrlToFile({ dataUrl: job.image, name: 'board.png' }) });
   await new Promise((r) => setTimeout(r, 400));
-  const text = pasteInto(box, { text: job.prompt });
+  const text = pasteInto({ target: box, text: job.prompt });
 
   if (!image || !text) {
-    banner('משהו מהשניים לא נדבק. בדוק לפני ששולח.', Tone.BAD);
+    banner({ text: 'משהו מהשניים לא נדבק. בדוק לפני ששולח.', tone: Tone.BAD });
     return;
   }
-  banner(`מוכן לבדיקה — ${job.topic || 'הלוח'}. עבור עליו ושלח.`, Tone.OK);
+  banner({ text: `מוכן לבדיקה — ${job.topic || 'הלוח'}. עבור עליו ושלח.`, tone: Tone.OK });
 }
 
 export default defineContentScript({
@@ -137,6 +137,6 @@ export default defineContentScript({
     // Nothing above is allowed to fail in silence: a throw between finding the composer
     // and the banner would otherwise leave the page looking untouched, which is the one
     // outcome this file is written to avoid.
-    void run().catch(() => banner('הבדיקה נכשלה בדרך. חזור ללוח ולחץ שוב.', Tone.BAD));
+    void run().catch(() => banner({ text: 'הבדיקה נכשלה בדרך. חזור ללוח ולחץ שוב.', tone: Tone.BAD }));
   }
 });

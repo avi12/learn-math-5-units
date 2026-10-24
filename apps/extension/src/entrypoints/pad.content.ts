@@ -66,7 +66,7 @@ export default defineContentScript({
 
     // Worker → page.
     extensionMessenger.onMessage(ExtensionMessage.FRAME, () =>
-      within(FRAME_MS, padMessenger.sendMessage(PadMessage.FRAME, undefined, location.origin), null)
+      within({ ms: FRAME_MS, promise: padMessenger.sendMessage(PadMessage.FRAME, undefined, location.origin), fallback: null })
     );
     extensionMessenger.onMessage(ExtensionMessage.LIVE_STATUS, ({ data }) => {
       void padMessenger.sendMessage(PadMessage.LIVE_STATUS, data, location.origin).catch(() => {});

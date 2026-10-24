@@ -216,13 +216,13 @@ export interface BridgeProtocolMap extends BridgeReportProtocolMap, BridgeCallPr
 
 export const bridgeMessenger = defineCustomEventMessaging<BridgeProtocolMap>({ namespace: 'avi-math-glic@1' });
 
-/** `p`, or `fallback` once `ms` have passed — a messenger waits for an answer forever,
+/** `promise`, or `fallback` once `ms` have passed — a messenger waits for an answer forever,
  *  and every wait here has a deadline (a picture, a call). Rejections become the
  *  fallback too: a party that is not there is the same as one that does not answer. */
-export function within<T, F>(ms: number, p: Promise<T>, fallback: F): Promise<T | F> {
+export function within<T, F>({ ms, promise, fallback }: { ms: number; promise: Promise<T>; fallback: F }): Promise<T | F> {
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(fallback), ms);
-    p.then(
+    promise.then(
       (v) => {
         clearTimeout(timer);
         resolve(v);
