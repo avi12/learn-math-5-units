@@ -10,6 +10,7 @@
  *
  *  Nothing here imports the API-key code: this file is in the main chunk, and the Live
  *  socket, the mic and the speaker load only when an API-key session starts. */
+import type { LiveStart, LiveTarget } from '@learn-math/shared/protocol';
 import { extensionPresent } from './check';
 import { StorageKey, forgetPreference, readPreference, writePreference } from './preferences';
 
@@ -18,6 +19,14 @@ export const Engine = {
   API_KEY: 'apiKey'
 } as const;
 export type Engine = (typeof Engine)[keyof typeof Engine];
+
+/** What the page asks of whichever engine runs the session (live.svelte.ts holds one per
+ *  engine). Fire and forget: what happens comes back as a status. */
+export interface LiveRunner {
+  start(start: LiveStart): void;
+  retarget(target: LiveTarget): void;
+  stop(): void;
+}
 
 export const ENGINE_LABEL: Record<Engine, string> = {
   [Engine.SUBSCRIPTION]: 'המנוי שלך לג׳מיני',
@@ -68,6 +77,10 @@ export function writeEngine(engine: Engine): void {
 
 export function readApiKey(): string {
   return readPreference(StorageKey.GEMINI_KEY)?.trim() ?? '';
+}
+
+export function hasApiKey(): boolean {
+  return readApiKey() !== '';
 }
 
 export function writeApiKey(key: string): void {

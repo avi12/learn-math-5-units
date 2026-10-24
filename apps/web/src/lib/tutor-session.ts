@@ -15,8 +15,8 @@
  *
  *  Loaded with `import()` only when such a session starts (live.svelte.ts), so the socket,
  *  the mic and the speaker never weigh on a page that rides the subscription. */
-import { createCueWatch, noteFromAnswer, notePrompt } from '@learn-math/shared/notes';
-import { LiveState, type Frame, type LiveNote, type LiveTarget } from '@learn-math/shared/protocol';
+import { askForNote, createCueWatch, type NoteExchange } from '@learn-math/shared/notes';
+import { LiveState, type Frame, type LiveNote, type LiveStatus, type LiveTarget } from '@learn-math/shared/protocol';
 import { generateText } from './gemini/generate';
 import { openMic } from './gemini/mic';
 import { createPlayback } from './gemini/playback';
@@ -36,7 +36,7 @@ const SETUP_REJECTED = 'ג׳מיני דחה את החיבור — בדוק שה�
 
 export interface TutorSessionEvents {
   /** the session's state; `detail` says what went wrong (FAILED) */
-  onState(status: { state: LiveState; detail?: string }): void;
+  onState(status: LiveStatus): void;
   onNote(note: LiveNote): void;
   /** a note was asked for and did not come; Live goes on */
   onNoteFailed(): void;
@@ -55,7 +55,7 @@ export interface TutorSessionOptions {
 }
 
 /** Why a session closed, as the pad says it. */
-function closedStatus(closure: LiveClosure): { state: LiveState; detail?: string } {
+function closedStatus(closure: LiveClosure): LiveStatus {
   if (closure.isSetupRejected) {
     return { state: LiveState.FAILED, detail: SETUP_REJECTED };
   }
@@ -72,6 +72,31 @@ export function startFailure(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** One side's utterance, as its transcript arrives in pieces: the first piece after
+ *  `close` starts a new one. */
+function createUtterance() {
+  let text = '';
+  let isOpen = false;
+  return {
+    /** adds a piece; true when it opened a new utterance */
+    add(piece: string): boolean {
+      const isNew = !isOpen;
+      if (isNew) {
+        text = '';
+        isOpen = true;
+      }
+      text += piece;
+      return isNew;
+    },
+    close() {
+      isOpen = false;
+    },
+    get text() {
+      return text.trim();
+    }
+  };
+}
+
 export async function startTutorSession({ apiKey, brief, target, captureFrame, events }: TutorSessionOptions) {
   let request = target.notes ?? null;
   let connection: LiveState = LiveState.OPENING;
@@ -80,13 +105,13 @@ export async function startTutorSession({ apiKey, brief, target, captureFrame, e
   let isStopped = false;
   const stoppers: (() => void)[] = [];
 
-  function report(detail?: string): void {
+  function report(): void {
     if (isStopped) {
       return;
     }
 
     const state = writing && connection === LiveState.LIVE ? LiveState.WRITING : connection;
-    events.onState({ state, detail });
+    events.onState({ state });
   }
 
   function stop(): void {
@@ -97,7 +122,7 @@ export async function startTutorSession({ apiKey, brief, target, captureFrame, e
     }
   }
 
-  async function writeNote(said: { heardText: string; saidText: string }): Promise<void> {
+  async function writeNote(exchange: NoteExchange): Promise<void> {
     const asked = request;
     if (!asked || isStopped) {
       return;
@@ -105,13 +130,16 @@ export async function startTutorSession({ apiKey, brief, target, captureFrame, e
 
     writing++;
     report();
-    const answer = await generateText({ apiKey, prompt: notePrompt({ request: asked, ...said }) }).catch(() => '');
+    const { note, isNone } = await askForNote({
+      request: asked,
+      exchange,
+      ask: (prompt) => generateText({ apiKey, prompt })
+    });
     writing--;
     if (isStopped) {
       return;
     }
 
-    const { note, isNone } = noteFromAnswer({ answer, request: asked });
     if (note) {
       events.onNote(note);
     } else if (!isNone) {
@@ -120,15 +148,13 @@ export async function startTutorSession({ apiKey, brief, target, captureFrame, e
     report();
   }
 
-  const watch = createCueWatch({ release: (said) => void writeNote(said) });
+  const watch = createCueWatch({ release: (exchange) => void writeNote(exchange) });
 
-  /* The transcripts arrive in pieces. A Gemini utterance runs from its first piece to its
-     turn's end and gets the next index; the person's runs until Gemini answers. */
-  let modelIndex = -1;
-  let modelText = '';
-  let isModelOpen = false;
-  let userText = '';
-  let isUserOpen = false;
+  /* A Gemini utterance runs from its first piece to its turn's end and gets the next
+     index; the person's runs until Gemini answers. */
+  const heard = createUtterance();
+  const said = createUtterance();
+  let saidIndex = -1;
 
   events.onState({ state: LiveState.OPENING });
   const playback = createPlayback((isBlocked) => events.onSpeakerBlocked(isBlocked));
@@ -153,34 +179,26 @@ export async function startTutorSession({ apiKey, brief, target, captureFrame, e
       onAudio: (bytes) => playback.play(bytes),
       onInterrupted: () => playback.flush(),
       onUserText(text) {
-        if (!isUserOpen) {
-          userText = '';
-          isUserOpen = true;
-        }
-        userText += text;
-        watch.user(userText.trim());
+        heard.add(text);
+        watch.user(heard.text);
       },
       onModelText(text) {
-        isUserOpen = false;
-        if (!isModelOpen) {
-          modelIndex++;
-          modelText = '';
-          isModelOpen = true;
+        heard.close();
+        if (said.add(text)) {
+          saidIndex++;
         }
-        modelText += text;
-        watch.model({ text: modelText.trim(), index: modelIndex, cue: request?.cue });
+        watch.model({ text: said.text, index: saidIndex, cue: request?.cue });
       },
       onTurnComplete() {
-        isModelOpen = false;
-        watch.turnEnded(modelIndex);
+        said.close();
+        watch.turnEnded(saidIndex);
       },
       onClosed(closure) {
         if (isStopped) {
           return;
         }
 
-        const status = closedStatus(closure);
-        events.onState(status);
+        events.onState(closedStatus(closure));
         stop();
       }
     }

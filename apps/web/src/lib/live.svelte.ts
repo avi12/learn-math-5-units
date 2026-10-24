@@ -6,16 +6,17 @@
  *  to its own window and listens for what comes back, exactly like the Claude check
  *  (lib/check.ts). Two things come back unasked: the session's state, and a request for a
  *  picture, which Gemini pulls about once a second. On the API key this page runs the
- *  session itself (lib/tutor-session.ts, loaded only then) and pushes a picture every
- *  second. Either way every picture is drawn fresh by `draw` (lib/frame.ts) and goes out
- *  through one function, `frame`, so it always shows the board as it is and the blind
- *  watchdog counts both kinds.
+ *  session itself (lib/live-key.ts, which loads lib/tutor-session.ts only then) and
+ *  pushes a picture every second. Either way every picture is drawn fresh by `draw`
+ *  (lib/frame.ts) and goes out through one function, `frame`, so it always shows the
+ *  board as it is and the blind watchdog counts both kinds.
  *
  *  One instance for the page, like the toast: the session is the page's, not a
  *  component's, and the question card, the notes and the frame all read the same one. */
 import {
   LiveState,
   PadMessage,
+  isRunning,
   padMessenger,
   type Frame,
   type LiveNote,
@@ -24,9 +25,8 @@ import {
   type LiveTarget
 } from '@learn-math/shared/protocol';
 import { SvelteSet } from 'svelte/reactivity';
-import { Engine, forgetApiKey, readApiKey, readEngine, writeApiKey, writeEngine } from './engine';
-import { say } from './notify.svelte';
-import type { TutorSession } from './tutor-session';
+import { Engine, forgetApiKey, hasApiKey, readEngine, writeApiKey, writeEngine, type LiveRunner } from './engine';
+import { createKeyRunner } from './live-key';
 
 /** How many notes stay up at once. A note is a reminder for the exercise in hand; a
  *  wall of them would push the board down the screen. */
@@ -43,22 +43,12 @@ export const live = $state({
   notes: [] as LiveNote[]
 });
 
-/** The states in which there is a session to end. */
-const RUNNING: ReadonlySet<LiveState> = new Set([
-  LiveState.OPENING,
-  LiveState.BRIEFING,
-  LiveState.WRITING,
-  LiveState.LIVE,
-  LiveState.PAUSED,
-  LiveState.RECONNECTING
-]);
+/** Its home is the protocol, beside the states; the page's components import it from here. */
+export { isRunning };
 
-export function isRunning(s: LiveState): boolean {
-  return RUNNING.has(s);
-}
-
-/** What each state says on the page. FAILED says what the engine reported instead. */
-export const LIVE_LABEL: Record<LiveState, string> = {
+/** What each state says on the page. FAILED says what the engine reported instead, and
+ *  this only when the engine reported nothing — so no engine has to word it again. */
+const LIVE_LABEL: Record<LiveState, string> = {
   [LiveState.IDLE]: '',
   [LiveState.OPENING]: 'פותח את ג׳מיני…',
   [LiveState.BRIEFING]: 'מתדרך את המורה…',
@@ -72,6 +62,8 @@ export const LIVE_LABEL: Record<LiveState, string> = {
 
 /** Gemini asks for a picture about once a second; this long without one means it stopped. */
 const BLIND_MS = 5000;
+/** How often the watchdog looks. */
+const BLIND_CHECK_MS = 1000;
 const BLIND_LABEL = 'ג׳מיני מקשיב, אבל הפסיק להסתכל על הלוח';
 
 /** The line to show for the session right now. */
@@ -116,7 +108,7 @@ export function dropNote(id: string): void {
  *  here: it is read from storage at the moment a session needs it, and never shown. */
 export const tutorSetup = $state({
   engine: readEngine(),
-  hasKey: readApiKey() !== '',
+  hasKey: hasApiKey(),
   /** a start found no key, so the key field is where to look */
   isKeyAsked: false
 });
@@ -135,7 +127,7 @@ export function chooseEngine(engine: Engine): void {
 
 export function saveApiKey(key: string): void {
   writeApiKey(key);
-  tutorSetup.hasKey = readApiKey() !== '';
+  tutorSetup.hasKey = hasApiKey();
   tutorSetup.isKeyAsked = false;
 }
 
@@ -183,113 +175,36 @@ function receiveNote(n: LiveNote): void {
   onNote?.(n);
 }
 
-/* ---- the session on the key, run here ---------------------------------------------- */
+/* ---- start, aim, end: to whichever engine runs the session ------------------------ */
 
-const NOTE_FAILED = 'הפתק לא נכתב — בקש שוב';
-const LOAD_FAILED = 'הקוד של ג׳מיני לא נטען — בדוק את החיבור ונסה שוב';
-
-let tutor: TutorSession | null = null;
-/** bumped by every start and stop, so a start overtaken while the mic was being asked
- *  for, or the code was loading, closes what it opened and says nothing */
-let attempt = 0;
-
-async function startOnKey(start: LiveStart): Promise<void> {
-  const mine = ++attempt;
-  const isCurrent = () => mine === attempt;
-  setStatus({ state: LiveState.OPENING });
-  // Only now: the socket, the mic and the speaker are not in the page's main chunk.
-  const loaded = await import('./tutor-session').catch(() => null);
-  if (!isCurrent()) {
-    return;
-  }
-  if (!loaded) {
-    setStatus({ state: LiveState.FAILED, detail: LOAD_FAILED });
-    return;
-  }
-
-  try {
-    const session = await loaded.startTutorSession({
-      apiKey: readApiKey(),
-      brief: start.prompt,
-      target: start,
-      captureFrame: frame,
-      events: {
-        onState(status) {
-          if (!isCurrent()) {
-            return;
-          }
-          setStatus(status);
-          if (!isRunning(status.state)) {
-            tutor = null;
-          }
-        },
-        onNote(n) {
-          if (isCurrent()) {
-            receiveNote(n);
-          }
-        },
-        // Live goes on, so the state stays what it is; the toast says the note is missing
-        onNoteFailed() {
-          if (isCurrent()) {
-            say({ text: NOTE_FAILED });
-          }
-        },
-        onSpeakerBlocked(isBlocked) {
-          if (isBlocked && isCurrent()) {
-            // the browser holds sound back until the page is used; the next touch frees it
-            addEventListener('pointerdown', () => tutor?.unblockSpeaker(), { once: true });
-          }
-        }
-      }
-    });
-    if (isCurrent()) {
-      tutor = session;
-    } else {
-      session.stop();
+const RUNNERS: Record<Engine, LiveRunner> = {
+  // the extension runs it; to the extension these are fire and forget
+  [Engine.SUBSCRIPTION]: {
+    start(start) {
+      void padMessenger.sendMessage(PadMessage.LIVE_START, start, location.origin).catch(() => {});
+    },
+    retarget(target) {
+      void padMessenger.sendMessage(PadMessage.LIVE_RETARGET, target, location.origin).catch(() => {});
+    },
+    stop() {
+      void padMessenger.sendMessage(PadMessage.LIVE_STOP, undefined, location.origin).catch(() => {});
     }
-  } catch (e) {
-    if (isCurrent()) {
-      setStatus({ state: LiveState.FAILED, detail: loaded.startFailure(e) });
-    }
-  }
-}
-
-function stopOnKey(): void {
-  attempt++;
-  tutor?.stop();
-  tutor = null;
-  setStatus({ state: LiveState.ENDED });
-}
-
-/* ---- start, aim, end: to whichever engine runs the session ------------------------
-   To the extension these are fire and forget: what happens arrives as a status. */
+  },
+  // this page runs it, its code loaded only when a session starts
+  [Engine.API_KEY]: createKeyRunner({ captureFrame: frame, onState: setStatus, onNote: receiveNote })
+};
 
 export function startLive(start: LiveStart): void {
   runningOn = tutorSetup.engine;
-  if (runningOn === Engine.API_KEY) {
-    void startOnKey(start);
-    return;
-  }
-
-  void padMessenger.sendMessage(PadMessage.LIVE_START, start, location.origin).catch(() => {});
+  RUNNERS[runningOn].start(start);
 }
 
 export function retargetLive(target: LiveTarget): void {
-  if (runningOn === Engine.API_KEY) {
-    tutor?.retarget(target);
-    return;
-  }
-
-  void padMessenger.sendMessage(PadMessage.LIVE_RETARGET, target, location.origin).catch(() => {});
+  RUNNERS[runningOn].retarget(target);
 }
 
 export function stopLive(): void {
-  if (runningOn === Engine.API_KEY) {
-    stopOnKey();
-    return;
-  }
-
-  void padMessenger.sendMessage(PadMessage.LIVE_STOP, undefined, location.origin).catch(() => {});
+  RUNNERS[runningOn].stop();
 }
 
 /** Listen for the session, answer its picture requests with `draw`, and hand each new
@@ -309,7 +224,7 @@ export function installLive({ draw: drawer, onnote }: {
     if (live.blind !== blind) {
       live.blind = blind;
     }
-  }, 1000);
+  }, BLIND_CHECK_MS);
 
   const listeners = [
     padMessenger.onMessage(PadMessage.FRAME, frame),
