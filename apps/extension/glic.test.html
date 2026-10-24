@@ -5,8 +5,9 @@
 
        - the bootstrap: a `message` listener that takes only a `glic-bootstrap` from
          origin chrome://glic, then hands `internalAutoGlicBoot()`'s registry a client;
-       - the host calls: in Live, one `getContextFromTab(…, {viewportScreenshot})` a
-         second, as the real client does while sharing;
+       - the host calls: in Live, one `getContextFromTab(…, {viewportScreenshot})` for
+         every new shared-tab id the host announces — the real client's habit, which a
+         fixed id turned into one picture a turn (interview-prep, 22.10.2026);
        - the buttons, by the aria-labels the bridge looks for;
        - a text box whose Submit stays disabled until a TRUSTED key is pressed in it —
          the gate that makes the worker type through the debugger;
@@ -40,7 +41,7 @@
       let host = null;
       let mode = 'text';
       let trusted = 0;
-      let frameTimer = null;
+      let sharing = null;
       const ui = document.getElementById('ui');
 
       const button = (label, onclick, disabled = false) => {
@@ -69,7 +70,8 @@
 
       function render() {
         ui.replaceChildren();
-        clearInterval(frameTimer);
+        sharing?.unsubscribe();
+        sharing = null;
         // what the real client showed on 14.10.2026, Live gone mid-session; its own
         // "Try again" did not bring it back, and here it does nothing at all
         if (mode === 'broken') {
@@ -84,12 +86,19 @@
 
         if (mode === 'live') {
           ui.append(button('Pause live mode', () => {}), button('Switch to text mode', () => go('text')));
-          frameTimer = setInterval(async () => {
-            const c = await host.getContextFromTab('pad', { viewportScreenshot: true });
+          let seen = null;
+          sharing = host.getFocusedTabStateV2().subscribe(async (state) => {
+            const id = state?.hasFocus?.tabData?.tabId;
+            if (!id || id === seen) {
+              return;
+            }
+
+            seen = id;
+            const c = await host.getContextFromTab(id, { viewportScreenshot: true });
             const s = c.viewportScreenshot;
             window.__frames.push(s ? [s.widthPixels, s.heightPixels, s.data.byteLength, s.mimeType] : null);
             window.__tab = c.tabData;
-          }, 1000);
+          });
           return;
         }
 

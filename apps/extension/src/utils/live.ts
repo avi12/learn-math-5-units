@@ -13,8 +13,9 @@
  *      The brief is the tutor's role, the exercise and its criteria, all worded in the
  *      workbook (build/rebuild.py `live_prompt_text`). Gemini takes no system prompt; a
  *      first turn in the same conversation is what Live then keeps in context.
- *   3. Then Live. From here Gemini pulls a picture about once a second, and each one is
- *      fetched from the pad tab, which draws it (apps/web/src/lib/frame.ts).
+ *   3. Then Live. From here the bridge shows Gemini a new shared tab every second, Gemini
+ *      pulls a picture for each, and each one is fetched from the pad tab, which draws it
+ *      (apps/web/src/lib/frame.ts).
  *   4. That first brief is the ONLY text turn. The first version paused Live for more of
  *      them — a changed exercise, a note — and on the real page Live came back
  *      listening and never answered again (Avi, 14.10.2026). So a changed exercise

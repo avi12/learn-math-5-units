@@ -213,6 +213,13 @@ const frames = await until(async () => {
 const shot = frames?.find(Boolean);
 check('Gemini is handed a picture a second, drawn by the pad', !!shot && shot[0] === 1600 && shot[1] === 900 && shot[2] > 20000,
   shot ? `${shot[0]}x${shot[1]} ${shot[3]}, ${Math.round(shot[2] / 1024)} KB` : 'none');
+// The stand-in pulls a picture only for a shared tab it has not seen, as the real client
+// does — so the pictures keep coming only if the bridge keeps announcing new ones.
+const shown = async () => glic.ev(`window.__frames.filter(Boolean).length`);
+const shownBefore = await shown();
+await wait(5000);
+const shownSince = (await shown()) - shownBefore;
+check('…and keeps getting one, every second', shownSince >= 4, `${shownSince} in 5 s`);
 const tab = JSON.parse((await glic.ev(`JSON.stringify(window.__tab ?? null)`)) || 'null');
 check('the shared tab is named for the exercise', !!tab?.title && tab.url === new URL(padUrl).origin, tab?.title ?? '');
 

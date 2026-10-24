@@ -17,8 +17,8 @@ import {
  * `gemini.google.com/glic` is the real, signed-in Gemini web client that Gemini in Chrome
  * runs in its panel. It runs the whole Live loop by itself — the mic with Chromium's echo
  * cancelling, the Live session, Gemini's own voice — and it asks its HOST for everything
- * else, including the pictures Live looks at: while sharing, it calls
- * `getContextFromTab(…, {viewportScreenshot: true})` about once a second. Chrome is
+ * else, including the pictures Live looks at: `getContextFromTab(…, {viewportScreenshot:
+ * true})`, once for every shared tab it is told is in focus. Chrome is
  * normally that host, over a `chrome://glic` handshake a page cannot forge; so this
  * defines the client's boot hook itself and replays the client's own bootstrap listener
  * with a synthetic event, and from then on it is the host. Every picture it hands over
@@ -85,6 +85,10 @@ const FormFactor = { DESKTOP: 1 } as const;
 const HostCapability = { MULTI_INSTANCE: 3, PDF_ZERO_STATE: 7, INVOKE: 8 } as const;
 
 const PANEL_STATE = { kind: PanelStateKind.ATTACHED, windowId: 'pad' };
+/** The client sends Live one picture per shared-tab id it is told is in focus, so a fixed
+ *  id gave Gemini one look at the board per turn. A new id this often has it pull a fresh
+ *  picture each time, as Gemini Live does on a phone (interview-prep, 22.10.2026). */
+const SHARE_MS = 1000;
 const BOOT_POLL_MS = 100;
 const MAX_BOOT_TRIES = 150;
 const UNAVAILABLE_POLL_MS = 500;
@@ -284,6 +288,35 @@ export default defineContentScript({
       }
     });
 
+    /** The shared tab, under the id of the latest share (`SHARE_MS`). */
+    let shares = 0;
+    const currentTab = (): Json => ({ ...focusedTab, tabId: `pad-${shares}` });
+    const focusedTabState = () => ({ hasFocus: { tabData: currentTab() } });
+
+    const focusedTabSubscribers = new Set<Subscriber>();
+    const focusedTabObservable = () => ({
+      subscribe(change: Subscriber) {
+        focusedTabSubscribers.add(change);
+        notify(change, focusedTabState());
+        return { unsubscribe: () => focusedTabSubscribers.delete(change) };
+      }
+    });
+
+    const announceFocusedTab = (): void => {
+      for (const subscriber of focusedTabSubscribers) {
+        notify(subscriber, focusedTabState());
+      }
+    };
+
+    const share = (): void => {
+      if (!active) {
+        return;
+      }
+
+      shares++;
+      announceFocusedTab();
+    };
+
     const resolved = (value: unknown) => () => Promise.resolve(value);
     // Captions on: they are what the person sees in the Gemini window.
     const captions = observable(true);
@@ -304,12 +337,12 @@ export default defineContentScript({
       }),
       getPanelState: () => observable(PANEL_STATE),
       panelActive: () => observable(true),
-      getFocusedTabStateV2: () => observable({ hasFocus: { tabData: focusedTab } }),
-      getContextFromFocusedTab: () => Promise.resolve({ tabData: focusedTab }),
+      getFocusedTabStateV2: focusedTabObservable,
+      getContextFromFocusedTab: () => Promise.resolve({ tabData: currentTab() }),
       captureScreenshot: () => captureFrame(),
-      // Live's continuous view: one call per picture.
+      // Live's continuous view: one call per picture, one picture per share.
       async getContextFromTab(_tabId: unknown, options?: { viewportScreenshot?: boolean }) {
-        const context: Json = { tabData: focusedTab };
+        const context: Json = { tabData: currentTab() };
         if (!options?.viewportScreenshot) {
           return context;
         }
@@ -678,6 +711,7 @@ export default defineContentScript({
     let brokeReported = false;
     let consentAccepted = false;
     let monitorTimer: ReturnType<typeof setInterval> | undefined;
+    let shareTimer: ReturnType<typeof setInterval> | undefined;
     let startTimer: ReturnType<typeof setInterval> | undefined;
 
     const resume = (): void => {
@@ -796,6 +830,7 @@ export default defineContentScript({
           report({ kind: BridgeUp.READY });
           setState(GlicState.LISTENING);
           monitorTimer ??= setInterval(monitorTick, MONITOR_POLL_MS);
+          shareTimer ??= setInterval(share, SHARE_MS);
           return;
         }
 
@@ -865,6 +900,8 @@ export default defineContentScript({
       clearInterval(startTimer);
       clearInterval(monitorTimer);
       monitorTimer = undefined;
+      clearInterval(shareTimer);
+      shareTimer = undefined;
       clickButton(Button.TEXT_MODE);
       const box = await waitFor(editor, TEXT_READY_MS);
       if (!box) {
@@ -1012,9 +1049,10 @@ export default defineContentScript({
     /* ---- the relay's side ---------------------------------------------------- */
 
     /** The first activation takes the page over; a later one only renames the shared tab
-     *  (a new exercise), which the client reads at its next Live start. */
+     *  (a new exercise), and the client hears the new name at once. */
     const activate = (title: string, url: string): void => {
       focusedTab = { ...focusedTab, title, url };
+      announceFocusedTab();
       if (activated) {
         return;
       }
