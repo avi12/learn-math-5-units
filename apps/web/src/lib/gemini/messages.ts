@@ -2,12 +2,20 @@
  *  a flat list of events. session.ts only ever sees `ServerEvent`s, so the shape of the
  *  server's nesting lives here and nowhere else.
  *
- *  The server's messages are untrusted JSON, read with small type guards rather than a
- *  schema library — the pad has no runtime validator, and these few fields do not
- *  justify one. Anything that does not match is skipped, not thrown. */
+ *  The shapes themselves are zod schemas (schemas.ts): the builders here return their
+ *  types, the setup is parsed before it goes out, and every server message is parsed on
+ *  the way in — one that does not match is skipped, not thrown. */
 import { base64ToBytes } from './base64';
 import { MIC_MIME_TYPE } from './defaults';
-import { isObject, type Json } from './json';
+import {
+  jsonOf,
+  readAs,
+  type RealtimeInput,
+  serverMessageSchema,
+  type ServerContent,
+  type SetupMessage,
+  setupMessageSchema
+} from './schemas';
 
 const RESPONSE_MODALITY_AUDIO = 'AUDIO';
 const MEDIA_RESOLUTION = 'MEDIA_RESOLUTION_MEDIUM';
@@ -22,8 +30,8 @@ export interface SetupOptions {
 /** The first message on every socket. Both transcriptions are on: the pad reads what the
  *  learner said and what Gemini said as text (the note cue is spotted there). The handle
  *  of the previous socket, when there is one, carries the conversation over a reconnect. */
-export function buildSetupMessage({ model, voice, systemInstruction, resumeHandle }: SetupOptions) {
-  return {
+export function buildSetupMessage({ model, voice, systemInstruction, resumeHandle }: SetupOptions): SetupMessage {
+  return setupMessageSchema.parse({
     setup: {
       model: `models/${model}`,
       generationConfig: {
@@ -47,10 +55,10 @@ export function buildSetupMessage({ model, voice, systemInstruction, resumeHandl
       },
       sessionResumption: resumeHandle ? { handle: resumeHandle } : {}
     }
-  };
+  });
 }
 
-export function audioMessage(base64: string) {
+export function audioMessage(base64: string): RealtimeInput {
   return {
     realtimeInput: {
       audio: {
@@ -64,7 +72,7 @@ export function audioMessage(base64: string) {
 export function videoMessage({ base64, mimeType }: {
   base64: string;
   mimeType: string;
-}) {
+}): RealtimeInput {
   return {
     realtimeInput: {
       video: {
@@ -105,57 +113,21 @@ export type ServerEvent =
     handle: string;
   };
 
-/** The field when it is an object, otherwise nothing — absent and malformed alike. */
-function objectField({ from, key }: { from: Json; key: string }) {
-  const value = from[key];
-  return isObject(value) ? value : undefined;
+function audioEvents(content: ServerContent): ServerEvent[] {
+  return (content.modelTurn?.parts ?? []).flatMap((part) =>
+    part.inlineData?.data ? [{ kind: ServerEventKind.AUDIO, bytes: base64ToBytes(part.inlineData.data) }] : []
+  );
 }
 
-function stringField({ from, key }: { from: Json | undefined; key: string }) {
-  const value = from?.[key];
-  return typeof value === 'string' ? value : undefined;
-}
-
-function isTrue({ from, key }: { from: Json; key: string }) {
-  return from[key] === true;
-}
-
-function audioEvents(content: Json) {
-  const parts = objectField({ from: content, key: 'modelTurn' })?.parts;
-  if (!Array.isArray(parts)) {
-    return [];
-  }
-
+function contentEvents(content: ServerContent) {
   const events: ServerEvent[] = [];
-  for (const part of parts) {
-    if (!isObject(part)) {
-      continue;
-    }
-
-    const data = stringField({ from: objectField({ from: part, key: 'inlineData' }), key: 'data' });
-    if (data) {
-      events.push({
-        kind: ServerEventKind.AUDIO,
-        bytes: base64ToBytes(data)
-      });
-    }
-  }
-  return events;
-}
-
-function transcription({ content, key }: { content: Json; key: string }) {
-  return stringField({ from: objectField({ from: content, key }), key: 'text' });
-}
-
-function contentEvents(content: Json) {
-  const events: ServerEvent[] = [];
-  if (isTrue({ from: content, key: 'interrupted' })) {
+  if (content.interrupted) {
     events.push({ kind: ServerEventKind.INTERRUPTED });
   }
 
   events.push(...audioEvents(content));
 
-  const heard = transcription({ content, key: 'inputTranscription' });
+  const heard = content.inputTranscription?.text;
   if (heard) {
     events.push({
       kind: ServerEventKind.USER_TEXT,
@@ -163,7 +135,7 @@ function contentEvents(content: Json) {
     });
   }
 
-  const said = transcription({ content, key: 'outputTranscription' });
+  const said = content.outputTranscription?.text;
   if (said) {
     events.push({
       kind: ServerEventKind.MODEL_TEXT,
@@ -171,48 +143,38 @@ function contentEvents(content: Json) {
     });
   }
 
-  if (isTrue({ from: content, key: 'turnComplete' })) {
+  if (content.turnComplete) {
     events.push({ kind: ServerEventKind.TURN_COMPLETE });
   }
 
   return events;
 }
 
-function parseJson(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
 export function parseServerMessage(text: string) {
-  const message = parseJson(text);
-  if (!isObject(message)) {
+  const message = readAs({ schema: serverMessageSchema, value: jsonOf(text) });
+  if (!message) {
     return [];
   }
 
   const events: ServerEvent[] = [];
-  if (objectField({ from: message, key: 'setupComplete' })) {
+  if (message.setupComplete) {
     events.push({ kind: ServerEventKind.SETUP_COMPLETE });
   }
 
-  const content = objectField({ from: message, key: 'serverContent' });
-  if (content) {
-    events.push(...contentEvents(content));
+  if (message.serverContent) {
+    events.push(...contentEvents(message.serverContent));
   }
 
   /** Only a resumable handle is worth keeping: one issued mid-turn cannot resume. */
-  const resumption = objectField({ from: message, key: 'sessionResumptionUpdate' });
-  const handle = stringField({ from: resumption, key: 'newHandle' });
-  if (resumption && isTrue({ from: resumption, key: 'resumable' }) && handle) {
+  const resumption = message.sessionResumptionUpdate;
+  if (resumption?.resumable && resumption.newHandle) {
     events.push({
       kind: ServerEventKind.RESUME_HANDLE,
-      handle
+      handle: resumption.newHandle
     });
   }
 
-  if (objectField({ from: message, key: 'goAway' })) {
+  if (message.goAway) {
     events.push({ kind: ServerEventKind.GO_AWAY });
   }
 
