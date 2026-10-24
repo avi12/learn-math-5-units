@@ -3,13 +3,14 @@
      Beside the Live button, desktop only: the tablet is a page to write on, and the
      session runs on the desktop either way. Folded to one line — the engine in use —
      because it is chosen once and then left alone; it opens by itself when a start
-     finds the key missing (App.svelte `toggleLive` → live.svelte.ts `canStart`).
+     finds the key missing (lesson.svelte.ts `toggle` → live.svelte.ts `canStart`).
 
      The subscription goes through the extension, so it is offered only where the
      extension is, with Google's risk spelled out under it. The key is typed once, kept
      in this device's storage, and never shown again: it can be replaced or forgotten,
      not read. Every word comes from lib/engine.ts. */
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
+  import BidiText from './BidiText.svelte';
   import { extensionPresent } from './check';
   import {
     API_KEY_CREATE_URL,
@@ -26,14 +27,16 @@
 
   const hasExtension = extensionPresent();
   const isLocked = $derived(isRunning(live.state));
-  const needsKey = $derived(tutorSetup.engine === Engine.API_KEY && !tutorSetup.hasKey);
+  const isOnKey = $derived(tutorSetup.engine === Engine.API_KEY);
+  const needsKey = $derived(isOnKey && !tutorSetup.hasKey);
 
-  let isOpen = $state(tutorSetup.engine === Engine.API_KEY && !tutorSetup.hasKey);
+  // open from the start when the key is missing; after that, the person's to fold
+  let isOpen = $state(untrack(() => needsKey));
   let isReplacing = $state(false);
   let draft = $state('');
   let keyInput = $state<HTMLInputElement>();
 
-  const isFormShown = $derived(tutorSetup.engine === Engine.API_KEY && (!tutorSetup.hasKey || isReplacing));
+  const isFormShown = $derived(needsKey || (isOnKey && isReplacing));
 
   // A start that found no key: open up, and put the cursor where the key goes.
   $effect(() => {
@@ -45,7 +48,14 @@
     void tick().then(() => keyInput?.focus());
   });
 
-  function save(): void {
+  /** Back to the saved key's row, with nothing typed left behind. */
+  function closeForm(): void {
+    isReplacing = false;
+    draft = '';
+  }
+
+  function save(e: SubmitEvent): void {
+    e.preventDefault();
     const key = draft.trim();
     if (!key) {
       return;
@@ -53,8 +63,7 @@
 
     const wasAsked = tutorSetup.isKeyAsked;
     saveApiKey(key);
-    draft = '';
-    isReplacing = false;
+    closeForm();
     // the start that asked for the key goes ahead, on this same click
     if (wasAsked) {
       onstart();
@@ -65,7 +74,7 @@
 <details class="engines" bind:open={isOpen}>
   <summary>
     <span class="elabel">מנוע</span>
-    <span class="ename">{ENGINE_LABEL[tutorSetup.engine]}</span>
+    <span class="ename"><BidiText text={ENGINE_LABEL[tutorSetup.engine]} /></span>
     {#if needsKey}
       <span class="chip">חסר מפתח</span>
     {/if}
@@ -75,7 +84,7 @@
     <legend class="elabel">מי מריץ את ג׳מיני לייב</legend>
     {#each Object.values(Engine) as option (option)}
       {@const isOffered = option !== Engine.SUBSCRIPTION || hasExtension}
-      <label class="choice chamfer-s" class:off={!isOffered}>
+      <label class="choice chamfer-s">
         <input
           type="radio"
           name="engine"
@@ -85,7 +94,7 @@
           onchange={() => chooseEngine(option)}
         />
         <span class="ctext">
-          <span class="cname">{ENGINE_LABEL[option]}</span>
+          <span class="cname"><BidiText text={ENGINE_LABEL[option]} /></span>
           {#if option === Engine.SUBSCRIPTION}
             <span class="callout risk" data-kind="warn">
               {SUBSCRIPTION_RISK} <strong>{SUBSCRIPTION_CONSEQUENCE}</strong>
@@ -94,7 +103,7 @@
               <span class="cdetail">{NEEDS_EXTENSION}</span>
             {/if}
           {:else}
-            <span class="cdetail">{ENGINE_DETAIL[option]}</span>
+            <span class="cdetail"><BidiText text={ENGINE_DETAIL[option]} /></span>
           {/if}
         </span>
       </label>
@@ -105,13 +114,7 @@
   </fieldset>
 
   {#if isFormShown}
-    <form
-      class="keyform"
-      onsubmit={(e) => {
-        e.preventDefault();
-        save();
-      }}
-    >
+    <form class="keyform" onsubmit={save}>
       <label class="keyfield">
         <span class="elabel">המפתח שלך</span>
         <input
@@ -126,17 +129,14 @@
       </label>
       <button class="btn" data-variant="primary" type="submit" disabled={!draft.trim()}>שמור</button>
       {#if isReplacing}
-        <button class="btn" type="button" onclick={() => {
-            isReplacing = false;
-            draft = '';
-          }}>ביטול</button>
+        <button class="btn" type="button" onclick={closeForm}>ביטול</button>
       {/if}
       <p class="cdetail keynote">
-        <a href={API_KEY_CREATE_URL} target="_blank" rel="noreferrer">להוציא מפתח חינם ב־<span dir="ltr">Google AI Studio</span></a>
+        <a href={API_KEY_CREATE_URL} target="_blank" rel="noreferrer"><BidiText text="להוציא מפתח חינם ב־Google AI Studio" /></a>
         · נשמר רק בדפדפן הזה, ולא עובר לטאבלט
       </p>
     </form>
-  {:else if tutorSetup.engine === Engine.API_KEY}
+  {:else if isOnKey}
     <div class="keyrow">
       <span class="chip">מפתח שמור בדפדפן הזה</span>
       <button class="btn" type="button" disabled={isLocked} onclick={() => (isReplacing = true)}>החלף</button>
@@ -233,7 +233,8 @@
       box-shadow: var(--cyber-glow-primary);
     }
 
-    &.off {
+    /* not offered here, or locked while a session runs (the fieldset disables them all) */
+    &:has(input:disabled) {
       cursor: not-allowed;
       opacity: 60%;
     }
@@ -243,11 +244,6 @@
       margin: 3px 0 0;
       accent-color: var(--primary);
     }
-  }
-
-  .choices:disabled .choice {
-    cursor: not-allowed;
-    opacity: 60%;
   }
 
   .ctext {
