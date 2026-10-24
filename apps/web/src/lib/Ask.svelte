@@ -17,8 +17,8 @@
    * `<dialog>` with `showModal()` gives the same modality — focus trapped, Escape closes,
    * a real backdrop — out of elements the page owns and can style.
    *
-   * The API is deliberately the shape the old calls had, so the call sites read the same
-   * way they always did, except for an `await`.
+   * The API is the old calls' API, with an `await` — and with `prompt`'s two arguments
+   * named in one object, as every two-argument function here takes them.
    */
   import iconCheck from './icons/IconCheck.svg?raw';
   import iconClose from './icons/IconClose.svg?raw';
@@ -30,7 +30,7 @@
   let field = $state<HTMLInputElement>();
   let settle: ((v: boolean | string | null) => void) | null = null;
 
-  function open(next: AskMode, message: string, initial = '') {
+  function open({ next, message, initial = '' }: { next: AskMode; message: string; initial?: string }) {
     mode = next;
     text = message;
     value = initial;
@@ -44,15 +44,15 @@
   export function confirm(message: string): Promise<boolean> {
     return new Promise((resolve) => {
       settle = (v) => resolve(v === true);
-      open(AskMode.CONFIRM, message);
+      open({ next: AskMode.CONFIRM, message });
     });
   }
 
   /** the typed text, or null if it was dismissed — exactly what window.prompt returned. */
-  export function prompt(message: string, initial = ''): Promise<string | null> {
+  export function prompt({ message, initial = '' }: { message: string; initial?: string }): Promise<string | null> {
     return new Promise((resolve) => {
       settle = (v) => resolve(typeof v === 'string' ? v : null);
-      open(AskMode.PROMPT, message, initial);
+      open({ next: AskMode.PROMPT, message, initial });
     });
   }
 

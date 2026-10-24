@@ -17,12 +17,12 @@
 
   let showConnect = $state(readFlag(StorageKey.SHOW_CONNECT));
   let showHowto = $state(readFlag(StorageKey.SHOW_HOWTO));
-  $effect(() => writeFlag(StorageKey.SHOW_CONNECT, showConnect));
-  $effect(() => writeFlag(StorageKey.SHOW_HOWTO, showHowto));
+  $effect(() => writeFlag({ key: StorageKey.SHOW_CONNECT, isOn: showConnect }));
+  $effect(() => writeFlag({ key: StorageKey.SHOW_HOWTO, isOn: showHowto }));
 
   async function copyLink() {
     await navigator.clipboard.writeText(joinUrl(id));
-    say('הקישור הועתק');
+    say({ text: 'הקישור הועתק' });
   }
 
   async function openNewRoom() {

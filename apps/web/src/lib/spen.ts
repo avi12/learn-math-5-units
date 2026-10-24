@@ -79,7 +79,7 @@ export interface PenReport {
 let held = false;
 let wrapper = '';
 let dark: boolean | null = null;
-let listener: ((v: boolean, r: PenReport) => void) | null = null;
+let listener: ((change: { down: boolean; report: PenReport }) => void) | null = null;
 
 /** The wrapper's own side of the bridge. Present only inside the Android app. */
 export interface AndroidPad {
@@ -137,9 +137,9 @@ function decide(r: PenReport): boolean {
 }
 
 /** Publish the hooks. Returns the teardown, so a component can own it. */
-export function installSpen(onchange?: (v: boolean, r: PenReport) => void): () => void {
+export function installSpen(onchange?: NonNullable<typeof listener>): () => void {
   listener = onchange ?? null;
-  function set(next: boolean, r: PenReport): void {
+  function set({ down: next, report: r }: Parameters<NonNullable<typeof listener>>[0]): void {
     if (typeof r.wrapper === 'string') {
       wrapper = r.wrapper;
     }
@@ -155,11 +155,11 @@ export function installSpen(onchange?: (v: boolean, r: PenReport) => void): () =
     }
 
     held = next;
-    listener?.(held, r);
+    listener?.({ down: held, report: r });
   }
 
-  window.__pen = (r) => set(decide(r ?? {}), r ?? {});
-  window.__spen = (down) => set(down === true, { button: down === true });
+  window.__pen = (r) => set({ down: decide(r ?? {}), report: r ?? {} });
+  window.__spen = (down) => set({ down: down === true, report: { button: down === true } });
   return () => {
     delete window.__pen;
     delete window.__spen;

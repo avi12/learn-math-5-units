@@ -10,7 +10,7 @@ export const toast = $state({ text: '' });
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** A sticky toast is one the page is not going to outlive, so it must not fade. */
-export function say(text: string, sticky = false): void {
+export function say({ text, sticky = false }: { text: string; sticky?: boolean }): void {
   clearTimeout(toastTimer);
   toast.text = text;
   if (sticky) {
@@ -23,7 +23,7 @@ export function say(text: string, sticky = false): void {
 /** What Ask.svelte exports. */
 interface Asker {
   confirm(message: string): Promise<boolean>;
-  prompt(message: string, initial?: string): Promise<string | null>;
+  prompt(question: { message: string; initial?: string }): Promise<string | null>;
 }
 
 let asker: Asker | undefined;
@@ -40,6 +40,6 @@ export function confirm(message: string): Promise<boolean> {
   return asker?.confirm(message) ?? Promise.resolve(false);
 }
 
-export function prompt(message: string, initial = ''): Promise<string | null> {
-  return asker?.prompt(message, initial) ?? Promise.resolve(null);
+export function prompt({ message, initial = '' }: Parameters<Asker['prompt']>[0]): Promise<string | null> {
+  return asker?.prompt({ message, initial }) ?? Promise.resolve(null);
 }

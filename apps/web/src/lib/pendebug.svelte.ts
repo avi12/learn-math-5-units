@@ -13,7 +13,7 @@ export class PenDebug {
   /** The last few lines, newest first; empty when off. */
   lines = $state<string[]>(ON ? ['pendebug · גע בלוח'] : []);
 
-  note(tag: string, e: PointerEvent | MouseEvent): void {
+  note({ tag, e }: { tag: string; e: PointerEvent | MouseEvent }): void {
     if (!ON) {
       return;
     }
@@ -23,7 +23,7 @@ export class PenDebug {
   }
 
   /** What the native wrapper reported — its raw integers, which is the whole point. */
-  wrapper(down: boolean, r: PenReport): void {
+  wrapper({ down, report: r }: { down: boolean; report: PenReport }): void {
     if (!ON) {
       return;
     }
@@ -40,8 +40,8 @@ export class PenDebug {
       return () => {};
     }
 
-    const raw = (e: Event) => this.note('raw', e as PointerEvent);
-    const menu = (e: Event) => this.note('ctxmenu', e as MouseEvent);
+    const raw = (e: Event) => this.note({ tag: 'raw', e: e as PointerEvent });
+    const menu = (e: Event) => this.note({ tag: 'ctxmenu', e: e as MouseEvent });
     document.addEventListener('pointerdown', raw, true);
     document.addEventListener('contextmenu', menu, true);
     return () => {

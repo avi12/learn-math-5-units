@@ -75,7 +75,7 @@ export async function copyImage(c: HTMLCanvasElement): Promise<Delivered> {
 
 /** Image and text together, for pasting both in one go. Falls back to the text alone,
  *  and says whether the image made it. */
-export async function copyImageAndText(blob: Blob, text: string): Promise<Pasted> {
+export async function copyImageAndText({ blob, text }: { blob: Blob; text: string }): Promise<Pasted> {
   try {
     await navigator.clipboard.write([
       new ClipboardItem({ [PNG]: blob, 'text/plain': new Blob([text], { type: 'text/plain' }) })

@@ -3,7 +3,7 @@
   import type { Scene } from './frame';
 
   export interface SurfaceApi {
-    exportCanvas(w?: number, part?: number): HTMLCanvasElement;
+    exportCanvas(size?: { w?: number; part?: number }): HTMLCanvasElement;
     showPart(i: number): void;
     flash(): void;
     scene(): Scene;
@@ -86,7 +86,7 @@
      *  Avi (19.09.2026): "כשאני גולל בקנבס בדסקטופ, ה‑select של החלק הנוכחי להעתיק
      *  כתמונה צריך להתעדכן בהתאם". The picker used to be a value the toolbar held on its
      *  own, so scrolling left it pointing at a part that was no longer on the screen. */
-    onparts?: (n: number, at: number) => void;
+    onparts?: (parts: { count: number; at: number }) => void;
     /** Pen on the glass, pen off it. Recognition debounces on this and not on committed
      *  strokes: a stroke only lands after it is finished, so a listener that hears only
      *  landings cannot tell "still writing" from "done writing". */
@@ -312,7 +312,7 @@
     // above y=0, and the rows go below instead.
     const above = Math.min(margin, Math.floor(top * scale));
     dryTop = top - above / scale;
-    render(dryCtx, strokes(), null, w, dry.height / devicePixelRatio, undefined, dryTop);
+    render({ ctx: dryCtx, strokes: strokes(), live: null, w, h: dry.height / devicePixelRatio, top: dryTop });
     dryKey = key;
     return above;
   }
@@ -343,7 +343,7 @@
     ctx.save();
     ctx.translate(0, -top * w);
     if (wet) {
-      drawStroke(ctx, wet, w);
+      drawStroke({ ctx, stroke: wet, w });
     }
 
     if (rubber) {
@@ -357,7 +357,7 @@
 
     ctx.restore();
     if (mark) {
-      drawPenMark(ctx, mark.x * w, (mark.y - top) * w, 11);
+      drawPenMark({ ctx, cx: mark.x * w, cy: (mark.y - top) * w, r: 11 });
     }
   }
 
@@ -388,10 +388,10 @@
    *  rubber instead of asking the whole board — see lib/bands.ts. */
   function rub(p: Pt) {
     const r = radius();
-    index.update(orderVersion, order, byKey);
-    for (const k of index.near(p.y - r, p.y + r)) {
+    index.update({ version: orderVersion, order, byKey });
+    for (const k of index.near({ y0: p.y - r, y1: p.y + r })) {
       const s = erased.has(k) ? undefined : byKey.get(k);
-      if (!s || !hits(s, p.x, p.y, r)) {
+      if (!s || !hits({ stroke: s, x: p.x, y: p.y, r })) {
         continue;
       }
 
@@ -412,7 +412,7 @@
     }
 
     for (const it of erasedNow) {
-      void remove(strokeRef(room.id, it.key));
+      void remove(strokeRef({ id: room.id, key: it.key }));
     }
 
     onaction?.({ kind: ActionKind.ERASE, items: erasedNow });
@@ -542,7 +542,7 @@
 
     // The probe is the only way to see what a pen reports on a device that cannot be
     // driven from here, so the wrapper's raw integers go straight into it.
-    const offSpen = installSpen((down, r) => debug.wrapper(down, r));
+    const offSpen = installSpen((change) => debug.wrapper(change));
 
     const mq = matchMedia('(prefers-color-scheme: dark)');
     mq.addEventListener('change', paint);
@@ -568,7 +568,7 @@
       return point;
     }
 
-    return snapPoint(point, gridCell);
+    return snapPoint({ point, cell: gridCell });
   }
 
   function at(e: PointerEvent): Pt {
@@ -584,7 +584,7 @@
    *  but not load-bearing. It throws NotFoundError when the pointer has already ended,
    *  which happens on a very fast tap, and an uncaught throw here loses the whole
    *  pointerdown: no stroke, no rail drag, nothing, from an optimisation failing. */
-  function capture(el: Element, id: number) {
+  function capture({ el, id }: { el: Element; id: number }) {
     try {
       el.setPointerCapture(id);
     } catch {
@@ -691,7 +691,7 @@
     pts = [];
     live = null;
     if (publishedLive) {
-      publishLive(room, null);
+      publishLive({ room, stroke: null });
     }
 
     publishedLive = false;
@@ -753,8 +753,8 @@
     onhover?.(null);
     e.preventDefault();
     acting = erasingWith(e) ? Tool.ERASE : tool;
-    debug.note(`down→${acting}`, e);
-    capture(canvas!, e.pointerId);
+    debug.note({ tag: `down→${acting}`, e });
+    capture({ el: canvas!, id: e.pointerId });
     drawing = true;
     onpen?.(true);
     if (acting === Tool.ERASE) {
@@ -791,7 +791,7 @@
       if (!readonly && hovering(e)) {
         const p = at(e);
         onhover?.({ x: p.x, y: p.y });
-        debug.note('hover', e);
+        debug.note({ tag: 'hover', e });
       }
 
       return;
@@ -803,12 +803,12 @@
     // then write instead of erasing — which is exactly what "the button does nothing"
     // looks like. So the stroke may still become an erase; it never becomes a pen again.
     if (acting !== Tool.ERASE && erasingWith(e)) {
-      debug.note('move→erase', e);
+      debug.note({ tag: 'move→erase', e });
       acting = Tool.ERASE;
       erasedNow = [];
       dropWet();
     } else if ((e.buttons & ~PointerButtons.TIP) !== 0) {
-      debug.note('move', e);
+      debug.note({ tag: 'move', e });
     }
     if (acting === Tool.ERASE) {
       // every coalesced point, so a fast sweep does not step over a thin stroke
@@ -840,7 +840,7 @@
 
     lastPublish = now;
     publishedLive = true;
-    publishLive(room, strokeOf(decimate(pts)));
+    publishLive({ room, stroke: strokeOf(decimate({ pts })) });
   }
 
   /** Every point the pointer passed since the last event — a fast stroke is many. */
@@ -884,7 +884,7 @@
       paint();
       return;
     }
-    const s = strokeOf(decimate(pts));
+    const s = strokeOf(decimate({ pts }));
     dropWet();
     // Hold the finished stroke on screen under its own id until the snapshot carrying it
     // arrives. Clearing `live` and waiting left one frame with the stroke on neither
@@ -895,7 +895,7 @@
       // The record `commit` hands back, not the stroke that went in: it carries the `n`
       // the document was stored with, and a redo that writes the stroke back without it
       // lands outside `orderBy('n')` and restores nothing.
-      const rec = commit(room, s);
+      const rec = commit({ room, stroke: s });
       pending = rec;
       onaction?.({ kind: ActionKind.DRAW, items: [rec] });
     }
@@ -916,7 +916,7 @@
    *  `inkBottom` and not a fresh `bounds()`: it is that same measurement, cached, and it
    *  is refreshed on the snapshot that changes the ink — so the two cannot drift, and
    *  the button does not walk every point of every stroke on its way to the clipboard. */
-  export function exportCanvas(w = 1800, part?: number): HTMLCanvasElement {
+  export function exportCanvas({ w = 1800, part }: Parameters<SurfaceApi['exportCanvas']>[0] = {}): HTMLCanvasElement {
     const out = document.createElement('canvas');
     const span = exportSpan(inkBottom);
     const whole = part === undefined;
@@ -927,15 +927,15 @@
     // under it is not what anyone meant by "this part".
     out.height = Math.round((whole ? span : Math.min(PART, span)) * w);
     const c = out.getContext('2d')!;
-    render(
-      c,
-      strokes(),
-      null,
+    render({
+      ctx: c,
+      strokes: strokes(),
+      live: null,
       w,
-      out.height,
-      getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#fff',
-      from
-    );
+      h: out.height,
+      background: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#fff',
+      top: from
+    });
     return out;
   }
 
@@ -1031,7 +1031,7 @@
     }
     return best;
   });
-  $effect(() => onparts?.(partCount, partAt));
+  $effect(() => onparts?.({ count: partCount, at: partAt }));
 
   let rail = $state<HTMLDivElement>();
   let railing = false;
@@ -1051,7 +1051,7 @@
     e.preventDefault();
     railing = true;
     if (rail) {
-      capture(rail, e.pointerId);
+      capture({ el: rail, id: e.pointerId });
     }
 
     railTo(e.clientY);
@@ -1087,7 +1087,7 @@
     class:erasing={tool === Tool.ERASE && !readonly}
     class:readonly
     style:--grid-cell="{gridCell * boardWidth}px"
-    style:--grid-y="{-gridPhase(top, gridCell) * boardWidth}px"
+    style:--grid-y="{-gridPhase({ top, cell: gridCell }) * boardWidth}px"
     onpointerdown={down}
     onpointermove={move}
     onpointerup={up}

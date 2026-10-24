@@ -91,7 +91,7 @@ function urlFor(id: string): URL {
 
 /** Make `id` this device's room and load it. */
 function goToRoom(id: string): void {
-  writePreference(StorageKey.ROOM, id);
+  writePreference({ key: StorageKey.ROOM, value: id });
   location.href = urlFor(id).toString();
 }
 
@@ -101,7 +101,7 @@ export function roomId(): string {
   const asked = new URL(location.href).searchParams.get(QueryParam.ROOM);
   const found = asked || readPreference(StorageKey.ROOM) || '';
   const id = /^[0-9a-f]{32}$/.test(found) ? found : fresh();
-  writePreference(StorageKey.ROOM, id);
+  writePreference({ key: StorageKey.ROOM, value: id });
   if (asked !== id) {
     history.replaceState(null, '', urlFor(id));
   }
@@ -265,7 +265,7 @@ export function onWriteStall(cb: (v: boolean) => void): () => void {
 /** The only two ways anything in the room is written, so `track` has one home and a new
  *  write path cannot quietly forget to be watched. `setDoc` and `deleteDoc` are
  *  deliberately not re-exported any more — an import of those would bypass all of this. */
-export function save(ref: DocumentReference, data: object): Promise<void> {
+export function save({ ref, data }: { ref: DocumentReference; data: object }): Promise<void> {
   return track(setDoc(ref, data));
 }
 
@@ -282,19 +282,19 @@ let seq = Date.now();
  *  more later. Firestore mints ids on the client, so `doc(collection)` gives one
  *  immediately and `setDoc` writes to it: same document, id known now. That is what makes
  *  a flicker-free handoff possible — see `pending` in Surface.svelte. */
-export function commit(r: Room, s: Stroke): { key: string; stroke: Stroke } {
+export function commit({ room: r, stroke: s }: { room: Room; stroke: Stroke }): { key: string; stroke: Stroke } {
   const ref = doc(r.strokes);
   // The STORED document, `n` included, is what goes back to the caller. Handing back the
   // bare stroke instead cost a real bug: redo wrote the document again without `n`, and
   // the listener reads `query(strokes, orderBy('n'))` — a document with no `n` is not in
   // that ordering at all, so redo silently restored nothing.
   const stored: Stroke = { ...s, n: ++seq };
-  void save(ref, stored);
+  void save({ ref, data: stored });
   return { key: ref.id, stroke: stored };
 }
 
-export function publishLive(r: Room, s: Stroke | null): void {
-  void (s ? save(r.live, s) : remove(r.live).catch(() => {}));
+export function publishLive({ room: r, stroke: s }: { room: Room; stroke: Stroke | null }): void {
+  void (s ? save({ ref: r.live, data: s }) : remove(r.live).catch(() => {}));
 }
 
 /** Which exercise the room is on.
@@ -319,7 +319,7 @@ export function pickRef(id: string): DocumentReference {
 export const PrefSlot = { GRID: 'grid', SIZE: 'size' } as const;
 export type PrefSlot = (typeof PrefSlot)[keyof typeof PrefSlot];
 
-export function prefRef(id: string, slot: PrefSlot): DocumentReference {
+export function prefRef({ id, slot }: { id: string; slot: PrefSlot }): DocumentReference {
   return doc(db, Collection.ROOMS, id, Collection.PREFS, slot);
 }
 
@@ -328,11 +328,11 @@ export function prefRef(id: string, slot: PrefSlot): DocumentReference {
 export const RtcSlot = { OFFER: 'offer', ANSWER: 'answer' } as const;
 export type RtcSlot = (typeof RtcSlot)[keyof typeof RtcSlot];
 
-export function rtcRef(id: string, slot: RtcSlot): DocumentReference {
+export function rtcRef({ id, slot }: { id: string; slot: RtcSlot }): DocumentReference {
   return doc(db, Collection.ROOMS, id, Collection.RTC, slot);
 }
 
-export function strokeRef(id: string, key: string): DocumentReference {
+export function strokeRef({ id, key }: { id: string; key: string }): DocumentReference {
   return doc(room(id).strokes, key);
 }
 

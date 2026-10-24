@@ -156,7 +156,7 @@ function gathered(pc: RTCPeerConnection): Promise<void> {
 }
 
 /** One channel's wiring, the same on both ends. */
-function wire(channel: RTCDataChannel, h: Wiring): void {
+function wire({ channel, handlers: h }: { channel: RTCDataChannel; handlers: Wiring }): void {
   channel.onmessage = (e) => h.message(String(e.data));
   channel.onopen = () => {
     h.state?.(LinkState.OPEN);
@@ -174,7 +174,7 @@ function sender(get: () => RTCDataChannel | null): (raw: string) => void {
 }
 
 /** Open this page's end of the link. Returns the way to talk down it, and the teardown. */
-export function openLink(roomId: string, side: Side, h: LinkHandlers): Link {
+export function openLink({ roomId, side, handlers: h }: { roomId: string; side: Side; handlers: LinkHandlers }): Link {
   const listeners = new Map<LinkMessage, (data: never) => void>();
   const message = (raw: string): void => {
     try {
@@ -184,7 +184,8 @@ export function openLink(roomId: string, side: Side, h: LinkHandlers): Link {
       /* not ours, or torn — a message lost costs one frame of hover, never the link */
     }
   };
-  const end = side === Side.DESK ? offer(roomId, { ...h, message }) : answer(roomId, { ...h, message });
+  const handlers = { ...h, message };
+  const end = side === Side.DESK ? offer({ roomId, handlers }) : answer({ roomId, handlers });
   return {
     sendMessage: (type, data) => end.send(JSON.stringify({ type, data })),
     onMessage(type, onReceived) {
@@ -196,7 +197,7 @@ export function openLink(roomId: string, side: Side, h: LinkHandlers): Link {
 }
 
 /** The desktop's end: offer, and keep offering while the tablet comes and goes. */
-function offer(roomId: string, h: Wiring): End {
+function offer({ roomId, handlers: h }: { roomId: string; handlers: Wiring }): End {
   let pc: RTCPeerConnection | null = null;
   let channel: RTCDataChannel | null = null;
   let sid = '';
@@ -226,11 +227,14 @@ function offer(roomId: string, h: Wiring): End {
     applied = '';
     const ch = mine.createDataChannel(Side.DESK);
     channel = ch;
-    wire(ch, {
-      ...h,
-      state: (s) => {
-        failures = 0;
-        h.state?.(s);
+    wire({
+      channel: ch,
+      handlers: {
+        ...h,
+        state(s) {
+          failures = 0;
+          h.state?.(s);
+        }
       }
     });
     ch.onclose = () => {
@@ -259,10 +263,10 @@ function offer(roomId: string, h: Wiring): End {
     }
 
     const row: Description = { sid, sdp: mine.localDescription.sdp, at: Date.now() };
-    void save(rtcRef(roomId, RtcSlot.OFFER), row);
+    void save({ ref: rtcRef({ id: roomId, slot: RtcSlot.OFFER }), data: row });
   }
 
-  const offAnswer = onSnapshot(rtcRef(roomId, RtcSlot.ANSWER), (snap) => {
+  const offAnswer = onSnapshot(rtcRef({ id: roomId, slot: RtcSlot.ANSWER }), (snap) => {
     const a = snap.data() as Description | undefined;
     if (!a || a.sid !== sid || !pc || a.aid === applied) {
       return;
@@ -288,14 +292,14 @@ function offer(roomId: string, h: Wiring): End {
       drop();
       // Left behind, the offer would only make the next tablet that opens answer a desk
       // that is gone — one wasted write — but there is no reason to leave it.
-      void remove(rtcRef(roomId, RtcSlot.OFFER)).catch(() => {});
-      void remove(rtcRef(roomId, RtcSlot.ANSWER)).catch(() => {});
+      void remove(rtcRef({ id: roomId, slot: RtcSlot.OFFER })).catch(() => {});
+      void remove(rtcRef({ id: roomId, slot: RtcSlot.ANSWER })).catch(() => {});
     }
   };
 }
 
 /** The tablet's end: answer every new offer, and talk down the newest link. */
-function answer(roomId: string, h: Wiring): End {
+function answer({ roomId, handlers: h }: { roomId: string; handlers: Wiring }): End {
   let pc: RTCPeerConnection | null = null;
   let channel: RTCDataChannel | null = null;
   let answered = '';
@@ -312,7 +316,7 @@ function answer(roomId: string, h: Wiring): End {
       }
 
       channel = e.channel;
-      wire(e.channel, h);
+      wire({ channel: e.channel, handlers: h });
     };
     await mine.setRemoteDescription({ type: 'offer', sdp: o.sdp });
     await mine.setLocalDescription(await mine.createAnswer());
@@ -322,10 +326,10 @@ function answer(roomId: string, h: Wiring): End {
     }
 
     const row: Description = { sid: o.sid, aid: nonce(), sdp: mine.localDescription.sdp, at: Date.now() };
-    void save(rtcRef(roomId, RtcSlot.ANSWER), row);
+    void save({ ref: rtcRef({ id: roomId, slot: RtcSlot.ANSWER }), data: row });
   }
 
-  const off = onSnapshot(rtcRef(roomId, RtcSlot.OFFER), (snap) => {
+  const off = onSnapshot(rtcRef({ id: roomId, slot: RtcSlot.OFFER }), (snap) => {
     const o = snap.data() as Description | undefined;
     if (!o || o.sid === answered) {
       return;

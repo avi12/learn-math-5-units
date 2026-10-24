@@ -81,7 +81,7 @@ async function findFile(filePath: string): Promise<Stats | null> {
  *  to happen before the containment check rather than after it. It also throws on a
  *  malformed escape (`/%zz`), and an exception here would leave the socket hanging with
  *  nothing written to it, so that case is a miss like any other. */
-function resolveInsideRoot(rootDirectory: string, pathname: string): string | null {
+function resolveInsideRoot({ rootDirectory, pathname }: { rootDirectory: string; pathname: string }): string | null {
   let decoded: string;
   try {
     decoded = decodeURIComponent(pathname);
@@ -118,7 +118,7 @@ export function createStaticRequestHandler(staticDirectory: string) {
     }
 
     const { pathname } = new URL(request.url ?? '/', 'http://localhost');
-    const requestedPath = resolveInsideRoot(rootDirectory, pathname) ?? '';
+    const requestedPath = resolveInsideRoot({ rootDirectory, pathname }) ?? '';
     const requestedFile = requestedPath ? await findFile(requestedPath) : null;
 
     // The rewrite: anything that is not a file is the app, at 200, under its own URL.

@@ -52,10 +52,10 @@ async function fallbackReader(video: HTMLVideoElement): Promise<Reader> {
 
 /** Start the camera and watch for a code. Resolves with the stop function; call it when
  *  the overlay closes, or the camera stays on and the tablet stays warm. */
-export async function scan(
-  video: HTMLVideoElement,
-  onfound: (text: string) => void
-): Promise<() => void> {
+export async function scan({ video, onfound }: {
+  video: HTMLVideoElement;
+  onfound: (text: string) => void;
+}): Promise<() => void> {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
     audio: false

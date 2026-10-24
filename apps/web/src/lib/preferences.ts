@@ -32,7 +32,7 @@ export function readPreference(key: string): string | null {
   }
 }
 
-export function writePreference(key: string, value: string): void {
+export function writePreference({ key, value }: { key: string; value: string }): void {
   try {
     localStorage.setItem(key, value);
   } catch {
@@ -45,6 +45,6 @@ export function readFlag(key: string): boolean {
   return readPreference(key) !== FLAG_OFF;
 }
 
-export function writeFlag(key: string, isOn: boolean): void {
-  writePreference(key, isOn ? FLAG_ON : FLAG_OFF);
+export function writeFlag({ key, isOn }: { key: string; isOn: boolean }): void {
+  writePreference({ key, value: isOn ? FLAG_ON : FLAG_OFF });
 }

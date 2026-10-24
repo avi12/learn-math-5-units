@@ -26,6 +26,7 @@ import {
 } from '@learn-math/shared/protocol';
 import graders from './graders.json';
 import { blobToBase64, copyImageAndText, Pasted, PNG, pngBlob } from './deliver';
+import type { Choice } from './pick.svelte';
 
 /** A lesson that explains how to solve one exercise.
  *
@@ -114,42 +115,34 @@ export function exKey(e: Exercise): string {
  *  WHICH exercise, the workbook says HOW it is described. */
 const FMT = G.exerciseFormat;
 
-function promptFor(
-  topic: Topic,
-  exercise: Exercise | null,
-  section: string | null
-): string {
-  return topic.prompt.replace(G.exerciseSlot, describe(exercise, section));
+function promptFor({ topic, exercise, section }: Pick<Choice, 'topic' | 'exercise' | 'section'>): string {
+  return topic.prompt.replace(G.exerciseSlot, describe({ exercise, section }));
 }
 
 /** Gemini Live's brief for this exercise, with the same exercise slot filled the same way
  *  — the tutor who watches has to be looking at the question Claude would later be told
  *  about. */
-export function liveBrief(
-  topic: Topic,
-  exercise: Exercise | null,
-  section: string | null
-): string {
-  return topic.live.replace(G.exerciseSlot, describe(exercise, section));
+export function liveBrief({ topic, exercise, section }: Pick<Choice, 'topic' | 'exercise' | 'section'>): string {
+  return topic.live.replace(G.exerciseSlot, describe({ exercise, section }));
 }
 
 /** How Gemini is asked to write something down, as the workbook words it, with this
  *  exercise already in the request — the spoken words are the extension's to fill in. */
-export function noteRequest(topic: Topic, exercise: Exercise | null, section: string | null): NoteRequest {
-  return { ...G.liveNote, template: topic.note.replace(G.exerciseSlot, describe(exercise, section)) };
+export function noteRequest({ topic, exercise, section }: Pick<Choice, 'topic' | 'exercise' | 'section'>): NoteRequest {
+  return { ...G.liveNote, template: topic.note.replace(G.exerciseSlot, describe({ exercise, section })) };
 }
 
 /** The words that fill the prompt's exercise slot. */
-function describe(exercise: Exercise | null, section: string | null): string {
+function describe({ exercise, section }: Pick<Choice, 'exercise' | 'section'>): string {
   if (!exercise) {
     return FMT.other;
   }
 
-  const line = FMT.line.replace('{label}', exercise.label).replace('{section}', sectionPhrase(exercise, section));
+  const line = FMT.line.replace('{label}', exercise.label).replace('{section}', sectionPhrase({ exercise, section }));
   return `${line}\n${FMT.quote.replace('{text}', exercise.text)}`;
 }
 
-function sectionPhrase(exercise: Exercise, section: string | null): string {
+function sectionPhrase({ exercise, section }: { exercise: Exercise; section: string }): string {
   if (!exercise.sections.length) {
     return '';
   }
@@ -163,11 +156,7 @@ function sectionPhrase(exercise: Exercise, section: string | null): string {
 
 /** The short human label that rides along with the payload — it is what the extension's
  *  banner says, so it has to read as the thing Avi just finished. */
-export function checkLabel(
-  topic: Topic,
-  exercise: Exercise | null,
-  section: string | null
-): string {
+export function checkLabel({ topic, exercise, section }: Pick<Choice, 'topic' | 'exercise' | 'section'>): string {
   if (!exercise) {
     return topic.title;
   }
@@ -192,25 +181,23 @@ function requestCheck(payload: CheckPayload): void {
  *  With the extension, a new conversation opens with both already in it. Without it,
  *  everything still goes out, it just needs one paste — which is exactly the flow that
  *  existed before the button, so nothing is lost. */
-export async function sendForCheck(
-  board: HTMLCanvasElement,
-  topic: Topic,
-  exercise: Exercise | null,
-  section: string | null
-): Promise<string> {
+export async function sendForCheck({ board, choice }: {
+  board: HTMLCanvasElement;
+  choice: Pick<Choice, 'topic' | 'exercise' | 'section'>;
+}): Promise<string> {
   const blob = await pngBlob(board);
   if (!blob) {
     return 'הייצוא נכשל';
   }
 
-  const prompt = promptFor(topic, exercise, section);
+  const prompt = promptFor(choice);
   if (extensionPresent()) {
     const image = `data:${PNG};base64,${await blobToBase64(blob)}`;
-    requestCheck({ image, prompt, topic: checkLabel(topic, exercise, section) });
+    requestCheck({ image, prompt, topic: checkLabel(choice) });
     return 'נשלח לקלוד — נפתחת שיחה חדשה';
   }
 
-  if ((await copyImageAndText(blob, prompt)) === Pasted.BOTH) {
+  if ((await copyImageAndText({ blob, text: prompt })) === Pasted.BOTH) {
     return 'אין תוסף — התמונה והפרומפט הועתקו, הדבק בקלוד';
   }
 

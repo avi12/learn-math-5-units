@@ -14,7 +14,7 @@ import { readPreference, StorageKey, writePreference } from './preferences';
 import { onSnapshot, pickRef, save } from './room';
 
 
-export function pickOf(blockId: string, ex: string): string {
+export function pickOf({ blockId, ex }: { blockId: string; ex: string }): string {
   return `${blockId}:${ex}`;
 }
 
@@ -27,12 +27,12 @@ function parts(pick: string): [string, string] {
 /** Every exercise in the order the lists show them: chapter, then rung, then row. */
 const ORDER: string[] = TOPICS.flatMap((t) =>
   RUNG_LIST.flatMap((r) =>
-    t.exercises.filter((e) => e.tier === r.tier).map((e) => pickOf(t.id, exKey(e)))
+    t.exercises.filter((e) => e.tier === r.tier).map((e) => pickOf({ blockId: t.id, ex: exKey(e) }))
   )
 );
 
 function firstOf(t: Topic): string {
-  return ORDER.find((p) => p.startsWith(`${t.id}:`)) ?? pickOf(t.id, '');
+  return ORDER.find((p) => p.startsWith(`${t.id}:`)) ?? pickOf({ blockId: t.id, ex: '' });
 }
 
 export class Choice {
@@ -69,8 +69,8 @@ export class Choice {
   /** Remembered per device and kept honest, from the moment this is created. Must run
    *  inside a component, because it owns effects. */
   constructor(roomId: string) {
-    $effect(() => writePreference(StorageKey.PICK, this.pick));
-    $effect(() => writePreference(StorageKey.SECTION, this.section));
+    $effect(() => writePreference({ key: StorageKey.PICK, value: this.pick }));
+    $effect(() => writePreference({ key: StorageKey.SECTION, value: this.section }));
 
     /* A section letter only means something inside the exercise that has it, so moving to
        another exercise drops it: silently keeping 'ד' would send Claude to mark a section
@@ -156,7 +156,7 @@ export class Choice {
       }
 
       agreed = now;
-      void save(pickRef(roomId), { pick: this.pick, section: this.section });
+      void save({ ref: pickRef(roomId), data: { pick: this.pick, section: this.section } });
     });
   }
 }

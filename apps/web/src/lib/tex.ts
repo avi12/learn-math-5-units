@@ -60,7 +60,7 @@ export function markupMath(markup: string): string {
  *  it instead of one run-on paragraph. The card keeps newlines (`white-space: pre-line`),
  *  so a line break here is a plain newline, and a run of blank lines collapses to one.
  *  Only text outside the formulas is looked at. */
-export function exerciseHtml(text: string, sections: string[] = []): string {
+export function exerciseHtml({ text, sections = [] }: { text: string; sections?: string[] }): string {
   const letters = sections.join('');
   const part = letters ? new RegExp(`(^|[ \\n])([${letters}])\\.[ \\n]`, 'g') : null;
   return text

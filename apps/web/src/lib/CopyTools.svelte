@@ -27,7 +27,7 @@
 
   /** Canvas to clipboard, with the board's own acknowledgement. Returns whether the
    *  bytes got out — by either route, since the download fallback is still a delivery. */
-  async function deliver(c: HTMLCanvasElement | undefined, ok: string): Promise<boolean> {
+  async function deliver({ canvas: c, ok }: { canvas: HTMLCanvasElement | undefined; ok: string }): Promise<boolean> {
     if (!c) {
       return false;
     }
@@ -39,12 +39,12 @@
     // capture is what it is acknowledging and the capture did happen.
     surface?.flash();
     const result = await copyImage(c);
-    say(result === Delivered.COPIED ? ok : FAILED[result]);
+    say({ text: result === Delivered.COPIED ? ok : FAILED[result] });
     return result !== Delivered.EXPORT_FAILED;
   }
 
   function copyAll() {
-    void deliver(surface?.exportCanvas(), `הועתק ללוח — ${PASTE}`);
+    void deliver({ canvas: surface?.exportCanvas(), ok: `הועתק ללוח — ${PASTE}` });
   }
 
   /** One page-sized part, and then the board moves to the next one.
@@ -67,7 +67,7 @@
     const n = part + 1;
     const last = n >= parts;
     const which = last ? `הועתק החלק האחרון, ${n} מתוך ${parts}` : `הועתק חלק ${n} מתוך ${parts}`;
-    const got = await deliver(surface?.exportCanvas(1800, part), `${which} — ${PASTE}`);
+    const got = await deliver({ canvas: surface?.exportCanvas({ part }), ok: `${which} — ${PASTE}` });
     if (!got || last) {
       return;
     }

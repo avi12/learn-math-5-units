@@ -27,18 +27,18 @@ export class RoomValue {
   private ref: DocumentReference;
 
   /** Must run inside a component, because it owns effects. */
-  constructor(roomId: string, slot: PrefSlot, range: Range) {
+  constructor({ roomId, slot, range }: { roomId: string; slot: PrefSlot; range: Range }) {
     const storeKey = STORE_KEY[slot];
-    this.ref = prefRef(roomId, slot);
-    this.value = clampToRange(range, Number(readPreference(storeKey) ?? range.initial));
+    this.ref = prefRef({ id: roomId, slot });
+    this.value = clampToRange({ range, value: Number(readPreference(storeKey) ?? range.initial) });
 
-    $effect(() => writePreference(storeKey, String(this.value)));
+    $effect(() => writePreference({ key: storeKey, value: String(this.value) }));
 
     $effect(() =>
       onSnapshot(this.ref, (snap) => {
         const v = snap.data()?.value;
         if (typeof v === 'number') {
-          this.value = clampToRange(range, v);
+          this.value = clampToRange({ range, value: v });
           return;
         }
         // A room that has never been told: the first device in seeds it with what it
@@ -54,6 +54,6 @@ export class RoomValue {
    *  the squares follow the finger locally, and a database write per step was work the
    *  tablet did between frames while the hand was still moving. */
   commit(): void {
-    void save(this.ref, { value: this.value });
+    void save({ ref: this.ref, data: { value: this.value } });
   }
 }

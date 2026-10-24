@@ -119,7 +119,10 @@ export function stopLive(): void {
 
 /** Listen for the session, answer its picture requests with `draw`, and hand each new
  *  note to `onnote` as well as keeping it. Returns the teardown. */
-export function installLive(draw: () => Promise<Frame | null>, onnote?: (n: LiveNote) => void): () => void {
+export function installLive({ draw, onnote }: {
+  draw: () => Promise<Frame | null>;
+  onnote?: (n: LiveNote) => void;
+}): () => void {
   /** when Gemini last asked this page for a picture; 0 on a page it never talks to — the
    *  tablet, which hears `blind` from the desktop instead */
   let asked = 0;

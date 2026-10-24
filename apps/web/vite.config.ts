@@ -47,7 +47,7 @@ function exerciseHtmlPlugin(): Plugin {
         const graders: Graders = JSON.parse(readFileSync(id, 'utf8'))
         for (const block of graders.blocks) {
           for (const ex of block.exercises) {
-            ex.html = exerciseHtml(ex.text, ex.sections)
+            ex.html = exerciseHtml(ex)
           }
         }
         return JSON.stringify(graders)

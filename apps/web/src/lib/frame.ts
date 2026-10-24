@@ -103,16 +103,16 @@ const FACE = '"Segoe UI", Arial, sans-serif';
 /** The resolved colours of the current theme. */
 function colours() {
   const cs = getComputedStyle(document.documentElement);
-  const t = (name: string, or: string) => cs.getPropertyValue(name).trim() || or;
+  const t = ({ name, or }: { name: string; or: string }) => cs.getPropertyValue(name).trim() || or;
   return {
-    bg: t('--bg', '#d5e4f0'),
-    surface: t('--surface', '#fff'),
-    fg: t('--fg', '#000'),
-    muted: t('--fg-muted', '#444'),
-    border: t('--border-strong', '#000'),
+    bg: t({ name: '--bg', or: '#d5e4f0' }),
+    surface: t({ name: '--surface', or: '#fff' }),
+    fg: t({ name: '--fg', or: '#000' }),
+    muted: t({ name: '--fg-muted', or: '#444' }),
+    border: t({ name: '--border-strong', or: '#000' }),
     // a tint by design, translucent in both themes — a highlighter that never hides ink
-    recent: t('--accent-tint', 'rgb(0 179 230 / 32%)'),
-    mono: t('--font-mono', 'monospace')
+    recent: t({ name: '--accent-tint', or: 'rgb(0 179 230 / 32%)' }),
+    mono: t({ name: '--font-mono', or: 'monospace' })
   };
 }
 
@@ -131,7 +131,12 @@ function mathFont(): Promise<string> {
 
 /** The panel as an element, its text as large as fits `height`. Measured in the live
  *  document — the one place JS reads layout here, because what it sizes is a bitmap. */
-function panelElement(q: Question, noteHtml: string, c: ReturnType<typeof colours>, height: number): HTMLElement {
+function panelElement({ question: q, noteHtml, theme: c, height }: {
+  question: Question;
+  noteHtml: string;
+  theme: ReturnType<typeof colours>;
+  height: number;
+}): HTMLElement {
   const box = document.createElement('div');
   box.dir = 'rtl';
   box.style.cssText =
@@ -184,7 +189,9 @@ let panelImage: Promise<HTMLImageElement | null> = Promise.resolve(null);
 
 /** The panel rasterised. Rebuilt only when the question or the theme changes, which is
  *  rarely — the picture is asked for every second. */
-function panel(q: Question, c: ReturnType<typeof colours>, height: number): Promise<HTMLImageElement | null> {
+function panel(
+  { question: q, theme: c, height }: Omit<Parameters<typeof panelElement>[0], 'noteHtml'>
+): Promise<HTMLImageElement | null> {
   const key = `${palette()}|${c.surface}|${q.meta}|${q.html}|${q.note?.id ?? ''}`;
   if (key === panelKey) {
     return panelImage;
@@ -193,8 +200,8 @@ function panel(q: Question, c: ReturnType<typeof colours>, height: number): Prom
   panelKey = key;
   panelImage = (async () => {
     // the note's formulas are typeset as the notes card does it — tex.ts, loaded only now
-    const noteHtml = q.note ? (await import('./tex')).exerciseHtml(q.note.body) : '';
-    const box = panelElement(q, noteHtml, c, height);
+    const noteHtml = q.note ? (await import('./tex')).exerciseHtml({ text: q.note.body }) : '';
+    const box = panelElement({ question: q, noteHtml, theme: c, height });
     // The page's own Temml stylesheet, with the font it names carried inside, and the
     // second face it declares (script capitals, rare) left to fall back.
     const css = temmlCss
@@ -233,7 +240,7 @@ interface Layout {
 }
 
 /** The column count that draws the board largest in a `bw`×`bh` box. */
-function layout(span: number, bw: number, bh: number): Layout {
+function layout({ span, bw, bh }: { span: number; bw: number; bh: number }): Layout {
   let best: Layout = { k: 1, s: 0, each: span, tops: [0], left: 0, across: 1, labels: [] };
   for (let k = 1; k <= MAX_COLS; k++) {
     const each = k === 1 ? span : span / k + OVERLAP;
@@ -283,7 +290,7 @@ function focusOf(scene: Scene): { x: number; y: number } | null {
 }
 
 /** The column a board point is drawn in: the one it sits most comfortably inside. */
-function columnOf(y: number, l: Layout): number {
+function columnOf({ y, layout: l }: { y: number; layout: Layout }): number {
   let best = 0;
   let room = -Infinity;
   l.tops.forEach((t, i) => {
@@ -296,7 +303,12 @@ function columnOf(y: number, l: Layout): number {
   return best;
 }
 
-function drawLegend(ctx: CanvasRenderingContext2D, c: ReturnType<typeof colours>, x: number, y: number): void {
+function drawLegend({ ctx, theme: c, x, y }: {
+  ctx: CanvasRenderingContext2D;
+  theme: ReturnType<typeof colours>;
+  x: number;
+  y: number;
+}): void {
   ctx.save();
   ctx.fillStyle = c.surface;
   ctx.strokeStyle = c.border;
@@ -313,7 +325,7 @@ function drawLegend(ctx: CanvasRenderingContext2D, c: ReturnType<typeof colours>
   const row1 = y + 54;
   const row2 = y + 92;
 
-  drawPenMark(ctx, right - 16, row1, 11);
+  drawPenMark({ ctx, cx: right - 16, cy: row1, r: 11 });
   ctx.fillStyle = c.fg;
   ctx.font = `600 18px ${FACE}`;
   ctx.fillText('העט מצביע כאן — האזור המואר', right - 46, row1);
@@ -333,7 +345,7 @@ function drawLegend(ctx: CanvasRenderingContext2D, c: ReturnType<typeof colours>
 }
 
 /** The picture, as the Gemini client's host API hands it over. */
-export async function drawFrame(scene: Scene, q: Question): Promise<Frame | null> {
+export async function drawFrame({ scene, question: q }: { scene: Scene; question: Question }): Promise<Frame | null> {
   const c = colours();
   const out = document.createElement('canvas');
   out.width = W;
@@ -349,12 +361,12 @@ export async function drawFrame(scene: Scene, q: Question): Promise<Frame | null
   // The question, on the right; its legend under it.
   const panelH = H - 2 * PAD - LEGEND - GAP;
   const px = W - PAD - PANEL;
-  const img = await panel(q, c, panelH);
+  const img = await panel({ question: q, theme: c, height: panelH });
   if (img) {
     ctx.drawImage(img, px, PAD);
   }
 
-  drawLegend(ctx, c, px, PAD + panelH + GAP);
+  drawLegend({ ctx, theme: c, x: px, y: PAD + panelH + GAP });
 
   // The board, all of it — down to the stroke in hand, or the pen hovering below the ink;
   // or the part of it around the pen.
@@ -367,7 +379,7 @@ export async function drawFrame(scene: Scene, q: Question): Promise<Frame | null
   const bw = px - GAP - PAD;
   const bh = H - 2 * PAD;
   const at = focusOf(scene);
-  const l = at ? closeUp({ at, span, bw, bh }) : layout(span, bw, bh);
+  const l = at ? closeUp({ at, span, bw, bh }) : layout({ span, bw, bh });
   const colW = l.s * l.across;
   const colH = l.each * l.s;
   const colY = PAD + (l.labels.length ? LABEL : 0);
@@ -411,7 +423,7 @@ export async function drawFrame(scene: Scene, q: Question): Promise<Frame | null
       );
     }
     ctx.restore();
-    render(sctx, scene.strokes, scene.wet, l.s, sheet.height, undefined, top);
+    render({ ctx: sctx, strokes: scene.strokes, live: scene.wet, w: l.s, h: sheet.height, top });
     ctx.drawImage(sheet, l.left * l.s, 0, colW, colH, x, colY, colW, colH);
     ctx.strokeStyle = c.border;
     ctx.lineWidth = 2;
@@ -431,7 +443,7 @@ export async function drawFrame(scene: Scene, q: Question): Promise<Frame | null
   }
 
   if (scene.hover) {
-    const i = columnOf(scene.hover.y, l);
+    const i = columnOf({ y: scene.hover.y, layout: l });
     const hx = colX(i) + (scene.hover.x - l.left) * l.s;
     const hy = colY + (scene.hover.y - l.tops[i]) * l.s;
     // every column, less the circle round the nib (even-odd: the circle is a hole)
@@ -446,7 +458,7 @@ export async function drawFrame(scene: Scene, q: Question): Promise<Frame | null
     ctx.fillStyle = c.bg;
     ctx.fill('evenodd');
     ctx.restore();
-    drawPenMark(ctx, hx, hy, MARK_R);
+    drawPenMark({ ctx, cx: hx, cy: hy, r: MARK_R });
   }
 
   const blob = await new Promise<Blob | null>((r) => out.toBlob(r, 'image/jpeg', QUALITY));

@@ -48,7 +48,7 @@
   /* On the tablet the board is the screen, so the question can be folded away to its
      controls once it has been read. Per device, like the tool and the pen. */
   let showQ = $state(readFlag(StorageKey.SHOW_QUESTION));
-  $effect(() => writeFlag(StorageKey.SHOW_QUESTION, showQ));
+  $effect(() => writeFlag({ key: StorageKey.SHOW_QUESTION, isOn: showQ }));
 
   /* Which way the question card's entrance sweeps: along the reading direction when the
      new question comes later in ORDER, against it when it comes earlier — so "הבא" and
@@ -152,7 +152,7 @@
                 </span>
               </legend>
               {#each rows as e (exKey(e))}
-                <option value={pickOf(choice.topic.id, exKey(e))}>
+                <option value={pickOf({ blockId: choice.topic.id, ex: exKey(e) })}>
                   <span class="tw"></span>
                   <span class="tx">{e.short}</span>
                 </option>
@@ -160,7 +160,7 @@
               {#if lastRung}
                 <!-- The pad is also used for a real bagrut question, so "not from the
                      workbook" has to be sayable — per chapter, because the criteria are. -->
-                <option value={pickOf(choice.topic.id, '')} class="leaf">
+                <option value={pickOf({ blockId: choice.topic.id, ex: '' })} class="leaf">
                   <span class="tw"></span>
                   <span class="tx">{OTHER}</span>
                 </option>

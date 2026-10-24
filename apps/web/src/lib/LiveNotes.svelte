@@ -34,7 +34,7 @@
     for (const n of notes) {
       if (!(n.id in shown)) {
         shown[n.id] = '';
-        void import('./tex').then(({ exerciseHtml }) => (shown[n.id] = exerciseHtml(n.body)));
+        void import('./tex').then(({ exerciseHtml }) => (shown[n.id] = exerciseHtml({ text: n.body })));
       }
     }
   });

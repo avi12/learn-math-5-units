@@ -26,7 +26,7 @@ export class BandIndex {
   private builtFor = -1;
 
   /** Rebuild from the strokes, unless it was already built for this `version`. */
-  update(version: number, order: string[], byKey: Map<string, Stroke>): void {
+  update({ version, order, byKey }: { version: number; order: string[]; byKey: Map<string, Stroke> }): void {
     if (version === this.builtFor) {
       return;
     }
@@ -40,7 +40,7 @@ export class BandIndex {
       }
 
       for (let i = bandOf(b.y0); i <= bandOf(b.y1); i++) {
-        this.add(i, k);
+        this.add({ band: i, key: k });
       }
     }
     this.builtFor = version;
@@ -48,13 +48,13 @@ export class BandIndex {
 
   /** Every stroke key in the bands that the span y0…y1 touches. A stroke spanning two of
    *  them can come out twice; the caller's own "already erased" check absorbs that. */
-  *near(y0: number, y1: number): Generator<string> {
+  *near({ y0, y1 }: { y0: number; y1: number }): Generator<string> {
     for (let i = bandOf(y0); i <= bandOf(y1); i++) {
       yield* this.bands.get(i) ?? [];
     }
   }
 
-  private add(band: number, key: string): void {
+  private add({ band, key }: { band: number; key: string }): void {
     const keys = this.bands.get(band);
     if (!keys) {
       this.bands.set(band, [key]);

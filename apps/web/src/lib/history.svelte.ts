@@ -63,7 +63,7 @@ export class History {
       return null;
     }
 
-    this.apply(a, false);
+    this.apply({ action: a, forward: false });
     this.redoStack.push(a);
     return a;
   }
@@ -74,7 +74,7 @@ export class History {
       return null;
     }
 
-    this.apply(a, true);
+    this.apply({ action: a, forward: true });
     this.undoStack.push(a);
     return a;
   }
@@ -82,11 +82,11 @@ export class History {
   /** `forward` = put the world back the way the action left it. A draw leaves its stroke
    *  present, an erase leaves its strokes gone — so the two kinds write on opposite
    *  directions, and that is the only thing that differs between undo and redo. */
-  private apply(a: Action, forward: boolean): void {
+  private apply({ action: a, forward }: { action: Action; forward: boolean }): void {
     const write = (a.kind === ActionKind.DRAW) === forward;
     for (const it of a.items) {
-      const ref = strokeRef(this.roomId, it.key);
-      void (write ? save(ref, it.stroke) : remove(ref));
+      const ref = strokeRef({ id: this.roomId, key: it.key });
+      void (write ? save({ ref, data: it.stroke }) : remove(ref));
     }
   }
 }

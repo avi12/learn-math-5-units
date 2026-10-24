@@ -14,18 +14,18 @@
   let { id }: { id: string } = $props();
 
   async function askRoom() {
-    const v = (await prompt('הדבק את הקישור מהמחשב, או את מזהה החדר:'))?.trim();
+    const v = (await prompt({ message: 'הדבק את הקישור מהמחשב, או את מזהה החדר:' }))?.trim();
     if (!v) {
       return;
     }
 
     if (v.includes(id)) {
-      say('אתה כבר בחדר הזה');
+      say({ text: 'אתה כבר בחדר הזה' });
       return;
     }
 
     if (!joinRoom(v)) {
-      say('לא מצאתי מזהה חדר בטקסט הזה');
+      say({ text: 'לא מצאתי מזהה חדר בטקסט הזה' });
     }
   }
 
@@ -45,15 +45,18 @@
     }
 
     try {
-      stopScan = await scan(cam, (text) => {
-        closeScan();
-        if (!joinRoom(text)) {
-          say('אין מזהה חדר בקוד הזה');
+      stopScan = await scan({
+        video: cam,
+        onfound(text) {
+          closeScan();
+          if (!joinRoom(text)) {
+            say({ text: 'אין מזהה חדר בקוד הזה' });
+          }
         }
       });
     } catch {
       scanning = false;
-      say('אין גישה למצלמה');
+      say({ text: 'אין גישה למצלמה' });
     }
   }
 

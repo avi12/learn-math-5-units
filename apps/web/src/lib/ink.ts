@@ -39,7 +39,7 @@ export const GRID_SCALE: Range = { min: 1, max: 4, step: 0.1, initial: 1 };
 export const PEN_SIZE: Range = { min: 2, max: 16, step: 1, initial: 6 };
 
 /** Any value onto a range's steps — a tampered or stale stored value cannot leave it. */
-export function clampToRange(range: Range, value: number): number {
+export function clampToRange({ range, value }: { range: Range; value: number }): number {
   if (!Number.isFinite(value)) {
     return range.initial;
   }
@@ -57,7 +57,7 @@ export function gridCell(scale: number): number {
 /** The nearest grid crossing — where a shape's corner lands when snapping is on.
  *  Normalised y is measured from the top of the strip, and the grid's horizontal lines
  *  sit on multiples of the cell there, so this needs no scroll offset. */
-export function snapPoint(point: Pt, cell: number): Pt {
+export function snapPoint({ point, cell }: { point: Pt; cell: number }): Pt {
   const toNearestLine = (value: number) => Math.round(value / cell) * cell;
   return { ...point, x: toNearestLine(point.x), y: toNearestLine(point.y) };
 }
@@ -65,7 +65,7 @@ export function snapPoint(point: Pt, cell: number): Pt {
 /** How far the first horizontal grid line sits above the top edge of a view scrolled to
  *  `top`, in normalised units. The same multiples-of-the-cell rule as `snapPoint`, said
  *  once here so the squares on screen and the crossings a shape snaps to cannot disagree. */
-export function gridPhase(top: number, cell: number): number {
+export function gridPhase({ top, cell }: { top: number; cell: number }): number {
   return top % cell;
 }
 
@@ -199,7 +199,7 @@ function unpack(p: string): Pt[] {
 }
 
 /** Thin the tail of a live stroke: the wire only needs what the eye can see. */
-export function decimate(pts: Pt[], min = 0.0018): Pt[] {
+export function decimate({ pts, min = 0.0018 }: { pts: Pt[]; min?: number }): Pt[] {
   const out: Pt[] = [];
   for (const q of pts) {
     const last = out[out.length - 1];
@@ -209,7 +209,7 @@ export function decimate(pts: Pt[], min = 0.0018): Pt[] {
   return out;
 }
 
-function width(base: number, pressure: number, w: number): number {
+function width({ base, pressure, w }: { base: number; pressure: number; w: number }): number {
   // pressure 0 happens on mice and on some pens at the very start of a stroke
   const pr = pressure > 0 ? pressure : 0.5;
   return (base * (0.45 + 1.15 * pr) * w) / 1000;
@@ -224,13 +224,13 @@ function width(base: number, pressure: number, w: number): number {
  *  hit-testing and bounding boxes measuring a nib nobody draws with, and nothing would
  *  have said so. */
 function half(base: number): number {
-  return width(base, 0.5, 1) / 2;
+  return width({ base, pressure: 0.5, w: 1 }) / 2;
 }
 
 /** A shape stroke stores two corners; the ellipse it draws is the one inscribed in them.
  *  The renderer and the hit test both need that, and deriving it twice is how the eraser
  *  ends up testing a shape nobody drew. */
-function ellipseOf(a: Pt, b: Pt): { cx: number; cy: number; rx: number; ry: number } {
+function ellipseOf({ a, b }: { a: Pt; b: Pt }): { cx: number; cy: number; rx: number; ry: number } {
   return {
     cx: (a.x + b.x) / 2,
     cy: (a.y + b.y) / 2,
@@ -266,7 +266,7 @@ export function nibOf(s: Stroke): Pt | undefined {
   return pointsOf(s).at(-1);
 }
 
-export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number): void {
+export function drawStroke({ ctx, stroke: s, w }: { ctx: CanvasRenderingContext2D; stroke: Stroke; w: number }): void {
   const pts = pointsOf(s);
   if (!pts.length) {return;}
   ctx.save();
@@ -281,7 +281,7 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number):
     // A stroke that has only landed: the nib's dot. Without it the ink first appears on
     // the frame after the first move, and a tap — a decimal point — never appears at all.
     ctx.beginPath();
-    ctx.arc(X(pts[0].x), Y(pts[0].y), width(s.w, pts[0].pr, w) / 2, 0, Math.PI * 2);
+    ctx.arc(X(pts[0].x), Y(pts[0].y), width({ base: s.w, pressure: pts[0].pr, w }) / 2, 0, Math.PI * 2);
     ctx.fill();
   } else if (s.t === Tool.INK) {
     // Variable width: draw each segment on its own so pressure can change along it.
@@ -289,7 +289,7 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number):
       const a = pts[i - 1];
       const b = pts[i];
       ctx.beginPath();
-      ctx.lineWidth = width(s.w, (a.pr + b.pr) / 2, w);
+      ctx.lineWidth = width({ base: s.w, pressure: (a.pr + b.pr) / 2, w });
       ctx.moveTo(X(a.x), Y(a.y));
       // a midpoint quadratic keeps the line smooth without a curve-fitting pass
       const mx = (a.x + b.x) / 2;
@@ -301,7 +301,7 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number):
   } else {
     const a = pts[0];
     const b = pts[pts.length - 1];
-    ctx.lineWidth = width(s.w, 0.7, w);
+    ctx.lineWidth = width({ base: s.w, pressure: 0.7, w });
     ctx.beginPath();
     if (s.t === Tool.LINE) {
       ctx.moveTo(X(a.x), Y(a.y));
@@ -309,7 +309,7 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke, w: number):
     } else if (s.t === Tool.RECT) {
       ctx.rect(X(a.x), Y(a.y), X(b.x - a.x), Y(b.y - a.y));
     } else if (s.t === Tool.ELLIPSE) {
-      const { cx, cy, rx, ry } = ellipseOf(a, b);
+      const { cx, cy, rx, ry } = ellipseOf({ a, b });
       ctx.ellipse(X(cx), Y(cy), X(rx), Y(ry), 0, 0, 7);
     }
     ctx.stroke();
@@ -330,14 +330,14 @@ function outline(s: Stroke): Pt[] {
   if (s.t === Tool.LINE) {return [a, b];}
   if (s.t === Tool.RECT)
     {return [a, { ...a, x: b.x }, b, { ...a, y: b.y }, a];}
-  const { cx, cy, rx, ry } = ellipseOf(a, b);
+  const { cx, cy, rx, ry } = ellipseOf({ a, b });
   return Array.from({ length: 33 }, (_, i) => {
     const t = (i / 32) * Math.PI * 2;
     return { x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t), pr: 0.5 };
   });
 }
 
-function toSegment(px: number, py: number, a: Pt, b: Pt): number {
+function toSegment({ px, py, a, b }: { px: number; py: number; a: Pt; b: Pt }): number {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len = dx * dx + dy * dy;
@@ -352,7 +352,7 @@ function toSegment(px: number, py: number, a: Pt, b: Pt): number {
  *  the board and the LaTeX would disagree. A stroke is also exactly one Firestore
  *  document, so rubbing one out is a delete both devices already know how to apply —
  *  the same path the undo button uses. */
-export function hits(s: Stroke, x: number, y: number, r: number): boolean {
+export function hits({ stroke: s, x, y, r }: { stroke: Stroke; x: number; y: number; r: number }): boolean {
   // The box first, and this is where nearly all of the work goes away. Excalidraw's
   // geometry does the same thing for the same reason: an axis-aligned box test is a few
   // comparisons against numbers that are already worked out, and it answers "no" for
@@ -366,7 +366,7 @@ export function hits(s: Stroke, x: number, y: number, r: number): boolean {
   const reach = r + half(s.w);
   if (pts.length === 1) {return Math.hypot(x - pts[0].x, y - pts[0].y) <= reach;}
   for (let i = 1; i < pts.length; i++) {
-    if (toSegment(x, y, pts[i - 1], pts[i]) <= reach) {return true;}
+    if (toSegment({ px: x, py: y, a: pts[i - 1], b: pts[i] }) <= reach) {return true;}
   }
   return false;
 }
@@ -447,12 +447,12 @@ function isPipe(b: Box): boolean {
 const BAR_REACH = 0.06;
 
 /** The vertical distance between two boxes; 0 when they overlap. */
-function gap(a: Box, b: Box): number {
+function gap({ a, b }: { a: Box; b: Box }): number {
   return Math.max(0, b.y0 - a.y1, a.y0 - b.y1);
 }
 
 /** How much of `inner`'s width lies inside `outer`'s. */
-function covers(outer: Box, inner: Box): number {
+function covers({ outer, inner }: { outer: Box; inner: Box }): number {
   const w = inner.x1 - inner.x0;
   if (w <= 0) {return 0;}
   return Math.max(0, Math.min(outer.x1, inner.x1) - Math.max(outer.x0, inner.x0)) / w;
@@ -505,15 +505,15 @@ export function bounds(strokes: Stroke[]): Box | null {
 
 /** `top` is the scroll offset in normalised units: the y that sits at the top edge.
  *  It is applied as a translate and nothing else — the strokes themselves never move. */
-export function render(
-  ctx: CanvasRenderingContext2D,
-  strokes: Stroke[],
-  live: Stroke | null,
-  w: number,
-  h: number,
-  background?: string,
-  top = 0
-): void {
+export function render({ ctx, strokes, live, w, h, background, top = 0 }: {
+  ctx: CanvasRenderingContext2D;
+  strokes: Stroke[];
+  live: Stroke | null;
+  w: number;
+  h: number;
+  background?: string;
+  top?: number;
+}): void {
   ctx.clearRect(0, 0, w, h);
   if (background) {
     ctx.fillStyle = background;
@@ -531,9 +531,9 @@ export function render(
   for (const s of strokes) {
     const b = boxOf(s);
     if (b && (b.y1 < y0 || b.y0 > y1)) {continue;}
-    drawStroke(ctx, s, w);
+    drawStroke({ ctx, stroke: s, w });
   }
-  if (live) {drawStroke(ctx, live, w);}
+  if (live) {drawStroke({ ctx, stroke: live, w });}
   ctx.restore();
 }
 
@@ -545,7 +545,12 @@ export function render(
  *  The one drawing of it. The desktop mirror shows it over the board, and the picture
  *  Gemini Live sees (frame.ts) draws it on the board and again in its legend — one look,
  *  so the legend describes exactly the mark on the board. `r` is the ring's radius in px. */
-export function drawPenMark(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
+export function drawPenMark({ ctx, cx, cy, r }: {
+  ctx: CanvasRenderingContext2D;
+  cx: number;
+  cy: number;
+  r: number;
+}): void {
   const cs = getComputedStyle(document.documentElement);
   const mark = cs.getPropertyValue('--cat-3').trim() || '#8a5cf6';
   const halo = cs.getPropertyValue('--surface').trim() || '#fff';

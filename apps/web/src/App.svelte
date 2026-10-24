@@ -52,10 +52,10 @@
   /* Shape corners snap to the notebook grid. Per device, like the question fold, and
      on by default: a straight line in a math notebook is meant to sit on the squares. */
   let isSnapping = $state(readFlag(StorageKey.SNAP));
-  $effect(() => writeFlag(StorageKey.SNAP, isSnapping));
+  $effect(() => writeFlag({ key: StorageKey.SNAP, isOn: isSnapping }));
 
-  const grid = new RoomValue(id, PrefSlot.GRID, GRID_SCALE);
-  const size = new RoomValue(id, PrefSlot.SIZE, PEN_SIZE);
+  const grid = new RoomValue({ roomId: id, slot: PrefSlot.GRID, range: GRID_SCALE });
+  const size = new RoomValue({ roomId: id, slot: PrefSlot.SIZE, range: PEN_SIZE });
 
   let surface = $state<SurfaceApi>();
   /** How many page-sized parts the strip exports as, and which one the board is sitting
@@ -85,18 +85,22 @@
 
   $effect(() => {
     const side = isPad ? Side.PAD : Side.DESK;
-    const mine = openLink(id, side, {
-      // what the other end missed while it was not there
-      open() {
-        if (side === Side.DESK) {
-          mine.sendMessage(LinkMessage.LIVE, { state: live.state, blind: live.blind });
-        } else {
-          mine.sendMessage(LinkMessage.HOVER, sentHover);
-        }
-      },
-      state(st) {
-        if (st !== LinkState.OPEN && side === Side.DESK) {
-          remoteHover = null;
+    const mine = openLink({
+      roomId: id,
+      side,
+      handlers: {
+        // what the other end missed while it was not there
+        open() {
+          if (side === Side.DESK) {
+            mine.sendMessage(LinkMessage.LIVE, { state: live.state, blind: live.blind });
+          } else {
+            mine.sendMessage(LinkMessage.HOVER, sentHover);
+          }
+        },
+        state(st) {
+          if (st !== LinkState.OPEN && side === Side.DESK) {
+            remoteHover = null;
+          }
         }
       }
     });
@@ -138,26 +142,27 @@
   /** The question as Gemini's picture shows it, with the newest note under it. */
   function question(): Question {
     return {
-      meta: checkLabel(choice.topic, choice.exercise, choice.section || null),
+      meta: checkLabel(choice),
       html: choice.exercise?.html ?? 'התרגיל אינו מהחוברת: השאלה כתובה על הלוח.',
       note: live.notes[0]
     };
   }
 
   onMount(() =>
-    installLive(async () => {
-      const board = surface?.scene();
-      return board ? drawFrame(board, question()) : null;
+    installLive({
+      async draw() {
+        const board = surface?.scene();
+        return board ? drawFrame({ scene: board, question: question() }) : null;
+      }
     })
   );
 
   /** What the extension needs to know about the exercise: its name, for the shared tab,
    *  and how to ask for a note about it. */
   function exercise() {
-    const section = choice.section || null;
     return {
-      title: checkLabel(choice.topic, choice.exercise, section),
-      notes: noteRequest(choice.topic, choice.exercise, section)
+      title: checkLabel(choice),
+      notes: noteRequest(choice)
     };
   }
 
@@ -199,14 +204,14 @@
     // There is no fallback here, unlike the Claude check: a live session IS the
     // extension's window, and there is nothing to paste anywhere.
     if (!extensionPresent()) {
-      say('ג׳מיני לייב נפתח דרך התוסף של הלוח בכרום, והתוסף לא מותקן כאן');
+      say({ text: 'ג׳מיני לייב נפתח דרך התוסף של הלוח בכרום, והתוסף לא מותקן כאן' });
       return;
     }
 
     const next = exercise();
     told = next.notes.template;
     live.state = LiveState.OPENING;
-    startLive({ prompt: liveBrief(choice.topic, choice.exercise, choice.section || null), ...next });
+    startLive({ prompt: liveBrief(choice), ...next });
   }
 
   onMount(() => {
@@ -226,15 +231,15 @@
       // auto-reload doing exactly what it was asked to do, to the worst possible end.
       // A tab that cannot save yet stays where it is, however old its bundle.
       busy: () => penDown || unsentWrites() > 0,
-      oncoming: () => say('גרסה חדשה עלתה — הדף ייטען מחדש', true),
-      onstuck: () => say('יש גרסה חדשה אבל הדפדפן מגיש גרסה ישנה. רענן ידנית.', true)
+      oncoming: () => say({ text: 'גרסה חדשה עלתה — הדף ייטען מחדש', sticky: true }),
+      onstuck: () => say({ text: 'יש גרסה חדשה אבל הדפדפן מגיש גרסה ישנה. רענן ידנית.', sticky: true })
     });
   });
 
   function undoLast() {
     const a = history.undo();
     if (!a) {
-      say('אין מה לבטל');
+      say({ text: 'אין מה לבטל' });
       return;
     }
 
@@ -242,12 +247,12 @@
       return;
     }
 
-    say(a.items.length === 1 ? 'הוחזרה משיכה שנמחקה' : `הוחזרו ${a.items.length} משיכות שנמחקו`);
+    say({ text: a.items.length === 1 ? 'הוחזרה משיכה שנמחקה' : `הוחזרו ${a.items.length} משיכות שנמחקו` });
   }
 
   function redoLast() {
     if (!history.redo()) {
-      say('אין מה להחזיר');
+      say({ text: 'אין מה להחזיר' });
     }
   }
 
@@ -260,12 +265,12 @@
   }
 
   async function checkWithClaude() {
-    const board = surface?.exportCanvas(1600);
+    const board = surface?.exportCanvas({ w: 1600 });
     if (!board) {
       return;
     }
 
-    say(await sendForCheck(board, choice.topic, choice.exercise, choice.section || null));
+    say({ text: await sendForCheck({ board, choice }) });
   }
 </script>
 
@@ -320,8 +325,8 @@
         {room}
         readonly={!isPad}
         fill={isPad}
-        onparts={(n, at) => {
-          parts = n;
+        onparts={({ count, at }) => {
+          parts = count;
           // The ONLY writer of `part`. It follows the board rather than being held here,
           // so the picker cannot say one thing while the screen shows another — which is
           // also what keeps a shrinking strip honest: an erase or a clear moves the board,
