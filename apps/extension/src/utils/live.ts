@@ -27,9 +27,9 @@
  *
  * MV3 kills this worker whenever it likes, so the session lives in `storage.session` and
  * every handler starts by reading it. Pictures every second keep it awake during Live. */
+import { createCueWatch, notePrompt, noteFromAnswer } from '@learn-math/shared/notes';
 import {
   LiveState,
-  type LiveNote,
   type LiveStart,
   type LiveStatus,
   type LiveTarget,
@@ -74,8 +74,6 @@ const MAX_RESTARTS = 3;
 const RESTART_WINDOW_MS = 10 * 60_000;
 /** The Gemini window: narrow, like the panel the client was built for. */
 const WINDOW = { width: 440, height: 760 };
-/** The longest a note waits for Gemini to finish the sentence that said the cue. */
-const NOTE_WAIT_MS = 15_000;
 
 async function load(): Promise<Session | null> {
   const row = await chrome.storage.session.get(KEY);
@@ -162,37 +160,6 @@ async function brief(): Promise<void> {
   await textTurn({ prompt: text, during: LiveState.BRIEFING });
 }
 
-/** How Gemini's text stands in for a part it rendered instead — an app's action card, a
- *  picture, a canvas: `http://googleusercontent.com/action_card_content/<id>` and its
- *  kin. Such an answer has done something elsewhere (a note made in an app, Avi
- *  15.10.2026) and holds no note of its own. */
-const RENDERED_PART = /\bgoogleusercontent\.com\//;
-
-/** A note out of the answer's markdown: inside a code fence if Gemini used one, the
- *  first line its title, and the markdown's own marks (bold, headings, bullets) dropped —
- *  the pad renders `$…$` and plain lines, nothing else. */
-function noteOf(answer: string): LiveNote | null {
-  if (RENDERED_PART.test(answer)) {
-    return null;
-  }
-
-  const fenced = /```[a-z]*\n?([\s\S]*?)```/i.exec(answer)?.[1] ?? answer;
-  const lines = fenced
-    .split('\n')
-    .map((l) => l.replace(/^\s*(?:#+|[-*•]|\d+\.)\s+/, '').replace(/\*\*|__/g, '').trim())
-    .filter(Boolean);
-  if (!lines.length) {
-    return null;
-  }
-
-  const [title = '', ...rest] = lines;
-  return {
-    id: crypto.randomUUID(),
-    title: rest.length ? title : 'מג׳מיני',
-    body: rest.length ? rest.join('\n') : title
-  };
-}
-
 async function writeNote({ heardText, saidText }: { heardText: string; saidText: string }): Promise<void> {
   const s = await load();
   const n = s?.notes;
@@ -201,11 +168,9 @@ async function writeNote({ heardText, saidText }: { heardText: string; saidText:
   }
 
   await tell({ session: s, state: LiveState.WRITING });
-  const prompt = n.template.replace(n.heard, heardText).replace(n.said, saidText);
-  const answer = (await orNull(extensionMessenger.sendMessage(BridgeCall.ASK, prompt, s.glicTab)))?.trim() ?? '';
-  // "nothing to write" is an answer, and the right one for a cue said in passing
-  const none = answer.replace(/["'.״]/g, '').trim() === n.none;
-  const note = answer && !none ? noteOf(answer) : null;
+  const prompt = notePrompt({ request: n, heardText, saidText });
+  const answer = (await orNull(extensionMessenger.sendMessage(BridgeCall.ASK, prompt, s.glicTab))) ?? '';
+  const { note, isNone } = noteFromAnswer({ answer, request: n });
   const now = await load();
   if (!now) {
     return;
@@ -216,66 +181,31 @@ async function writeNote({ heardText, saidText }: { heardText: string; saidText:
   }
 
   // Live never stopped, so it is still what it was before the note.
-  if (now.state === LiveState.WRITING) {
-    const failed = !note && !none;
-    await tell({
-      session: now,
-      state: failed ? LiveState.FAILED : LiveState.LIVE,
-      detail: failed ? 'הפתק לא נכתב — בקש שוב' : ''
-    });
+  if (now.state !== LiveState.WRITING) {
+    return;
   }
+
+  const failed = !note && !isNone;
+  await tell({
+    session: now,
+    state: failed ? LiveState.FAILED : LiveState.LIVE,
+    detail: failed ? 'הפתק לא נכתב — בקש שוב' : ''
+  });
 }
 
 /* ---- what the transcript is listened for ----------------------------------- */
 
-/** The person's last words, which the note request quotes — as context only: a
- *  transcript of the room can be anything. */
-let lastHeard = '';
-/** The Gemini utterance that said the cue, and what it has said so far. The note waits
- *  for the sentence to end, because what Gemini says it is writing is what the note is
- *  made from (rebuild.py `live_note_text`). */
-let armed = -1;
-let saying = '';
-/** If the end of the sentence never arrives, the note goes anyway after this long. */
-let fallback: ReturnType<typeof setTimeout> | undefined;
-
-function release(): void {
-  clearTimeout(fallback);
-  if (armed < 0) {
-    return;
-  }
-
-  const [h, said] = [lastHeard, saying];
-  armed = -1;
-  saying = '';
-  void writeNote({ heardText: h, saidText: said });
-}
+/** One watch for the one session: it waits for the sentence that said the cue to end
+ *  (shared/notes.ts), and then the note goes. */
+const watch = createCueWatch({ release: (said) => void writeNote(said) });
 
 function heard({ session, direction, text, index }: TranscriptLine & { session: Session }): void {
   if (direction === Direction.USER) {
-    lastHeard = text;
+    watch.user(text);
     return;
   }
 
-  if (index === armed) {
-    saying = text;
-    return;
-  }
-
-  if (!session.notes?.cue || !new RegExp(session.notes.cue).test(text)) {
-    return;
-  }
-
-  armed = index;
-  saying = text;
-  clearTimeout(fallback);
-  fallback = setTimeout(release, NOTE_WAIT_MS);
-}
-
-function turnEnded(index: number): void {
-  if (index === armed) {
-    release();
-  }
+  watch.model({ text, index, cue: session.notes?.cue });
 }
 
 /* ---- the session's edges --------------------------------------------------- */
@@ -337,9 +267,7 @@ async function restart(s: Session): Promise<void> {
   s.restarts.push(now);
   s.booted = false;
   s.brief = s.briefing;
-  armed = -1;
-  saying = '';
-  clearTimeout(fallback);
+  watch.reset();
   await tell({ session: s, state: LiveState.RECONNECTING });
   await chrome.tabs.reload(s.glicTab).catch(() => {});
 }
@@ -351,10 +279,7 @@ async function end(state: LiveState = LiveState.ENDED): Promise<void> {
   }
 
   await store(null);
-  armed = -1;
-  saying = '';
-  clearTimeout(fallback);
-  lastHeard = '';
+  watch.reset();
   await extensionMessenger.sendMessage(ExtensionMessage.LIVE_STATUS, { state }, s.pad).catch(() => {});
 }
 
@@ -470,7 +395,7 @@ export function installLive(): void {
   extensionMessenger.onMessage(BridgeReport.STATE, fromGlic(({ session, data: state }) => stateChanged({ session, state })));
   extensionMessenger.onMessage(BridgeReport.ERROR, fromGlic(({ session, data: message }) => failed({ session, message })));
   extensionMessenger.onMessage(BridgeReport.TRANSCRIPT, fromGlic(({ session, data: line }) => heard({ session, ...line })));
-  extensionMessenger.onMessage(BridgeReport.TURN_END, fromGlic(({ data: index }) => turnEnded(index)));
+  extensionMessenger.onMessage(BridgeReport.TURN_END, fromGlic(({ data: index }) => watch.turnEnded(index)));
 
   // Closing the Gemini window is ending the session; so is closing the pad.
   chrome.windows.onRemoved.addListener((id) => {

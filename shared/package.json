@@ -2,12 +2,13 @@
   "name": "@learn-math/shared",
   "private": true,
   "type": "module",
-  "description": "What more than one part of the project reads: the pad-extension contract, the config loader, and the look.",
+  "description": "What more than one part of the project reads: the pad-extension contract, when Gemini writes a note, the config loader, and the look.",
   "author": "Avi (https://avi12.com)",
   "license": "GPL-3.0-or-later",
   "homepage": "https://github.com/avi12/learn-math-5-units",
   "exports": {
     "./protocol": "./protocol.ts",
+    "./notes": "./notes.ts",
     "./env": "./env.mjs",
     "./skin/*": "./skin/*"
   },
