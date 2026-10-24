@@ -263,12 +263,21 @@ def live_note_text(title: str, heard: str, said: str, exercise: str, paper: Pape
     half: the first version quoted only what the person was heard saying, and a misheard
     line made a note out of nothing. What was heard is kept as context and labelled as
     unreliable, and LIVE_NOTE_NONE is the way out when there is nothing to write. The
-    answer comes back as raw markdown, so the formulas arrive with their LaTeX intact."""
+    answer comes back as raw markdown, so the formulas arrive with their LaTeX intact.
+
+    And the answer IS the note — it is not a note for Gemini to make. Worded "כתוב כפתק
+    ללוח שלי", the request read as a task for Gemini's apps: it made a note somewhere
+    (most likely Keep) and answered "הנה הפתק שנוצר עבור הלוח שלך" with the card's
+    placeholder link, which landed on the board (Avi's screenshot, 15.10.2026). So the
+    request asks for the text itself and rules out any app, and the extension refuses an
+    answer that is a card (`noteOf` in apps/extension/src/utils/live.ts)."""
     return (f'אני לומד ל‑5 יחידות מתמטיקה, שאלון {paper}, ופותר תרגיל בנושא "{title}".\n'
             f"{exercise}\n"
             f'בשיחה בקול ביקשתי: "{heard}" (התמלול של הקול שלי לפעמים משובש).\n'
             f'ואתה ענית: "{said}"\n'
-            "כתוב כפתק ללוח שלי את מה שאמרת שתרשום. בשורה הראשונה: כותרת קצרה בעברית. "
+            "כתוב כאן, בטקסט רגיל בתוך התשובה עצמה, את מה שאמרת שתרשום — את התשובה הזאת "
+            "אני מעתיק ללוח. אל תיצור פתק, תזכורת, רשימה או מסמך באף אפליקציה או כלי. "
+            "בשורה הראשונה: כותרת קצרה בעברית. "
             "אחריה: התוכן, קצר — הנוסחה או הכלל עצמם, ושורת הסבר אם צריך. בלי מבוא, "
             "בלי סיכום, בלי כותרות ובלי הדגשות. כל ביטוי מתמטי, גם הקצר ביותר, ב‑LaTeX "
             "בתוך $…$ (דולר אחד מכל צד, לא שניים).\n"

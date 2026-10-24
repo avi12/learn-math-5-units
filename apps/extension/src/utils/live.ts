@@ -160,10 +160,20 @@ async function brief(): Promise<void> {
   await textTurn(text, LiveState.BRIEFING);
 }
 
+/** How Gemini's text stands in for a part it rendered instead — an app's action card, a
+ *  picture, a canvas: `http://googleusercontent.com/action_card_content/<id>` and its
+ *  kin. Such an answer has done something elsewhere (a note made in an app, Avi
+ *  15.10.2026) and holds no note of its own. */
+const RENDERED_PART = /\bgoogleusercontent\.com\//;
+
 /** A note out of the answer's markdown: inside a code fence if Gemini used one, the
  *  first line its title, and the markdown's own marks (bold, headings, bullets) dropped —
  *  the pad renders `$…$` and plain lines, nothing else. */
 function noteOf(answer: string): LiveNote | null {
+  if (RENDERED_PART.test(answer)) {
+    return null;
+  }
+
   const fenced = /```[a-z]*\n?([\s\S]*?)```/i.exec(answer)?.[1] ?? answer;
   const lines = fenced
     .split('\n')
