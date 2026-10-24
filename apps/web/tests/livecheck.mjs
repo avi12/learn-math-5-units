@@ -8,8 +8,9 @@
  *
  *   - a pen HOVERING over the tablet's board reaches the desktop over the direct link
  *     (lib/directlink.ts) and is drawn there, and goes away when the pen leaves;
- *   - a note Gemini writes, which arrives on the desktop, reaches the tablet;
- *   - the session's state does too, so the tablet can show that Gemini is listening;
+ *   - a note Gemini writes arrives on the desktop and stays there — the tablet never
+ *     shows it — and a note closed, or pushed out by a newer one, folds away;
+ *   - the session's state crosses, so the tablet can show that Gemini is listening;
  *   - and the picture Gemini is handed (lib/frame.ts) is a real JPEG of the right size,
  *     with the hover in it. Pass a path to keep the picture and look at it — what is IN
  *     the picture is for eyes, not for a pixel count.
@@ -213,8 +214,8 @@ if (whole && out) {
   console.log(`      picture kept at ${wholeOut}`);
 }
 
-// ---- notes and state, desktop to tablet ----
-console.log('--- what Gemini writes, on both devices ---');
+// ---- notes on the desktop, state to the tablet ----
+console.log('--- what Gemini writes, on the desktop only ---');
 await B.ev(askPage(PadMessage.LIVE_STATUS, { state: 'live' }));
 await B.ev(askPage(PadMessage.LIVE_NOTE, { id: 'n1', title: 'נוסחת השורשים',
   body: 'הפתרונות של $ax^{2}+bx+c=0$:' + String.fromCharCode(10) + '$x_{1,2}=' + String.fromCharCode(92) + 'frac{-b' + String.fromCharCode(92) + 'pm' + String.fromCharCode(92) + 'sqrt{b^{2}-4ac}}{2a}$' }));
@@ -227,7 +228,7 @@ const noteOf = (p) =>
 const nb = await noteOf(B);
 const na = await noteOf(A);
 say('the desktop shows the note, formulas typeset', nb.title === 'נוסחת השורשים' && nb.maths >= 2, `${nb.maths} formulas`);
-say('the tablet shows it too', na.title === 'נוסחת השורשים' && na.maths >= 2, `${na.maths} formulas`);
+say('the tablet does not show it', !na.title && !na.maths, na.title);
 say('and that Gemini is listening', na.state.includes('מקשיב'), na.state);
 // no picture asked for since Live came up: Gemini is no longer looking, and both say so
 await wait(6500);
@@ -242,9 +243,22 @@ const button = await B.ev(
 );
 say('the desktop offers to end the session', button.includes('סיום השיעור'), button);
 
-await A.ev(`document.querySelector('.notes .note .close')?.click(), 1`);
-await wait(500);
-say('a note closed on the tablet stays closed', !(await A.ev(`!!document.querySelector('.notes .note')`)));
+// a hidden tab runs no transitions, and a note leaves only when its fold has run
+await front(B);
+await B.ev(`document.querySelector('.notes .note .close')?.click(), 1`);
+const folding = await B.ev(`!!document.querySelector('.notes .note[data-leaving]')`);
+await wait(800);
+say('a closed note folds away rather than vanishing', folding && !(await B.ev(`!!document.querySelector('.notes')`)));
+for (const n of ['n2', 'n3', 'n4', 'n5']) {
+  await B.ev(askPage(PadMessage.LIVE_NOTE, { id: n, title: n, body: 'x' }));
+}
+await wait(1500);
+const kept = await B.ev(`[...document.querySelectorAll('.notes .note h3')].map((h) => h.textContent).join(' ')`);
+say('a fourth note pushes the oldest out', kept === 'n5 n4 n3', kept);
+await B.ev(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'הבא')?.click(), 1`);
+const folds = await B.ev(`document.querySelectorAll('.notes .note[data-leaving]').length`);
+await wait(800);
+say('the next question folds them all away', folds === 3 && !(await B.ev(`!!document.querySelector('.notes')`)), `${folds} folding`);
 await B.ev(askPage(PadMessage.LIVE_STATUS, { state: 'ended' }));
 await wait(1500);
 say('the session ending reaches the tablet', !(await A.ev(`!!document.querySelector('.notes .lstate')`)));
@@ -255,5 +269,5 @@ for (let i = 0; i < 20 && !(await A.ev(`!!document.querySelector('dialog.ask[ope
 await A.ev(`document.querySelector('dialog.ask[open] [data-ask="ok"]')?.click()`);
 await wait(1500);
 
-console.log(bad ? `\n${bad} FAILED` : '\nthe pen, the notes and the picture all cross');
+console.log(bad ? `\n${bad} FAILED` : '\nthe pen, the session and the picture all cross; the notes stay on the desktop');
 process.exit(bad ? 1 : 0);

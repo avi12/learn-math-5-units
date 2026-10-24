@@ -17,10 +17,11 @@ import {
   type LiveNote,
   type LiveRequest
 } from '@learn-math/shared/protocol';
+import { SvelteSet } from 'svelte/reactivity';
 
 /** How many notes stay up at once. A note is a reminder for the exercise in hand; a
  *  wall of them would push the board down the screen. */
-const NOTES_MAX = 3;
+export const NOTES_MAX = 3;
 
 export const live = $state({
   state: LiveState.IDLE as LiveState,
@@ -73,21 +74,30 @@ export function liveLabel(): string {
   return live.state === LiveState.FAILED && live.detail ? live.detail : LIVE_LABEL[live.state];
 }
 
-/** Notes this device has closed. The desktop sends its whole list again whenever the link
- *  reopens, and a note someone has dismissed must not come back with it. */
-const dismissed = new Set<string>();
+/** Notes on their way off the screen. None is taken off the list here: the card folds it
+ *  away (LiveNotes.svelte), and drops it once the fold has run (`dropNote`). */
+export const leaving = new SvelteSet<string>();
 
-/** Replace the list — the tablet, hearing the desktop's. */
-export function setNotes(notes: LiveNote[]): void {
-  live.notes = notes.filter((n) => !dismissed.has(n.id)).slice(0, NOTES_MAX);
-}
-
+/** One past NOTES_MAX is kept: the note a new one pushes out folds away the same way. */
 function addNote(n: LiveNote): void {
-  setNotes([n, ...live.notes.filter((x) => x.id !== n.id)]);
+  live.notes = [n, ...live.notes.filter((x) => x.id !== n.id)].slice(0, NOTES_MAX + 1);
 }
 
+/** One note closed. */
 export function dismissNote(id: string): void {
-  dismissed.add(id);
+  leaving.add(id);
+}
+
+/** All of them: a new question, and the notes were for the last one. Avi: "כשאני עובר
+ *  שאלה זה צריך לרוקן את הסעיפים שג'מיני יצר בצורה של אנימציה". */
+export function clearNotes(): void {
+  for (const n of live.notes) {
+    leaving.add(n.id);
+  }
+}
+
+export function dropNote(id: string): void {
+  leaving.delete(id);
   live.notes = live.notes.filter((n) => n.id !== id);
 }
 

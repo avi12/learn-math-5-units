@@ -9,7 +9,7 @@
    *    ConnectCards   the desktop's code and link for the tablet
    *    LiveNotes      what Gemini Live wrote down, and how the session is doing
    *  — and this file only wires them together. */
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { LiveAction, LiveState } from '@learn-math/shared/protocol';
   import Ask from './lib/Ask.svelte';
   import ConnectCards from './lib/ConnectCards.svelte';
@@ -23,7 +23,7 @@
   import { checkLabel, extensionPresent, liveBrief, noteRequest, sendForCheck } from './lib/check';
   import { LinkMessage, LinkState, Side, decodeHover, encodeHover, openLink, type Hover, type Link } from './lib/directlink';
   import { drawFrame, type Question } from './lib/frame';
-  import { installLive, isRunning, live, requestLive, setNotes } from './lib/live.svelte';
+  import { clearNotes, installLive, isRunning, live, requestLive } from './lib/live.svelte';
   import { Role, initialRole } from './lib/device';
   import { ActionKind, History } from './lib/history.svelte';
   import { ASPECT, GRID_SCALE, gridCell, PEN_SIZE, Tool } from './lib/ink';
@@ -73,9 +73,10 @@
   $effect(() => provideAsk(ask));
 
   /* ---- the direct link, and Gemini Live ------------------------------------
-     The tablet's pen hover goes to the desktop, and Gemini's notes and the session's
-     state come back, over a link between the two devices (lib/directlink.ts). Which end
-     this page is follows the role, so it is rebuilt when the role changes. */
+     The tablet's pen hover goes to the desktop, and the session's state comes back, over
+     a link between the two devices (lib/directlink.ts). Gemini's notes do not: they are
+     the desktop's alone. Which end this page is follows the role, so it is rebuilt when
+     the role changes. */
   let link: Link | null = null;
   /** where the tablet's pen is hovering — the desktop's to draw, and Gemini's to see */
   let remoteHover = $state<Hover>(null);
@@ -88,7 +89,6 @@
       // what the other end missed while it was not there
       open() {
         if (side === Side.DESK) {
-          mine.sendMessage(LinkMessage.NOTES, $state.snapshot(live.notes));
           mine.sendMessage(LinkMessage.LIVE, { state: live.state, blind: live.blind });
         } else {
           mine.sendMessage(LinkMessage.HOVER, sentHover);
@@ -103,7 +103,6 @@
     if (side === Side.DESK) {
       mine.onMessage(LinkMessage.HOVER, (at) => (remoteHover = decodeHover(at)));
     } else {
-      mine.onMessage(LinkMessage.NOTES, setNotes);
       mine.onMessage(LinkMessage.LIVE, (m) => {
         live.state = m.state;
         live.blind = m.blind;
@@ -127,13 +126,11 @@
     link?.sendMessage(LinkMessage.HOVER, at);
   }
 
-  // The desktop passes the session on to the tablet as it changes.
+  // The desktop passes the session's state on to the tablet as it changes.
   $effect(() => {
-    const notes = $state.snapshot(live.notes);
     const state = live.state;
     const blind = live.blind;
     if (!isPad) {
-      link?.sendMessage(LinkMessage.NOTES, notes);
       link?.sendMessage(LinkMessage.LIVE, { state, blind });
     }
   });
@@ -180,6 +177,17 @@
 
     told = next.notes.template;
     requestLive({ action: LiveAction.RETARGET, ...next });
+  });
+
+  /** The question Gemini's notes were written for. Another question — picked here, or on
+   *  the tablet and synced through the room — folds them all away; another section of
+   *  the same one does not, since its formulas still hold. */
+  let notesFor = choice.pick;
+  $effect(() => {
+    if (choice.pick !== notesFor) {
+      notesFor = choice.pick;
+      untrack(clearNotes);
+    }
   });
 
   function toggleLive() {

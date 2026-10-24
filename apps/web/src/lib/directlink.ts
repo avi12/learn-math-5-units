@@ -1,12 +1,13 @@
 /** The direct link between the tablet and the desktop, for what is too fast or too
- *  fleeting for the room: where the pen hovers, and what Gemini writes down.
+ *  fleeting for the room: where the pen hovers, and how the Gemini session is doing.
  *
  * Avi: "שפעולות hover של העט יוצגו ישר על דף האינטרנט כדי שג'מיני לייב ידע לאן להסתכל".
  * A hover is a pointer event in the TABLET's copy of the page (pointerType 'pen', no
  * button down — see `hovering` in Surface.svelte), while Gemini watches the DESKTOP's
  * copy, on another device. So the position has to travel, and how it travels is the
- * whole design. The other way, a note Gemini writes reaches the desktop through the
- * extension and has to be shown on the tablet, where the person actually is.
+ * whole design. The other way goes only the session's state, so the tablet can show that
+ * Gemini is listening. What Gemini writes down stays on the desktop: "הסעיפים שג'מיני
+ * רושם לדף צריכים להיראות בדסקטופ, לא בטבלט" (Avi, 15.10.2026).
  *
  * Not through Firestore. The room is billed per document write and the free tier is a
  * hard daily cap (see room.ts); a pen near the glass moves the whole time someone writes,
@@ -25,7 +26,7 @@
  * the desktop takes that as its cue to start over with a fresh offer. A link that fails
  * outright is retried a few times and then left alone, rather than writing to the room
  * in a loop on a network that will not carry it. */
-import type { LiveNote, LiveState } from '@learn-math/shared/protocol';
+import type { LiveState } from '@learn-math/shared/protocol';
 import { onSnapshot, remove, rtcRef, RtcSlot, save } from './room';
 
 /** A point on the board, in the same normalised units as the strokes (ink.ts); null when
@@ -39,7 +40,6 @@ export type Side = (typeof Side)[keyof typeof Side];
 /** Everything that crosses the link. */
 export const LinkMessage = {
   HOVER: 'hover',
-  NOTES: 'notes',
   LIVE: 'live'
 } as const;
 export type LinkMessage = (typeof LinkMessage)[keyof typeof LinkMessage];
@@ -51,8 +51,6 @@ export type LinkMessage = (typeof LinkMessage)[keyof typeof LinkMessage];
 export interface LinkProtocolMap {
   /** pad → desk: where the pen hovers, as `encodeHover` writes it */
   [LinkMessage.HOVER](at: string): void;
-  /** desk → pad: Gemini's notes, the whole current list (newest first) */
-  [LinkMessage.NOTES](notes: LiveNote[]): void;
   /** desk → pad: how the Gemini session is doing */
   [LinkMessage.LIVE](data: { state: LiveState; blind: boolean }): void;
 }
