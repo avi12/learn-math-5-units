@@ -49,7 +49,8 @@
     "typescript/consistent-type-assertions": ["error", { "assertionStyle": "never" }],
     "import/first": "error",
     "import/default": "off",
-    "no-restricted-globals": ["error", { "name": "process", "message": "browser/extension/Vite code does not run under Node - read config via import.meta.env, not process" }]
+    "no-restricted-globals": ["error", { "name": "process", "message": "browser/extension/Vite code does not run under Node - read config via import.meta.env, not process" }],
+    "no-restricted-imports": ["error", { "paths": [{ "name": "zod", "message": "import z from apps/web/src/lib/zod.ts - it turns off zod's JIT before the first schema is built" }] }]
   },
   "overrides": [
     {
@@ -68,6 +69,12 @@
       },
       "rules": {
         "no-restricted-globals": "off"
+      }
+    },
+    {
+      "files": ["apps/web/src/lib/zod.ts"],
+      "rules": {
+        "no-restricted-imports": "off"
       }
     }
   ],

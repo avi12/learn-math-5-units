@@ -24,7 +24,8 @@
     "@learn-math/shared": "workspace:*",
     "firebase": "^12.18.0",
     "jsqr": "^1.4.0",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "zod": "4.6.7"
   },
   "description": "The pad: a pen board on the tablet, mirrored live to the desktop.",
   "author": "Avi (https://avi12.com)",
