@@ -15,7 +15,6 @@ export const NOTE_MODEL = 'gemini-3.6-flash';
 export const MIC_SAMPLE_RATE = 16_000;
 export const SPEAKER_SAMPLE_RATE = 24_000;
 export const MIC_MIME_TYPE = `audio/pcm;rate=${MIC_SAMPLE_RATE}`;
-export const FRAME_MIME_TYPE = 'image/jpeg';
 
 /** The AudioWorklet processor's registered name, shared by the worklet that registers it
  *  and the node that asks for it. */

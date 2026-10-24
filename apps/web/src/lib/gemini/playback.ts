@@ -62,5 +62,3 @@ export function createPlayback(onBlocked: (isBlocked: boolean) => void) {
     }
   };
 }
-
-export type Playback = ReturnType<typeof createPlayback>;

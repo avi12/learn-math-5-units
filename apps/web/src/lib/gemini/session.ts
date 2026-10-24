@@ -7,16 +7,14 @@
  *  socket that matters closes — the live one with no replacement under way, or the
  *  replacement itself — is the session over, and `onClosed` says why.
  *
- *  Audio, frames and context sent before setup completes, or while no socket is open, are
+ *  Audio and frames sent before setup completes, or while no socket is open, are
  *  dropped rather than queued: they are a live stream, and stale audio is worse than none. */
 import type { Frame } from '@learn-math/shared/protocol';
 import { bytesToBase64 } from './base64';
 import { LIVE_ENDPOINT, LIVE_MODEL, LIVE_VOICE } from './defaults';
 import {
-  audioEndMessage,
   audioMessage,
   buildSetupMessage,
-  contextMessage,
   parseServerMessage,
   type ServerEvent,
   ServerEventKind,
@@ -93,14 +91,19 @@ export function openLiveSession(options: LiveSessionOptions) {
     resuming = null;
   }
 
+  /** Both ways a session ends, from either side: nothing more goes out or comes in. */
+  function shutDown() {
+    isStopped = true;
+    isReady = false;
+    closeSockets();
+  }
+
   function finish(closure: LiveClosure) {
     if (isStopped) {
       return;
     }
 
-    isStopped = true;
-    isReady = false;
-    closeSockets();
+    shutDown();
     events.onClosed(closure);
   }
 
@@ -230,21 +233,9 @@ export function openLiveSession(options: LiveSessionOptions) {
     sendAudio(pcm: Int16Array) {
       send(audioMessage(bytesToBase64(pcm16Bytes(pcm))));
     },
-    endAudio() {
-      send(audioEndMessage());
-    },
     sendFrame(frame: Frame) {
       send(videoMessage(frame));
     },
-    sendContext(text: string) {
-      send(contextMessage(text));
-    },
-    close() {
-      isStopped = true;
-      isReady = false;
-      closeSockets();
-    }
+    close: shutDown
   };
 }
-
-export type LiveSession = ReturnType<typeof openLiveSession>;

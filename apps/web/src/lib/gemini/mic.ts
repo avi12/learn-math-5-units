@@ -54,5 +54,3 @@ export async function openMic(onChunk: (pcm: Int16Array) => void) {
     }
   };
 }
-
-export type Mic = Awaited<ReturnType<typeof openMic>>;

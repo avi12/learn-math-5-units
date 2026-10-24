@@ -5,12 +5,7 @@
  *  in a plain request, and the voice carries on untouched. The key goes in a header rather
  *  than the URL, so it stays out of logs and the browser's history of requests. */
 import { GENERATE_ENDPOINT, NOTE_MODEL } from './defaults';
-
-type Json = Record<string, unknown>;
-
-function isObject(value: unknown): value is Json {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+import { isObject } from './json';
 
 /** The text of the first candidate, its parts joined; empty when there is none. */
 function candidateText(body: unknown) {

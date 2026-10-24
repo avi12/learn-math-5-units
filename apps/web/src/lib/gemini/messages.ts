@@ -7,10 +7,10 @@
  *  justify one. Anything that does not match is skipped, not thrown. */
 import { base64ToBytes } from './base64';
 import { MIC_MIME_TYPE } from './defaults';
+import { isObject, type Json } from './json';
 
 const RESPONSE_MODALITY_AUDIO = 'AUDIO';
 const MEDIA_RESOLUTION = 'MEDIA_RESOLUTION_MEDIUM';
-const USER_ROLE = 'user';
 
 export interface SetupOptions {
   model: string;
@@ -61,15 +61,6 @@ export function audioMessage(base64: string) {
   };
 }
 
-/** Sent when the mic is muted, so the server stops waiting for the end of a sentence. */
-export function audioEndMessage() {
-  return {
-    realtimeInput: {
-      audioStreamEnd: true
-    }
-  };
-}
-
 export function videoMessage({ base64, mimeType }: {
   base64: string;
   mimeType: string;
@@ -80,20 +71,6 @@ export function videoMessage({ base64, mimeType }: {
         mimeType,
         data: base64
       }
-    }
-  };
-}
-
-/** Text that Gemini should know but not answer: `turnComplete: false` adds it to the
- *  conversation without ending the learner's turn. */
-export function contextMessage(text: string) {
-  return {
-    clientContent: {
-      turns: [{
-        role: USER_ROLE,
-        parts: [{ text }]
-      }],
-      turnComplete: false
     }
   };
 }
@@ -127,12 +104,6 @@ export type ServerEvent =
     kind: typeof ServerEventKind.RESUME_HANDLE;
     handle: string;
   };
-
-type Json = Record<string, unknown>;
-
-function isObject(value: unknown): value is Json {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 /** The field when it is an object, otherwise nothing — absent and malformed alike. */
 function objectField({ from, key }: { from: Json; key: string }) {
