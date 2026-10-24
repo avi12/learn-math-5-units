@@ -2,7 +2,8 @@
   "$schema": "https://raw.githubusercontent.com/getfallow/fallow/main/schema/fallowrc.json",
   "entry": [
     "src/entrypoints/**",
-    "chaintest.mjs"
+    "chaintest.mjs",
+    "livechain.mjs"
   ],
   "ignorePatterns": [
     "claude.test.html"

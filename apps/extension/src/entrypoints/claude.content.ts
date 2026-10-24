@@ -1,3 +1,4 @@
+import { orNull, sleep } from '../utils/async';
 import { ExtensionMessage, extensionMessenger } from '../utils/protocol';
 
 /** On claude.ai: put the board and the prompt into the composer, and stop there.
@@ -18,8 +19,12 @@ import { ExtensionMessage, extensionMessenger } from '../utils/protocol';
  *  DOM behind its back, which it would overwrite on the next keystroke. */
 function pasteInto({ target, file, text }: { target: HTMLElement; file?: File; text?: string }) {
   const dt = new DataTransfer();
-  if (file) {dt.items.add(file);}
-  if (text) {dt.setData('text/plain', text);}
+  if (file) {
+    dt.items.add(file);
+  }
+  if (text) {
+    dt.setData('text/plain', text);
+  }
   target.focus();
   return target.dispatchEvent(
     new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })
@@ -42,7 +47,9 @@ function dataUrlToFile({ dataUrl, name }: { dataUrl: string; name: string }): Fi
   const mime = /:(.*?);/.exec(head)?.[1] ?? 'image/png';
   const bin = atob(body);
   const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) {bytes[i] = bin.charCodeAt(i);}
+  for (let i = 0; i < bin.length; i++) {
+    bytes[i] = bin.charCodeAt(i);
+  }
   return new File([bytes], name, { type: mime });
 }
 
@@ -53,14 +60,21 @@ function composer(timeoutMs = 15000): Promise<HTMLElement | null> {
     document.querySelector<HTMLElement>('div[contenteditable="true"]');
   return new Promise((resolve) => {
     const now = find();
-    if (now) {return resolve(now);}
+    if (now) {
+      resolve(now);
+      return;
+    }
+
     const stop = setTimeout(() => {
       observer.disconnect();
       resolve(null);
     }, timeoutMs);
     const observer = new MutationObserver(() => {
       const el = find();
-      if (!el) {return;}
+      if (!el) {
+        return;
+      }
+
       clearTimeout(stop);
       observer.disconnect();
       resolve(el);
@@ -95,8 +109,11 @@ function banner({ text, tone }: { text: string; tone: Tone }) {
 }
 
 async function run() {
-  const job = await extensionMessenger.sendMessage(ExtensionMessage.TAKE).catch(() => null);
-  if (!job) {return;} // an ordinary visit to Claude, not one this extension asked for
+  const job = await orNull(extensionMessenger.sendMessage(ExtensionMessage.TAKE));
+  // an ordinary visit to Claude, not one this extension asked for
+  if (!job) {
+    return;
+  }
 
   const box = await composer();
   if (!box) {
@@ -119,7 +136,7 @@ async function run() {
 
   // Image first: it becomes an attachment, and the text then lands in an empty box.
   const image = pasteInto({ target: box, file: dataUrlToFile({ dataUrl: job.image, name: 'board.png' }) });
-  await new Promise((r) => setTimeout(r, 400));
+  await sleep(400);
   const text = pasteInto({ target: box, text: job.prompt });
 
   if (!image || !text) {

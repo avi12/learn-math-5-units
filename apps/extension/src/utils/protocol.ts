@@ -15,17 +15,7 @@ import type {
 import { defineExtensionMessaging } from '@webext-core/messaging';
 import { defineCustomEventMessaging } from '@webext-core/messaging/page';
 
-/** The one row in `chrome.storage.local`. */
-export const PENDING = 'pending';
-
-/** Where a check goes. */
-export const NEW_CHAT = 'https://claude.ai/new';
-
-/** How long a parked payload stays valid. A stale one is worse than none: it would be
- *  pasted into whatever Claude tab opens next, days later. */
-export const PENDING_TTL_MS = 5 * 60 * 1000;
-
-/** The same, once the background has stamped it. */
+/** A check, as the background parks it: stamped, so the Claude tab can refuse a stale one. */
 export type PendingCheck = CheckPayload & { at: number };
 
 /* ---- Gemini Live ------------------------------------------------------------------
@@ -193,7 +183,10 @@ export interface ExtensionProtocolMap extends BridgeReportProtocolMap, BridgeCal
   [ExtensionMessage.GLIC_RETITLE](data: Activation): void;
 }
 
-export const extensionMessenger = defineExtensionMessaging<ExtensionProtocolMap>();
+/* Both messengers are marked pure, so a script that never talks on one is built without
+ * it: the Claude tab's has no bridge, and the bridge's — in the page's world, with no
+ * `chrome.runtime` — no extension channel. */
+export const extensionMessenger = /* @__PURE__ */ defineExtensionMessaging<ExtensionProtocolMap>();
 
 /** The messages between the Gemini page's two worlds. */
 export const BridgeMessage = {
@@ -214,23 +207,4 @@ export interface BridgeProtocolMap extends BridgeReportProtocolMap, BridgeCallPr
   [BridgeMessage.ACTIVATE](data: Activation): void;
 }
 
-export const bridgeMessenger = defineCustomEventMessaging<BridgeProtocolMap>({ namespace: 'avi-math-glic@1' });
-
-/** `promise`, or `fallback` once `ms` have passed — a messenger waits for an answer forever,
- *  and every wait here has a deadline (a picture, a call). Rejections become the
- *  fallback too: a party that is not there is the same as one that does not answer. */
-export function within<T, F>({ ms, promise, fallback }: { ms: number; promise: Promise<T>; fallback: F }): Promise<T | F> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(fallback), ms);
-    promise.then(
-      (v) => {
-        clearTimeout(timer);
-        resolve(v);
-      },
-      () => {
-        clearTimeout(timer);
-        resolve(fallback);
-      }
-    );
-  });
-}
+export const bridgeMessenger = /* @__PURE__ */ defineCustomEventMessaging<BridgeProtocolMap>({ namespace: 'avi-math-glic@1' });

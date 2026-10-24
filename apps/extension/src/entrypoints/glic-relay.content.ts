@@ -1,13 +1,13 @@
+import { orNull, quietly, within } from '../utils/async';
 import {
+  type Activation,
   BridgeCall,
   BridgeMessage,
   bridgeMessenger,
   BridgeReport,
   ExtensionMessage,
   extensionMessenger,
-  GLIC_URL,
-  within,
-  type Activation
+  GLIC_URL
 } from '../utils/protocol';
 
 /** Beside the bridge, in the Gemini tab: carry its reports to the worker and the worker's
@@ -37,18 +37,18 @@ export default defineContentScript({
     let activation: Activation | null = null;
     const activate = (a: Activation): void => {
       activation = a;
-      void bridgeMessenger.sendMessage(BridgeMessage.ACTIVATE, a).catch(() => {});
+      void quietly(bridgeMessenger.sendMessage(BridgeMessage.ACTIVATE, a));
     };
 
     // Whichever of the two scripts comes up second finds the other: the bridge asks when
     // it is installed, and this tells it once the worker has answered.
     bridgeMessenger.onMessage(BridgeMessage.PRESENT, () => activation);
-    bridgeMessenger.onMessage(BridgeMessage.CAPTURE, () => extensionMessenger.sendMessage(ExtensionMessage.GLIC_CAPTURE).catch(() => null));
+    bridgeMessenger.onMessage(BridgeMessage.CAPTURE, () => {
+      return orNull(extensionMessenger.sendMessage(ExtensionMessage.GLIC_CAPTURE));
+    });
 
     // The bridge's reports, up to the worker: nothing waits on them.
-    const up = (sent: Promise<void>): void => {
-      void sent.catch(() => {});
-    };
+    const up = (sent: Promise<void>): void => void quietly(sent);
     bridgeMessenger.onMessage(BridgeReport.BOOTED, () => up(extensionMessenger.sendMessage(BridgeReport.BOOTED)));
     bridgeMessenger.onMessage(BridgeReport.READY, () => up(extensionMessenger.sendMessage(BridgeReport.READY)));
     bridgeMessenger.onMessage(BridgeReport.STATE, ({ data }) => up(extensionMessenger.sendMessage(BridgeReport.STATE, data)));
@@ -66,14 +66,18 @@ export default defineContentScript({
 
     // a new exercise: the activation again, which the bridge takes as a new name only
     extensionMessenger.onMessage(ExtensionMessage.GLIC_RETITLE, ({ data }) => {
-      if (activation) {
-        activate(data);
+      if (!activation) {
+        return;
       }
+
+      activate(data);
     });
 
-    const hello = await extensionMessenger.sendMessage(ExtensionMessage.GLIC_HELLO).catch(() => null);
-    if (hello?.mine) {
-      activate({ title: hello.title, url: hello.url });
+    const hello = await orNull(extensionMessenger.sendMessage(ExtensionMessage.GLIC_HELLO));
+    if (!hello?.mine) {
+      return;
     }
+
+    activate({ title: hello.title, url: hello.url });
   }
 });

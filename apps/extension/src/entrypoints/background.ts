@@ -1,12 +1,16 @@
+import { quietly } from '../utils/async';
 import { installLive } from '../utils/live';
-import {
-  ExtensionMessage,
-  extensionMessenger,
-  NEW_CHAT,
-  PENDING,
-  PENDING_TTL_MS,
-  type PendingCheck
-} from '../utils/protocol';
+import { ExtensionMessage, extensionMessenger, type PendingCheck } from '../utils/protocol';
+
+/** The one row in `chrome.storage.local`. */
+const PENDING = 'pending';
+
+/** Where a check goes. */
+const NEW_CHAT = 'https://claude.ai/new';
+
+/** How long a parked payload stays valid. A stale one is worse than none: it would be
+ *  pasted into whatever Claude tab opens next, days later. */
+const PENDING_TTL_MS = 5 * 60 * 1000;
 
 /** Park the payload, open Claude, and let the tab come and collect it.
  *
@@ -36,26 +40,29 @@ export default defineBackground(() => {
 
   extensionMessenger.onMessage(ExtensionMessage.CHECK, ({ data }) => {
     const now = Date.now();
-    if (now - lastOpen < DEDUPE_MS) {return;}
+    if (now - lastOpen < DEDUPE_MS) {
+      return;
+    }
+
     lastOpen = now;
-    // A stale payload is worse than none: it would be pasted into whatever Claude tab
-    // opens next, days later. Stamped, and refused on the other side if it is old.
+    // Stamped, and refused on the other side once it is older than PENDING_TTL_MS.
     // Open Claude either way. If the write failed — quota, most likely, since the board
     // is a data URL — the tab still opens and the Claude script takes its no-payload
     // path, which is a visibly empty chat. Swallowing the failure here would leave the
     // click looking like it did nothing at all.
-    void chrome.storage.local
-      .set({ [PENDING]: { ...data, at: Date.now() } satisfies PendingCheck })
-      .catch(() => {})
-      .then(() => chrome.tabs.create({ url: NEW_CHAT }));
+    const parked: PendingCheck = { ...data, at: Date.now() };
+    void quietly(chrome.storage.local.set({ [PENDING]: parked })).then(() => chrome.tabs.create({ url: NEW_CHAT }));
   });
 
   // The Claude tab asking what it was opened for.
   extensionMessenger.onMessage(ExtensionMessage.TAKE, async () => {
     const row = await chrome.storage.local.get(PENDING);
     const pending = row[PENDING] as PendingCheck | undefined;
-    const fresh = pending && Date.now() - pending.at < PENDING_TTL_MS;
-    if (pending) {void chrome.storage.local.remove(PENDING);}
-    return fresh ? pending : null;
+    if (!pending) {
+      return null;
+    }
+
+    void chrome.storage.local.remove(PENDING);
+    return Date.now() - pending.at < PENDING_TTL_MS ? pending : null;
   });
 });

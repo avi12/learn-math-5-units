@@ -1,11 +1,13 @@
+import { quietly, within } from '../utils/async';
+import { ExtensionMessage, extensionMessenger } from '../utils/protocol';
 import {
+  type LiveStatus,
+  type NoteRequest,
   PadMessage,
   padMessenger,
   PRESENCE_FLAG,
-  PRESENCE_READY,
-  type NoteRequest
+  PRESENCE_READY
 } from '@learn-math/shared/protocol';
-import { ExtensionMessage, extensionMessenger, within } from '../utils/protocol';
 
 /** On the pad: hear the buttons, hand the payloads to the background worker — and, for
  *  Gemini Live, carry the worker's picture requests and news back into the page.
@@ -43,54 +45,60 @@ export default defineContentScript({
     // Page → worker. What the page sends is checked here: a content script shares the
     // page's window with everything else on it.
     padMessenger.onMessage(PadMessage.CHECK, ({ data }) => {
-      if (typeof data?.image !== 'string' || typeof data.prompt !== 'string') {return;}
-      void extensionMessenger
-        .sendMessage(ExtensionMessage.CHECK, { image: data.image, prompt: data.prompt, topic: String(data.topic ?? '') })
-        .catch(() => {});
+      if (typeof data?.image !== 'string' || typeof data.prompt !== 'string') {
+        return;
+      }
+
+      const check = { image: data.image, prompt: data.prompt, topic: String(data.topic ?? '') };
+      void quietly(extensionMessenger.sendMessage(ExtensionMessage.CHECK, check));
     });
     padMessenger.onMessage(PadMessage.LIVE_START, ({ data }) => {
-      if (typeof data?.prompt !== 'string' || typeof data.title !== 'string') {return;}
-      void extensionMessenger
-        .sendMessage(ExtensionMessage.LIVE_START, { prompt: data.prompt, title: data.title, notes: noteRequestOf(data.notes) })
-        .catch(() => {});
+      if (typeof data?.prompt !== 'string' || typeof data.title !== 'string') {
+        return;
+      }
+
+      const start = { prompt: data.prompt, title: data.title, notes: noteRequestOf(data.notes) };
+      void quietly(extensionMessenger.sendMessage(ExtensionMessage.LIVE_START, start));
     });
     padMessenger.onMessage(PadMessage.LIVE_RETARGET, ({ data }) => {
-      if (typeof data?.title !== 'string') {return;}
-      void extensionMessenger
-        .sendMessage(ExtensionMessage.LIVE_RETARGET, { title: data.title, notes: noteRequestOf(data.notes) })
-        .catch(() => {});
+      if (typeof data?.title !== 'string') {
+        return;
+      }
+
+      const target = { title: data.title, notes: noteRequestOf(data.notes) };
+      void quietly(extensionMessenger.sendMessage(ExtensionMessage.LIVE_RETARGET, target));
     });
     padMessenger.onMessage(PadMessage.LIVE_STOP, () => {
-      void extensionMessenger.sendMessage(ExtensionMessage.LIVE_STOP).catch(() => {});
+      void quietly(extensionMessenger.sendMessage(ExtensionMessage.LIVE_STOP));
     });
 
-    // Worker → page.
+    // Worker → page: the page is this tab's own, so every message goes to its origin only.
+    const tellPage = (status: LiveStatus): void => {
+      void quietly(padMessenger.sendMessage(PadMessage.LIVE_STATUS, status, location.origin));
+    };
     extensionMessenger.onMessage(ExtensionMessage.FRAME, () =>
       within({ ms: FRAME_MS, promise: padMessenger.sendMessage(PadMessage.FRAME, undefined, location.origin), fallback: null })
     );
-    extensionMessenger.onMessage(ExtensionMessage.LIVE_STATUS, ({ data }) => {
-      void padMessenger.sendMessage(PadMessage.LIVE_STATUS, data, location.origin).catch(() => {});
-    });
+    extensionMessenger.onMessage(ExtensionMessage.LIVE_STATUS, ({ data }) => tellPage(data));
     extensionMessenger.onMessage(ExtensionMessage.LIVE_NOTE, ({ data }) => {
-      void padMessenger.sendMessage(PadMessage.LIVE_NOTE, data, location.origin).catch(() => {});
+      void quietly(padMessenger.sendMessage(PadMessage.LIVE_NOTE, data, location.origin));
     });
 
     // A pad reloaded in the middle of a session still has one: ask, and tell the page —
     // after the app has mounted and is listening, since this script runs before it exists.
-    void extensionMessenger
-      .sendMessage(ExtensionMessage.PAD_HELLO)
-      .then((status) => {
+    void quietly(
+      extensionMessenger.sendMessage(ExtensionMessage.PAD_HELLO).then((status) => {
         if (!status) {
           return;
         }
 
-        const tell = () => void padMessenger.sendMessage(PadMessage.LIVE_STATUS, status, location.origin).catch(() => {});
         if (document.readyState === 'complete') {
-          tell();
-        } else {
-          addEventListener('load', tell, { once: true });
+          tellPage(status);
+          return;
         }
+
+        addEventListener('load', () => tellPage(status), { once: true });
       })
-      .catch(() => {});
+    );
   }
 });
