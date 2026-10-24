@@ -14,6 +14,7 @@
   import { RUNG_LIST, TOPICS, exKey, type Topic } from './check';
   import { Role } from './device';
   import { pickOf, type Choice } from './pick.svelte';
+  import LiveEngine from './LiveEngine.svelte';
   import { isRunning, live, liveLabel } from './live.svelte';
   import { StorageKey, readFlag, writeFlag } from './preferences';
   import iconFold from './icons/IconFold.svg?raw';
@@ -246,8 +247,10 @@
     <!-- Two kinds of help. Claude marks the finished work from one picture; Gemini Live
          is a private tutor beside the work while it is being done — Avi: "לא מדובר
          בבחינה. ג'מיני צריך להתנהג כמו מורה פרטי, לעזור לי תוך כדי". It is briefed on
-         this same exercise and criteria (lib/check.ts `liveBrief`). Both go through the
-         extension, so both are desktop-only, and a running session's state sits between. -->
+         this same exercise and criteria (lib/check.ts `liveBrief`). Both are desktop-only:
+         Claude goes through the extension, and Gemini through the extension or this page
+         on the person's own key (LiveEngine, under the buttons). A running session's state
+         sits between. -->
     <div class="qfoot">
       {#if liveOn || live.detail}
         <span class="lstate" role="status">{liveLabel()}</span>
@@ -259,6 +262,7 @@
         {@html iconInspect}סיימתי — שקלוד יבדוק
       </button>
     </div>
+    <LiveEngine onstart={onlive} />
   {/if}
 </section>
 
