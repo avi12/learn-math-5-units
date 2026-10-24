@@ -58,6 +58,20 @@ export const LiveState = {
 } as const;
 export type LiveState = (typeof LiveState)[keyof typeof LiveState];
 
+/** The states in which there is a session to end. */
+const RUNNING: ReadonlySet<LiveState> = new Set([
+  LiveState.OPENING,
+  LiveState.BRIEFING,
+  LiveState.WRITING,
+  LiveState.LIVE,
+  LiveState.PAUSED,
+  LiveState.RECONNECTING
+]);
+
+export function isRunning(state: LiveState): boolean {
+  return RUNNING.has(state);
+}
+
 /** The exercise a session is aimed at. */
 export interface LiveTarget {
   /** a human label for the exercise, for the Gemini window's shared-tab chip */
@@ -100,6 +114,11 @@ export interface LiveStatus {
   /** what went wrong, in words the pad can show as they are (FAILED) */
   detail?: string;
 }
+
+/** What the pad shows when a note was asked for and did not come, whichever engine asked.
+ *  Here and not in notes.ts, which only the engines load: the pad's main chunk needs the
+ *  words, and not the note code. */
+export const NOTE_FAILED = 'הפתק לא נכתב — בקש שוב';
 
 /** One picture, as the Gemini client's host API hands it over. */
 export interface Frame {
@@ -146,4 +165,6 @@ export interface PadProtocolMap {
 /** The window messenger's namespace; the version is the wire's. */
 export const PAD_NAMESPACE = 'avi-math@2';
 
-export const padMessenger = defineWindowMessaging<PadProtocolMap>({ namespace: PAD_NAMESPACE });
+/** Pure, so a bundle that only reads a constant from here (the worker reads `LiveState`)
+ *  does not carry the messenger. */
+export const padMessenger = /* @__PURE__ */ defineWindowMessaging<PadProtocolMap>({ namespace: PAD_NAMESPACE });

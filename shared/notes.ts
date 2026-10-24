@@ -14,7 +14,22 @@
 import type { LiveNote, NoteRequest } from './protocol';
 
 /** The longest a note waits for Gemini to finish the sentence that said the cue. */
-export const NOTE_WAIT_MS = 15_000;
+const NOTE_WAIT_MS = 15_000;
+
+/** Both sides of the exchange a note is made from: the person's last words, and Gemini's
+ *  sentence that said the cue. */
+export interface NoteExchange {
+  heardText: string;
+  saidText: string;
+}
+
+/** What an answer to `notePrompt` comes to. `isNone` is Gemini saying there is nothing to
+ *  write — an answer, and the right one for a cue said in passing; a null note without it
+ *  is a note that failed. */
+export interface NoteAnswer {
+  note: LiveNote | null;
+  isNone: boolean;
+}
 
 /** How Gemini's text stands in for a part it rendered instead — an app's action card, a
  *  picture, a canvas: `http://googleusercontent.com/action_card_content/<id>` and its
@@ -25,7 +40,7 @@ const RENDERED_PART = /\bgoogleusercontent\.com\//;
 /** A note out of the answer's markdown: inside a code fence if Gemini used one, the
  *  first line its title, and the markdown's own marks (bold, headings, bullets) dropped —
  *  the pad renders `$…$` and plain lines, nothing else. */
-export function noteOf(answer: string): LiveNote | null {
+function noteOf(answer: string): LiveNote | null {
   if (RENDERED_PART.test(answer)) {
     return null;
   }
@@ -49,28 +64,26 @@ export function noteOf(answer: string): LiveNote | null {
 
 /** The request for a note: the workbook's template, with the person's last words and
  *  Gemini's sentence in their slots. */
-export function notePrompt({
-  request,
-  heardText,
-  saidText
-}: {
-  request: NoteRequest;
-  heardText: string;
-  saidText: string;
-}): string {
+export function notePrompt({ request, heardText, saidText }: NoteExchange & { request: NoteRequest }): string {
   return request.template.replace(request.heard, heardText).replace(request.said, saidText);
 }
 
-/** What an answer to `notePrompt` comes to. `isNone` is Gemini saying there is nothing to
- *  write — an answer, and the right one for a cue said in passing; a null note without it
- *  is a note that failed. */
-export function noteFromAnswer({ answer, request }: { answer: string; request: NoteRequest }): {
-  note: LiveNote | null;
-  isNone: boolean;
-} {
+/** What an answer to `notePrompt` comes to (`NoteAnswer`). */
+export function noteFromAnswer({ answer, request }: { answer: string; request: NoteRequest }): NoteAnswer {
   const text = answer.trim();
   const isNone = text.replace(/["'.״]/g, '').trim() === request.none;
   return { note: text && !isNone ? noteOf(text) : null, isNone };
+}
+
+/** The whole round for one note: the prompt, `ask` (the engine's way to Gemini's text
+ *  side), the verdict. An `ask` that fails or comes back empty is a note that failed. */
+export async function askForNote({ request, exchange, ask }: {
+  request: NoteRequest;
+  exchange: NoteExchange;
+  ask: (prompt: string) => Promise<string | null>;
+}): Promise<NoteAnswer> {
+  const answer = await ask(notePrompt({ request, ...exchange })).catch(() => null);
+  return noteFromAnswer({ answer: answer ?? '', request });
 }
 
 /** What the transcript is listened for. An engine tells it each line as it arrives and
@@ -90,7 +103,7 @@ export function createCueWatch({
   release,
   waitMs = NOTE_WAIT_MS
 }: {
-  release: (said: { heardText: string; saidText: string }) => void;
+  release: (exchange: NoteExchange) => void;
   waitMs?: number;
 }): CueWatch {
   /** The person's last words, which the note request quotes — as context only: a
@@ -114,9 +127,9 @@ export function createCueWatch({
       return;
     }
 
-    const said = { heardText: lastHeard, saidText: saying };
+    const exchange = { heardText: lastHeard, saidText: saying };
     disarm();
-    release(said);
+    release(exchange);
   };
 
   return {
